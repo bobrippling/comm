@@ -1,0 +1,25 @@
+mpd-like protocol << EOM
+Message Rob: hi there
+Message this is a new line
+EOM
+Status Client New 1
+Status Client 1 Name Timmy
+EOM
+
+basesuckally copy mpd's simplicity
+
+change +use line.c for getting input
+
+map out client shizcakes better
+
+kick function
+
+clean up properly on signal
+
+check memory leaks
+
+irc commands - /disco, etc
+
+edit previous message (index - 1, ONLY) like Skype
+
+socket wrapper: http://github.com/Themaister/simple-irc-bot/blob/de02385f257b43ae190eacf131464fb52a6355e8/socket.c
