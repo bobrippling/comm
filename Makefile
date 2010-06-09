@@ -3,18 +3,23 @@ CFLAGS = -g -W -Wall -Wcast-align -Wcast-qual -Wshadow -Wnested-externs \
 		-Wstrict-prototypes -Wmissing-prototypes -Winline -Wredundant-decls -Wextra \
 		-pedantic -pipe
 
-CC              = gcc
-LDFLAGS         =
+CC							= gcc
+LDFLAGS					=
 
-BIN             = comm
-OBJS            = main.o comm.o log.o protocol.o socket.o line.o strings.o ui/term.o
+BIN							= bin/Linux/comm
+OBJD						= obj/Linux
+
+OBJS						= ${OBJD}/main.o ${OBJD}/comm.o ${OBJD}/log.o \
+									${OBJD}/protocol.o ${OBJD}/socket.o \
+									${OBJD}/line.o ${OBJD}/strings.o \
+									${OBJD}/ui/term.o
 
 
 ${BIN} : ${OBJS} config.h
 	@echo LD $@
 	@${CC} ${CFLAGS} ${LDFLAGS} -o $@ ${OBJS}
 
-%.o: %.c
+${OBJD}/%.o: %.c
 	@echo CC $<
 	@${CC} ${CFLAGS} -c -o $@ $<
 
