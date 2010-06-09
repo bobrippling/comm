@@ -1,181 +1,1 @@
-#include <stdio.h>
-#ifdef _WIN32
-#include <winsock.h>
-#else
-#include <sys/socket.h>
-#include <sys/select.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#endif
-#include <errno.h>
-#include <string.h>
-#include <stdlib.h>
-
-
-#include "protocol.h"
-#include "comm.h"
-#include "socket.h"
-#include "line.h"
-
-#define BUFFER_SIZE 1024
-#define SECOND_WAIT 0
-#define USEC_WAIT	 1000 * 100
-/* aka 100ms */
-
-static int mainloop(int, char *);
-
-static int server; /* bool */
-
-
-int clientloop(char *host, char *service, char *name)
-{
-	int fd = tryconnect(host, service), ret;
-
-	if(!fd){
-		fprintf(stderr, "Couldn't connect to %s:%s: ", host, service);
-		perror(NULL);
-		return 1;
-	}
-
-	printf("Connected to %s:%s\n", host, service);
-
-	server = 0;
-	ret = mainloop(fd, name);
-	destroysocket(fd);
-	return ret;
-}
-
-
-int serverloop(char *service, char *name)
-{
-	int fd = trylisten(service), ret, cfd;
-	struct sockaddr_in clientaddr; /* inet */
-#ifdef _WIN32
-	int
-#else
-	socklen_t
-#endif
-		addrlen = sizeof(clientaddr);
-
-	if(!fd){
-		fprintf(stderr, "Couldn't listen on %s: ", service);
-		perror(NULL);
-		return 1;
-	}
-
-	printf("Listening on %s...\n", service);
-
-	cfd = accept(fd, (struct sockaddr *)&clientaddr, &addrlen);
-	if(cfd == -1){
-		perror("accept()");
-		destroysocket(fd);
-		return 1;
-	}
-
-	printf("Got connection from %s\n", inet_ntoa(clientaddr.sin_addr));
-
-	server = 1;
-	ret = mainloop(cfd, name);
-	destroysocket(fd);
-	destroysocket(cfd);
-	return ret;
-}
-
-int mainloop(int fd, char *name)
-{
-	char *line = NULL;
-	fd_set fdset;
-	int linesize = 0, printprompt = 1;
-
-	setbuf(stdout, NULL); /* unbuffered */
-
-	do{
-		struct timeval tv = { SECOND_WAIT, USEC_WAIT };
-
-		FD_ZERO(&fdset);
-		FD_SET(fileno(stdin), &fdset);
-		FD_SET(fd, &fdset);
-
-		if(printprompt){
-			printprompt = 0;
-			fputs("> ", stdout);
-		}
-
-		switch(select(fd + 1, &fdset, NULL, NULL, &tv)){
-			case -1:
-				/* error */
-				if(errno == EINTR)
-					/* interrupt */
-					continue;
-				perror("select()");
-				goto cleanup;
-
-			case 0:
-				/* zero bytes read - timer stuff goes here */
-				break;
-
-			default:
-				if(FD_ISSET(fileno(stdin), &fdset)){
-					SOCKET_DATA *msg;
-
-					if(rline(&line, &linesize) == 2){
-						/* mem err */
-						perror("malloc()");
-						goto cleanup;
-					}
-
-					if(*line == EOF){
-						putchar('\n');
-						goto cleanup;
-					}else if(!strcmp("exit", line))
-						goto cleanup;
-
-					if(!(msg = createmessage(name, line))){
-						perror("malloc()");
-						goto cleanup;
-					}
-
-					if(senddata(fd, msg)){
-						perror("senddata()");
-						goto cleanup;
-					}
-					freemessage(msg);
-					printprompt = 1;
-				}else if(FD_ISSET(fd, &fdset)){
-					char buf[BUFFER_SIZE];
-					SOCKET_DATA msg;
-					struct sockaddr addrfrom;
-#ifdef _WIN32
-					int
-#else
-					/* can't be const */socklen_t
-#endif
-						 slen = sizeof(addrfrom);
-
-					int readlen = recvfrom(fd, buf, BUFFER_SIZE-1, 0, &addrfrom, &slen); /* FIXME: change to read() */
-
-					switch(readlen){
-						case -1:
-							if(errno == EINTR)
-								continue;
-							perror("recvfrom()");
-							goto cleanup;
-
-						case 0:
-							/* done, clean up */
-							puts(server ? "Client disconnect\n" : "Server disconnect\n");
-							goto cleanup;
-
-						default:
-							buf[readlen] = '\0';
-							msg.data = buf;
-							processdata(&msg);
-					}
-				}
-		}
-	}while(1);
-
-cleanup:
-	free(line);
-	return 0;
-}
+#include <stdio.h>#include "headers.h"#if WINDOWS# include <winsock.h># define close(s) closesocket(s)#else# include <sys/types.h># include <sys/socket.h># include <netinet/in.h># include <arpa/inet.h>#endif#include <errno.h>#include <string.h>#include <stdlib.h>#include "protocol.h"#include "comm.h"#include "settings.h"#define BUFFER_SIZE 1024#define SECOND_WAIT 0#define USEC_WAIT	 1000 * 100/* aka 100ms */#define SOCKET() socket(PF_INET, SOCK_STREAM, 0)#if WINDOWS# define WIN_INIT() do { \											WSADATA wsabs; \											if(WSAStartup(MAKEWORD(2,2), &wsabs)){ \												perror("WSAStartup()"); \												ret = 1; \												goto bail; \											} \										}while(0)#else# define WIN_INIT()#endifextern struct settings global_settings;static int mainloop(int, char);/* http://www.prasannatech.net/2008/07/socket-programming-tutorial.html */int clientloop(const char *host){	int sock, ret;	/* the 0th STREAM protocol */	struct sockaddr_in serv_addr;	WIN_INIT();	if((sock  = SOCKET()) == -1){		perror("socket()");		return 1;	}	serv_addr.sin_family      = AF_INET;	serv_addr.sin_port        = htons(global_settings.port);	serv_addr.sin_addr.s_addr = INADDR_ANY;	memset(serv_addr.sin_zero, '\0', sizeof(serv_addr.sin_zero));	if(connect(sock, (struct sockaddr *)&serv_addr,				sizeof(struct sockaddr)) == -1){		perror("connect()");		return 1;	}	printf("Connected to %s:%d\n", host, global_settings.port);	ret = mainloop(sock, 0);	close(sock);bail:	return ret;}int serverloop(void){	struct sockaddr_in client, serv;	int sock = SOCKET(), cl_sock = -1, addrsize, ret;	if(sock == -1){		perror("socket()");		ret = 1;		goto bail;	}	serv.sin_family = AF_INET;	serv.sin_port = htons(global_settings.port);	serv.sin_addr.s_addr = INADDR_ANY;	memset(&serv.sin_zero, '\0', sizeof(serv.sin_zero));	if(bind(sock, (struct sockaddr *)&serv,				sizeof(struct sockaddr)) == -1){		perror("bind()");		ret = 1;		goto bail;	}	if(listen(sock, 1)){ /* 1 = backlog */		perror("listen()");		ret = 1;		goto bail;	}	printf("Listening on %d...\n", global_settings.port);	addrsize = sizeof(struct sockaddr_in);	cl_sock = accept(sock, (struct sockaddr *)&client, &addrsize);	if(cl_sock == -1){		perror("accept()");		ret = 1;		goto bail;	}	printf("Got connection from %s:%d\n",			inet_ntoa(client.sin_addr),			ntohs(client.sin_port));	ret = mainloop(cl_sock, 1);bail:	if(cl_sock != -1)		close(cl_sock);	if(sock != -1)		close(sock);	return ret;}static int mainloop(int sock, char server){	char *line = NULL;	fd_set fdset;	int linesize = 0, printprompt = 1;	setbuf(stdout, NULL); /* unbuffered */	do{		struct timeval tv = { SECOND_WAIT, USEC_WAIT };		FD_ZERO(&fdset);		FD_SET(fileno(stdin), &fdset);		FD_SET(sock, &fdset);		if(printprompt){			printprompt = 0;			fputs("> ", stdout);		}		switch(select(sock + 1, &fdset, NULL, NULL, &tv)){			case -1:				/* error */				if(errno == EINTR)					/* interrupt */					continue;				perror("select()");				goto cleanup;			case 0:				/* zero bytes read - timer stuff goes here */				break;			default:				if(FD_ISSET(fileno(stdin), &fdset)){					SOCKET_DATA *msg;					/*if(rline(&line, &linesize) == 2){						perror("malloc()");						goto cleanup;TODO					}*/					if(*line == EOF){						putchar('\n');						goto cleanup;					}else if(!strcmp("exit", line))						goto cleanup;					if(!(msg = createmessage(global_settings.name, line))){						perror("malloc()");						goto cleanup;					}					if(senddata(sock, msg)){						perror("senddata()");						goto cleanup;					}					freemessage(msg);					printprompt = 1;				}else if(FD_ISSET(sock, &fdset)){					char buf[BUFFER_SIZE];					SOCKET_DATA msg;					struct sockaddr addrfrom;#ifdef _WIN32					int#else					/* can't be const */socklen_t#endif						 slen = sizeof(addrfrom);					int readlen = recvfrom(sock, buf, BUFFER_SIZE-1, 0, &addrfrom, &slen); /* FIXME: change to read() */					switch(readlen){						case -1:							if(errno == EINTR)								continue;							perror("recvfrom()");							goto cleanup;						case 0:							/* done, clean up */							puts(server ? "Client disconnect\n" : "Server disconnect\n");							goto cleanup;						default:							buf[readlen] = '\0';							msg.data = buf;							processdata(&msg);					}				}		}	}while(1);cleanup:	free(line);	return 0;}

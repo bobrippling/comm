@@ -1,7 +1,11 @@
 #include <sys/types.h> /* posix */
-#include <sys/socket.h>
-#include <netdb.h> /* addrinfo */
-#include <unistd.h>
+#if _WIN32
+# include <winsock.h>
+#else
+# include <sys/socket.h>
+# include <netdb.h> /* addrinfo */
+# include <unistd.h>
+#endif
 
 #include <stdlib.h>
 #include <string.h>
@@ -9,7 +13,7 @@
 #include "socket.h"
 
 #define DOMAIN AF_INET /* AF_INET6 */
-#define TYPE SOCK_STREAM|SOCK_NONBLOCK
+#define TYPE SOCK_STREAM
 #define PROTOCOL 0
 #define LISTEN_BACKLOG 10
 /* SOCK_DGRAM */

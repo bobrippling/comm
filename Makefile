@@ -12,7 +12,7 @@ OBJD						= obj/Linux
 OBJS						= ${OBJD}/main.o ${OBJD}/comm.o ${OBJD}/log.o \
 									${OBJD}/protocol.o ${OBJD}/socket.o \
 									${OBJD}/line.o ${OBJD}/strings.o \
-									${OBJD}/ui/term.o
+									${OBJD}/ui/ui.o
 
 
 ${BIN} : ${OBJS} config.h
@@ -39,5 +39,5 @@ main.o: main.c log.h comm.h
 protocol.o: protocol.c log.h protocol.h
 socket.o: socket.c socket.h
 strings.o: strings.c strings.h
-term.o: ui/term.c ui/term.h
+ui.o: ui/term.h
 window.o: ui/window.c
