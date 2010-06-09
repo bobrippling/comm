@@ -6,6 +6,18 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
+
+#define escape_clrtoeol() escape_print("K")
+void term_setoriginal(void);
+void term_setcustom(void);
+
+int ncols(void);
+int nrows(void);
+
+void escape_print(const char *);
+void escape_movex(signed char);
+
+
 /*
  * http://en.wikibooks.org/wiki/Serial_Programming/termios
  *

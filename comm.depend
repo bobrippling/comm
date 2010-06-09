@@ -1,0 +1,50 @@
+# depslib dependency file v1.0
+1276100118 source:c:\cygwin\home\rob\desktop\comm\line.c
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<ctype.h>
+	"strings.h"
+	"line.h"
+	"ui/term.h"
+
+1276100085 c:\cygwin\home\rob\desktop\comm\strings.h
+
+1276100085 c:\cygwin\home\rob\desktop\comm\line.h
+
+1276100085 c:\cygwin\home\rob\desktop\comm\ui\term.h
+
+1276115103 source:c:\cygwin\home\rob\desktop\comm\log.c
+	<stdio.h>
+
+1276100085 c:\cygwin\home\rob\desktop\comm\log.h
+
+1276114746 source:c:\cygwin\home\rob\desktop\comm\main.c
+	<stdio.h>
+
+1276106064 c:\cygwin\home\rob\desktop\comm\comm.h
+
+1276113970 source:c:\cygwin\home\rob\desktop\comm\protocol.c
+	<stdio.h>
+
+1276100085 c:\cygwin\home\rob\desktop\comm\protocol.h
+
+1276100085 source:c:\cygwin\home\rob\desktop\comm\strings.c
+	<stdarg.h>
+	<string.h>
+	<stdlib.h>
+	"strings.h"
+
+1276113924 source:c:\cygwin\home\rob\desktop\comm\comm.c
+	<stdio.h>
+
+1276107780 c:\cygwin\home\rob\desktop\comm\settings.h
+
+1276110402 source:c:\cygwin\home\rob\desktop\comm\ui\ui.c
+	"../headers.h"
+
+1276109263 c:\cygwin\home\rob\desktop\comm\headers.h
+
+1276116020 source:c:\cygwin\home\rob\desktop\comm\init.c
+	<stdio.h>
+

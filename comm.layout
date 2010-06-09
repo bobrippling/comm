@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_layout_file>
+	<ActiveTarget name="Debug" />
+	<File name="config.h" open="0" top="0" tabpos="0">
+		<Cursor position="42" topLine="0" />
+	</File>
+	<File name="headers.h" open="0" top="0" tabpos="0">
+		<Cursor position="91" topLine="0" />
+	</File>
+	<File name="init.c" open="0" top="0" tabpos="1">
+		<Cursor position="720" topLine="27" />
+	</File>
+	<File name="log.c" open="0" top="0" tabpos="0">
+		<Cursor position="88" topLine="0" />
+	</File>
+	<File name="protocol.c" open="0" top="0" tabpos="0">
+		<Cursor position="298" topLine="13" />
+	</File>
+	<File name="protocol.h" open="0" top="0" tabpos="0">
+		<Cursor position="267" topLine="0" />
+	</File>
+	<File name="settings.h" open="0" top="0" tabpos="0">
+		<Cursor position="100" topLine="0" />
+	</File>
+	<File name="ui\ui.c" open="0" top="0" tabpos="0">
+		<Cursor position="106" topLine="0" />
+	</File>
+	<File name="ui\ui.h" open="0" top="0" tabpos="0">
+		<Cursor position="246" topLine="0" />
+	</File>
+	<File name="ui\win_controls.c" open="1" top="1" tabpos="2">
+		<Cursor position="71" topLine="0" />
+	</File>
+	<File name="ui\window.c" open="1" top="0" tabpos="1">
+		<Cursor position="2695" topLine="100" />
+	</File>
+</CodeBlocks_layout_file>
