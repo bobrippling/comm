@@ -14,18 +14,25 @@
 
 1276100085 c:\cygwin\home\rob\desktop\comm\ui\term.h
 
-1276115103 source:c:\cygwin\home\rob\desktop\comm\log.c
+1276128377 source:c:\cygwin\home\rob\desktop\comm\log.c
 	<stdio.h>
+	<stdarg.h>
+	"log.h"
 
 1276100085 c:\cygwin\home\rob\desktop\comm\log.h
 
 1276114746 source:c:\cygwin\home\rob\desktop\comm\main.c
 	<stdio.h>
 
-1276106064 c:\cygwin\home\rob\desktop\comm\comm.h
+1276129303 c:\cygwin\home\rob\desktop\comm\comm.h
 
-1276113970 source:c:\cygwin\home\rob\desktop\comm\protocol.c
+1276128381 source:c:\cygwin\home\rob\desktop\comm\protocol.c
 	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<unistd.h>
+	"log.h"
+	"protocol.h"
 
 1276100085 c:\cygwin\home\rob\desktop\comm\protocol.h
 
@@ -35,16 +42,71 @@
 	<stdlib.h>
 	"strings.h"
 
-1276113924 source:c:\cygwin\home\rob\desktop\comm\comm.c
+1276129291 source:c:\cygwin\home\rob\desktop\comm\comm.c
+	"headers.h"
 	<stdio.h>
+	<errno.h>
+	<sys/types.h>
+	<sys/socket.h>
+	<netinet/in.h>
+	<arpa/inet.h>
+	<winsock.h>
+	<string.h>
+	<stdlib.h>
+	"comm.h"
+	"settings.h"
 
-1276107780 c:\cygwin\home\rob\desktop\comm\settings.h
+1276123002 c:\cygwin\home\rob\desktop\comm\settings.h
 
-1276110402 source:c:\cygwin\home\rob\desktop\comm\ui\ui.c
+1276128404 source:c:\cygwin\home\rob\desktop\comm\ui\ui.c
 	"../headers.h"
+	"ui.h"
+	"window.c"
+	"term.c"
 
 1276109263 c:\cygwin\home\rob\desktop\comm\headers.h
 
-1276116020 source:c:\cygwin\home\rob\desktop\comm\init.c
+1276128369 source:c:\cygwin\home\rob\desktop\comm\init.c
 	<stdio.h>
+	<getopt.h>
+	<string.h>
+	<stdlib.h>
+	<string.h>
+	<locale.h>
+	<errno.h>
+	<setjmp.h>
+	"headers.h"
+	<windows.h>
+	"settings.h"
+	"ui/ui.h"
+
+1276131784 c:\cygwin\home\rob\desktop\comm\ui\ui.h
+
+1276130377 c:\cygwin\home\rob\desktop\comm\ui\window.c
+	<stdio.h>
+	<stdarg.h>
+	<windows.h>
+	<winsock2.h>
+	"ui.h"
+	"../log.h"
+	"../settings.h"
+	"win_controls.c"
+	"win_menu.h"
+
+1276130544 c:\cygwin\home\rob\desktop\comm\ui\win_controls.c
+	<commctrl.h>
+
+1276116714 c:\cygwin\home\rob\desktop\comm\ui\term.c
+	<stdio.h>
+	<string.h>
+	<termios.h>
+	<unistd.h>
+	<sys/types.h>
+	<sys/ioctl.h>
+	"term.h"
+
+1276130137 c:\cygwin\home\rob\desktop\comm\ui\win_menu.h
+
+1276130247 source:c:\cygwin\home\rob\desktop\comm\ui\win_menu.rc
+	"win_menu.h"
 
