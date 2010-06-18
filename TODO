@@ -23,3 +23,7 @@ irc commands - /disco, etc
 edit previous message (index - 1, ONLY) like Skype
 
 socket wrapper: http://github.com/Themaister/simple-irc-bot/blob/de02385f257b43ae190eacf131464fb52a6355e8/socket.c
+
+link: http://www.winprog.org/
+
+change to use wxWidgets?

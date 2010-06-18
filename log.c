@@ -2,7 +2,7 @@
 #include <stdarg.h>
 #include "log.h"
 
-#define LOG_FILENAME "log.txt"
+#define LOG_FILENAME "LOG.txt"
 
 static FILE *logfile = NULL;
 
@@ -29,3 +29,4 @@ void log_close(void)
 		logfile = NULL;
 	}
 }
+

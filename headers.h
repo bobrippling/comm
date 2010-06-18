@@ -1,0 +1,1 @@
+#ifndef HEADERS_H#define HEADERS_H#define WINDOWS (defined(_WIN32) || defined(_WIN64))#endif

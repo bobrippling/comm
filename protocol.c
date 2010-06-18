@@ -68,15 +68,15 @@ SOCKET_DATA *createmessage(char *name, char *message)
 		return NULL;
 	}
 
-	
+
 	s[0] = PROTOCOL_MESSAGE;
 	s[1] = '\0';
 	strcat(s, name);
 	strcat(s, SOCKET_DATA_SENTINEL);
 	strcat(s, message);
-	
+
 	msg->data = s;
-	
+
 	return msg;
 }
 
@@ -85,3 +85,4 @@ void freemessage(SOCKET_DATA *msg)
 	free(msg->data);
 	free(msg);
 }
+

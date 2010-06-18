@@ -5,7 +5,7 @@
 
 #include "strings.h"
 #include "line.h"
-#include "term.h"
+#include "ui/term.h"
 
 #define LINE_START_SIZE	 5
 
