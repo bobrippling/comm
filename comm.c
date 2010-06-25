@@ -57,7 +57,7 @@ static int socket_nb(void)
 		return -1;
 	}
 
-	ioctl(s, FIONBIO, &mode); /* non-blocking */
+	// FIXME ioctl(s, FIONBIO, &mode); /* non-blocking */
 
 	return s;
 }

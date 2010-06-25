@@ -11,7 +11,7 @@ OBJD						= obj/Linux
 
 OBJS						= ${OBJD}/main.o ${OBJD}/comm.o ${OBJD}/log.o \
 									${OBJD}/protocol.o ${OBJD}/socket.o \
-									${OBJD}/line.o ${OBJD}/strings.o \
+									${OBJD}/ui/line.o ${OBJD}/strings.o \
 									${OBJD}/ui/ui.o
 
 
@@ -32,12 +32,12 @@ clean: mostlyclean
 mostlyclean:
 	@rm -f *.o
 
-comm.o: comm.c protocol.h comm.h socket.h line.h
-line.o: line.c strings.h line.h
-log.o: log.c log.h
-main.o: main.c log.h comm.h
-protocol.o: protocol.c log.h protocol.h
-socket.o: socket.c socket.h
-strings.o: strings.c strings.h
-ui.o: ui/term.h
-window.o: ui/window.c
+${OBJD}/comm.o: comm.c protocol.h comm.h socket.h ui/line.h
+${OBJD}/line.o: ui/line.c strings.h ui/line.h
+${OBJD}/log.o: log.c log.h
+${OBJD}/main.o: main.c log.h comm.h
+${OBJD}/protocol.o: protocol.c log.h protocol.h
+${OBJD}/socket.o: socket.c socket.h
+${OBJD}/strings.o: strings.c strings.h
+${OBJD}/ui.o: ui/term.h
+${OBJD}/window.o: ui/window.c
