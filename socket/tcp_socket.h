@@ -24,10 +24,10 @@ class TCPSocket
 		int buffersize;
 
 		// func ptrs
-		TCPSocket& (*connrequestf)();
-		void    (*disconnectedf)();
-		void    (*receivedf)(void *, size_t);
-		void    (*errorf)();
+		TCPSocket& (*connrequestf)(TCPSocket&);
+		void       (*connectedf)(TCPSocket&);
+		void       (*disconnectedf)(TCPSocket&);
+		void       (*receivedf)(TCPSocket&, void *, size_t);
 
 	public:
 		enum State
@@ -40,10 +40,10 @@ class TCPSocket
 
 		virtual ~TCPSocket();
 		TCPSocket(
-				TCPSocket& (connreq)(),
-				void (*disconnected)(),
-				void (*received)(void *, size_t),
-				void (*error)(),
+				TCPSocket& (connreq)(TCPSocket&),
+				void (*connected)(TCPSocket&),
+				void (*disconnected)(TCPSocket&),
+				void (*received)(TCPSocket&, void *, size_t),
 				int buffersize = DEF_BUF_SIZE
 				);
 		TCPSocket(const TCPSocket&);

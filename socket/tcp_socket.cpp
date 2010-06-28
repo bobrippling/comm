@@ -64,15 +64,15 @@ extern "C"
 
 TCPSocket::TCPSocket(
 				TCPSocket& (connreq)(),
+				void (*connected)(),
 				void (*disconnected)(),
 				void (*received)(void *, size_t),
-				void (*error)(),
 				int bs
 		):
 	fd(socket(DOMAIN, TYPE, PROTOCOL)), addr(),
 	lerr(NULL), buffer(new char[bs]), buffersize(bs),
-	connrequestf(connreq), disconnectedf(disconnected),
-	receivedf(received), errorf(error), state(IDLE)
+	connrequestf(connreq), connectedf(connected),
+	disconnectedf(disconnected), receivedf(received), state(IDLE)
 {
 	if(fd == -1 || !setblocking(false))
 		throw ERR_INIT;
@@ -91,8 +91,8 @@ TCPSocket::TCPSocket(
 
 TCPSocket::TCPSocket(const TCPSocket& s):
 	fd(), addr(), lerr(), buffer(NULL), buffersize(-1),
-	connrequestf(), disconnectedf(), receivedf(),
-	errorf(), state()
+	connrequestf(), connectedf(), disconnectedf(), receivedf(),
+	state()
 {
 	*this = s;
 }
@@ -108,9 +108,9 @@ TCPSocket& TCPSocket::operator=(const TCPSocket& s)
 	buffer = new char[buffersize = s.buffersize];
 
 	connrequestf = s.connrequestf;
+	connectedf = s.connectedf;
 	disconnectedf = s.disconnectedf;
 	receivedf = s.receivedf;
-	errorf = s.errorf;
 
 	state = s.state;
 
@@ -405,6 +405,9 @@ bool TCPSocket::accept()
 
 		s.state = CONNECTED;
 		memcpy(&s.addr, &ad, sizeof ad);
+
+		if(s.connectedf)
+			s.connectedf();
 
 		return true;
 	}
