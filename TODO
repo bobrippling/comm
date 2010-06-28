@@ -1,15 +1,11 @@
-change +use line.c for getting input
+Functionality:
+	kick function
+	edit previous message (index - 1, ONLY) like Skype
+	irc commands - /disco, etc
 
-kick function
+Techie:
+	clean up properly on signal
 
-clean up properly on signal
-
-check memory leaks
-
-irc commands - /disco, etc
-
-edit previous message (index - 1, ONLY) like Skype
-
-link: http://www.winprog.org/
-
-change to use wxWidgets
+GUI:
+	change to use wxWidgets
+	link: http://www.winprog.org/

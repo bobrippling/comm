@@ -1,1 +1,44 @@
 Comm v2.0
+
+Protocol
+--------
+
+	<TYPE> <DATA>\n
+
+any actual newlines are escaped like so:
+	"Rob: hi there
+	what's going on?"
+becomes
+	MESSAGE Rob: hi there\\nwhat's goin on?
+
+
+Message Types
+-------------
+
+Client -> Server:
+	NAME %s
+		client name - send when client name is changed
+	MESSAGE %s
+		send a message
+
+Server -> Client:
+	CLIENT_CONN %s
+		a new client has connected, with name
+	CLIENT_DISCO %s
+		client disconnected
+
+
+
+Initial Contact
+---------------
+
+Server sends
+Comm v$(VERSION)\n
+where version is something like 1.2.4
+
+client either disconnects or continues, with the following
+NAME Timmy
+the server then responds with OK or BAD, depending on whether the name's in use
+if BAD the server will close connection
+
+otherwise the connection is successful
