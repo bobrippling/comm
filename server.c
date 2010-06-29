@@ -161,7 +161,9 @@ char svr_recv(int idx)
 
 	if(clients[idx].state == ACCEPTING){
 		if(!strncmp(in, "NAME ", 5)){
-			int len = strlen(in + 5);
+			char *name = in + 5;
+			int len = strlen(name), i;
+
 			if(len == 0){
 				TO_CLIENT(idx, "need non-zero length name\n");
 				fprintf(stderr, "client %d - zero length name\n", idx);
@@ -169,13 +171,20 @@ char svr_recv(int idx)
 				return 1;
 			}
 
-			/* TODO: check name isn't in use */
-			strcpy(clients[idx].name = cmalloc(len+1), in + 5);
+			for(i = 0; i < nclients; i++)
+				if(i != idx && clients[i].name && !strcmp(clients[i].name, name)){
+					TO_CLIENT(idx, "name in use\n");
+					fprintf(stderr, "client %d - name (%s) in use\n", idx, name);
+					svr_hup(idx);
+					return 1;
+				}
+
+			strcpy(clients[idx].name = cmalloc(len+1), name);
 
 			clients[idx].state = ACCEPTED;
 
 			if(verbose)
-				printf("client[%d] (socket %d) name accepted: %s\n", idx, pollfds[idx].fd, in + 5);
+				printf("client[%d] (socket %d) name accepted: %s\n", idx, pollfds[idx].fd, name);
 
 		}else{
 			TO_CLIENT(idx, "need name\n");
@@ -211,9 +220,10 @@ int main(int argc, char **argv)
 	}
 
 	/* ignore sigpipe - sent when recv() called on a disconnected socket */
-	if(signal(SIGPIPE, SIG_IGN) == SIG_ERR ||
-			signal(SIGINT, &sigh) == SIG_ERR ||
-			signal(SIGTERM, &sigh) == SIG_ERR){
+	if( signal(SIGPIPE, SIG_IGN) == SIG_ERR ||
+			signal(SIGINT,  &sigh)   == SIG_ERR ||
+			signal(SIGSEGV, &sigh)   == SIG_ERR ||
+			signal(SIGTERM, &sigh)   == SIG_ERR){
 		perror("signal()");
 		return 1;
 	}

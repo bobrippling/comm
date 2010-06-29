@@ -9,3 +9,6 @@ Techie:
 GUI:
 	change to use wxWidgets
 	link: http://www.winprog.org/
+
+Server:
+	Fix segfault on multiple clients, with each client giving its name when it connect, atomically
