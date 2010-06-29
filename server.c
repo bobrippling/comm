@@ -13,6 +13,7 @@
 
 #include "settings.h"
 #include "util.h"
+#include "socket_util.h"
 
 #include "server.h"
 
@@ -46,6 +47,7 @@ jmp_buf allocerr;
 int nonblock(int);
 void cleanup(void);
 void sigh(int);
+void freeclient(int);
 
 char svr_conn(int);
 char svr_recv(int);
@@ -76,11 +78,8 @@ void cleanup()
 {
 	int i;
 
-
-	for(i = 0; i < nclients; i++){
-		free(clients[i].name);
-		close(pollfds[i].fd);
-	}
+	for(i = 0; i < nclients; i++)
+		freeclient(i);
 
 	free(clients);
 	free(pollfds);
@@ -99,7 +98,7 @@ char svr_conn(int idx)
 	clients[idx].name  = NULL;
 
 	if(verbose)
-		puts("got connection");
+		printf("got connection from %s\n", addrtostr(&clients[idx].addr));
 
 	return 1;
 }
@@ -111,8 +110,7 @@ void svr_hup(int idx)
 	if(verbose)
 		printf("client[%d] (socket %d) disconnected\n", idx, pollfds[idx].fd);
 
-	close(pollfds[idx].fd);
-	pollfds[idx].fd = -1;
+	freeclient(idx);
 
 	for(i = idx; i < nclients-1; i++){
 		clients[i] = clients[i+1];
@@ -120,6 +118,13 @@ void svr_hup(int idx)
 	}
 
 	clients = realloc(clients, --nclients);
+}
+
+void freeclient(int idx)
+{
+	free(clients[idx].name);
+	close(pollfds[idx].fd);
+	pollfds[idx].fd = -1;
 }
 
 void svr_err(int idx)
@@ -184,7 +189,9 @@ void sigh(int sig)
 {
 	const char buffer[] = "caught deadly signal\n";
 	write(STDERR_FILENO, buffer, sizeof buffer);
-	close(server);
+
+	cleanup();
+
 	exit(sig);
 }
 
@@ -259,7 +266,6 @@ int main(int argc, char **argv)
 			struct pollfd *newpfds = realloc(pollfds, nclients * sizeof(*newpfds));
 
 			if(!new || !newpfds){
-				fputs("realloc() error: ", stderr);
 				perror("realloc()");
 				return 1;
 			}else{
@@ -301,11 +307,13 @@ int main(int argc, char **argv)
 
 #define BIT(a, b) (((a) & (b)) == (b))
 		for(i = 0; i < nclients; i++){
-			if(BIT(pollfds[i].revents, POLLHUP))
+			if(BIT(pollfds[i].revents, POLLHUP)){
 				svr_hup(i);
-			if(BIT(pollfds[i].revents, POLLERR))
+				i--;
+			}else if(BIT(pollfds[i].revents, POLLERR)){
 				svr_err(i);
-			if(BIT(pollfds[i].revents, POLLIN))
+				i--;
+			}else if(BIT(pollfds[i].revents, POLLIN))
 				i -= svr_recv(i);
 		}
 	}

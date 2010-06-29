@@ -4,6 +4,8 @@
 #include <arpa/inet.h>
 #include <string.h>
 
+#include "socket_util.h"
+
 #define DEBUG 0
 
 int lookup(const char *host, int port, struct sockaddr_in *addr)

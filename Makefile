@@ -7,7 +7,7 @@ CC							= gcc
 CXX							= g++
 LDFLAGS					=
 
-SVR_OBJS				= server.o util.o
+SVR_OBJS				= server.o util.o socket_util.o
 VERBOSE					= @
 
 
