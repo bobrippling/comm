@@ -23,9 +23,9 @@ Client -> Server:
 
 Server -> Client:
 	CLIENT_CONN %s
-		a new client has connected, with name
+		a new client has connected, [b]with name[/b]
 	CLIENT_DISCO %s
-		client disconnected
+		authenticated client disconnected
 
 
 

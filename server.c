@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <string.h>
 #include <setjmp.h>
+#include <stdarg.h>
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -20,7 +21,6 @@
 #define LISTEN_BACKLOG 5
 #define SLEEP_MS       5000
 #define RECV_BUFSIZ    512
-
 #define TO_CLIENT(i, msg) write(pollfds[i].fd, msg, strlen(msg))
 
 static struct client
@@ -48,6 +48,7 @@ int nonblock(int);
 void cleanup(void);
 void sigh(int);
 void freeclient(int);
+char toclientf(int, const char *, ...);
 
 char svr_conn(int);
 char svr_recv(int);
@@ -59,10 +60,37 @@ void svr_err( int);
  * --> --i in the loop
  */
 
+char toclientf(int idx, const char *fmt, ...)
+{
+	FILE *f = fdopen(pollfds[idx].fd, "w");
+	/* do not fclose this file */
+	va_list list;
+	int ret;
+
+	if(!f){
+		perror("fdopen()");
+		return 1;
+	}
+
+	va_start(list, fmt);
+	ret = vfprintf(f, fmt, list);
+	va_end(list);
+
+	fflush(f);
+
+	if(ret < 0){
+		perror("vfprintf()");
+		return 1;
+	}
+
+
+	return 0;
+}
 
 int nonblock(int fd)
 {
 	int flags;
+
 	if((flags = fcntl(fd, F_GETFL, 0)) == -1)
 		flags = 0;
 	flags |= O_NONBLOCK;
@@ -110,6 +138,11 @@ void svr_hup(int idx)
 	if(verbose)
 		printf("client[%d] (socket %d) disconnected\n", idx, pollfds[idx].fd);
 
+	if(clients[idx].state == ACCEPTED)
+		for(i = 0; i < nclients; i++)
+			if(i != idx && clients[i].state == ACCEPTED)
+				toclientf(i, "CLIENT_DISCO %s\n", clients[idx].name);
+
 	freeclient(idx);
 
 	for(i = idx; i < nclients-1; i++){
@@ -117,14 +150,21 @@ void svr_hup(int idx)
 		pollfds[i] = pollfds[i+1];
 	}
 
-	clients = realloc(clients, --nclients);
+	clients = realloc(clients, --nclients * sizeof(*clients));
+	pollfds = realloc(pollfds,   nclients * sizeof(*pollfds));
 }
 
 void freeclient(int idx)
 {
+	int fd = pollfds[idx].fd;
+
 	free(clients[idx].name);
-	close(pollfds[idx].fd);
-	pollfds[idx].fd = -1;
+
+	if(fd != -1){
+		shutdown(fd, SHUT_RDWR);
+		close(fd);
+		pollfds[idx].fd = -1;
+	}
 }
 
 void svr_err(int idx)
@@ -172,7 +212,7 @@ char svr_recv(int idx)
 			}
 
 			for(i = 0; i < nclients; i++)
-				if(i != idx && clients[i].name && !strcmp(clients[i].name, name)){
+				if(i != idx && clients[i].state == ACCEPTED && !strcmp(clients[i].name, name)){
 					TO_CLIENT(idx, "name in use\n");
 					fprintf(stderr, "client %d - name (%s) in use\n", idx, name);
 					svr_hup(idx);
@@ -186,6 +226,10 @@ char svr_recv(int idx)
 			if(verbose)
 				printf("client[%d] (socket %d) name accepted: %s\n", idx, pollfds[idx].fd, name);
 
+			for(i = 0; i < nclients; i++)
+				if(i != idx && clients[i].state == ACCEPTED)
+					toclientf(i, "CLIENT_CONN %s\n", name);
+
 		}else{
 			TO_CLIENT(idx, "need name\n");
 			fprintf(stderr, "client %d - name not given\n", idx);
@@ -194,6 +238,7 @@ char svr_recv(int idx)
 		}
 	}else{
 		/* TODO: generic protocl shiz */
+		fprintf(stderr, "client %d: %s\n", idx, in);
 	}
 
 	return 0;
@@ -254,6 +299,10 @@ int main(int argc, char **argv)
 	svr_addr.sin_family = AF_INET;
 	svr_addr.sin_port   = htons(port);
 
+	if(INADDR_ANY) /* usually optimised out of existence */
+		svr_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+
 	if(bind(server, (struct sockaddr *)&svr_addr, sizeof svr_addr) == -1){
 		perror("bind()");
 		close(server);
@@ -277,8 +326,8 @@ int main(int argc, char **argv)
 		int cfd = accept(server, (struct sockaddr *)&addr, &len), ret;
 
 		if(cfd != -1){
-			struct client *new = realloc(clients, ++nclients * sizeof(*clients));
-			struct pollfd *newpfds = realloc(pollfds, nclients * sizeof(*newpfds));
+			struct client *new     = realloc(clients, ++nclients * sizeof(*clients));
+			struct pollfd *newpfds = realloc(pollfds,   nclients * sizeof(*newpfds));
 
 			if(!new || !newpfds){
 				perror("realloc()");
@@ -294,8 +343,8 @@ int main(int argc, char **argv)
 				pollfds[idx].fd = cfd;
 
 				if(!svr_conn(idx)){
-					clients = realloc(clients, --nclients);
-					pollfds = realloc(pollfds, nclients);
+					clients = realloc(clients, --nclients * sizeof(*clients));
+					pollfds = realloc(pollfds,   nclients * sizeof(*pollfds));
 					close(cfd);
 				}
 			}
@@ -321,15 +370,25 @@ int main(int argc, char **argv)
 		}
 
 #define BIT(a, b) (((a) & (b)) == (b))
-		for(i = 0; i < nclients; i++){
+		for(i = 0; ret > 0 && i < nclients; i++){
 			if(BIT(pollfds[i].revents, POLLHUP)){
+				ret--;
 				svr_hup(i);
 				i--;
-			}else if(BIT(pollfds[i].revents, POLLERR)){
+				continue;
+			}
+
+			if(BIT(pollfds[i].revents, POLLERR)){
+				ret--;
 				svr_err(i);
 				i--;
-			}else if(BIT(pollfds[i].revents, POLLIN))
+				continue;
+			}
+
+			if(BIT(pollfds[i].revents, POLLIN)){
+				ret--;
 				i -= svr_recv(i);
+			}
 		}
 	}
 
