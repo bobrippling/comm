@@ -25,9 +25,11 @@
 
 static struct client
 {
-	char *name;
-
 	struct sockaddr_in addr;
+
+	FILE *file;
+
+	char *name;
 
 	enum
 	{
@@ -48,7 +50,6 @@ int nonblock(int);
 void cleanup(void);
 void sigh(int);
 void freeclient(int);
-char toclientf(int, const char *, ...);
 
 char svr_conn(int);
 char svr_recv(int);
@@ -59,33 +60,6 @@ void svr_err( int);
  * i.e. the clients array has been altered
  * --> --i in the loop
  */
-
-char toclientf(int idx, const char *fmt, ...)
-{
-	FILE *f = fdopen(pollfds[idx].fd, "w");
-	/* do not fclose this file */
-	va_list list;
-	int ret;
-
-	if(!f){
-		perror("fdopen()");
-		return 1;
-	}
-
-	va_start(list, fmt);
-	ret = vfprintf(f, fmt, list);
-	va_end(list);
-
-	fflush(f);
-
-	if(ret < 0){
-		perror("vfprintf()");
-		return 1;
-	}
-
-
-	return 0;
-}
 
 int nonblock(int fd)
 {
@@ -124,6 +98,10 @@ char svr_conn(int idx)
 
 	clients[idx].state = ACCEPTING;
 	clients[idx].name  = NULL;
+	if(!(clients[idx].file  = fdopen(pollfds[idx].fd, "r+"))){
+		perror("fdopen()");
+		return 0;
+	}
 
 	if(verbose)
 		printf("client[%d] (socket %d) connected from %s\n", idx, pollfds[idx].fd, addrtostr(&clients[idx].addr));
@@ -141,7 +119,7 @@ void svr_hup(int idx)
 	if(clients[idx].state == ACCEPTED)
 		for(i = 0; i < nclients; i++)
 			if(i != idx && clients[i].state == ACCEPTED)
-				toclientf(i, "CLIENT_DISCO %s\n", clients[idx].name);
+				fprintf(clients[i].file, "CLIENT_DISCO %s\n", clients[idx].name);
 
 	freeclient(idx);
 
@@ -162,8 +140,10 @@ void freeclient(int idx)
 
 	if(fd != -1){
 		shutdown(fd, SHUT_RDWR);
-		close(fd);
+		/*close(fd);*/
+		fclose(clients[idx].file); /* closes fd */
 		pollfds[idx].fd = -1;
+		clients[idx].file = NULL;
 	}
 }
 
@@ -228,7 +208,7 @@ char svr_recv(int idx)
 
 			for(i = 0; i < nclients; i++)
 				if(i != idx && clients[i].state == ACCEPTED)
-					toclientf(i, "CLIENT_CONN %s\n", name);
+					fprintf(clients[i].file, "CLIENT_CONN %s\n", name);
 
 		}else{
 			TO_CLIENT(idx, "need name\n");
