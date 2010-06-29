@@ -270,6 +270,11 @@ int main(int argc, char **argv)
 	struct sockaddr_in svr_addr;
 	int i, port = DEFAULT_PORT;
 
+#define USAGE() do { \
+		fprintf(stderr, "Usage: %s [-p port] [-v*]\n", *argv); \
+		return 1; \
+	} while(0)
+
 	if(setjmp(allocerr)){
 		perror("longjmp'd to allocerr");
 		return 1;
@@ -292,12 +297,21 @@ int main(int argc, char **argv)
 				fputs("need port\n", stderr);
 				return 1;
 			}
-		}else if(!strcmp(argv[i], "-v")){
-			if(++verbose > 1)
-				printf("verbose %d\n", verbose);
+		}else if(!strncmp(argv[i], "-v", 2)){
+			char *p = argv[i] + 1;
+
+			while(*p == 'v'){
+				verbose++;
+				p++;
+			}
+
+			if(*p == '\0'){
+				if(verbose > 1)
+					printf("verbose %d\n", verbose);
+			}else
+				USAGE();
 		}else{
-			fprintf(stderr, "Usage: %s [-p port] [-v*]\n", *argv);
-			return 1;
+			USAGE();
 		}
 
 	server = socket(AF_INET, SOCK_STREAM, 0);
