@@ -1,6 +1,6 @@
 #ifndef UTIL_H
 #define UTIL_H
 
-void mssleep(int ms);
+void *cmalloc(size_t);
 
 #endif

@@ -8,6 +8,8 @@
 #define SLEEP_MS       50
 #define RECV_BUFSIZ    512
 
+#define TO_CLIENT(i, msg) write(clients[i].pfd.fd, msg, strlen(msg))
+
 
 struct client
 {
@@ -160,9 +162,11 @@ void svr_hup(int index)
 
 void svr_err(int index)
 {
-	fprintf(stderr, "error with client %d (socket %d)", index, clients[i].pfd.fd);
+	fprintf(stderr, "error with client %d (socket %d)", index, clients[index].pfd.fd);
 	if(errno)
 		fprintf(stderr, ": %s\n", strerror(errno));
+	else
+		fputc('\n', stderr);
 	svr_hup(index);
 }
 
@@ -171,5 +175,37 @@ char svr_recv(int index)
 	/* TODO: any size buffer using dynamic mem */
 	char in[RECV_BUFSIZ];
 
-	if(recv(clients[index].pfd.fd, in, RECV_BUFSIZ, RECV_FLAGS)){
+	/* FIXME: only recv up to a new line */
+	if(recv(clients[index].pfd.fd, in, RECV_BUFSIZ, RECV_FLAGS) == -1){
+		fputs("recv() ", stderr);
+		svr_err(index);
+		return 1;
+	}
+
+	if(clients[index].state == ACCEPTING){
+		if(!strcmp(in, "NAME ", 5)){
+			int len = strlen(in + 5);
+			if(len == 0){
+				TO_CLIENT(index, "need non-zero length name\n");
+				fprintf(stderr, "client %d - zero length name\n", index);
+				svr_hup(index);
+				return 1;
+			}
+
+			/* TODO: check name isn't in use */
+			strcpy(clients[index].name = cmalloc(len),
+					in + 5);
+
+			clients[index].state = ACCEPTED;
+		}else{
+			TO_CLIENT(index, "need name\n");
+			fprintf(stderr, "client %d - name not given\n", index);
+			svr_hup(index);
+			return 1;
+		}
+	}else{
+		/* TODO: generic protocl shiz */
+	}
+
+	return 0;
 }

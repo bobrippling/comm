@@ -1,8 +1,15 @@
-#include <poll.h>
+#include <stdlib.h>
+#include <setjmp.h>
 
 #include "util.h"
 
-void mssleep(int ms)
+extern jmp_buf allocerr;
+
+
+void *cmalloc(size_t len)
 {
-	poll(NULL, 0, ms);
+	void *p = malloc(len);
+	if(!p)
+		longjmp(allocerr, 1);
+	return p;
 }
