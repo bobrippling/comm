@@ -98,7 +98,7 @@ char svr_conn(int idx)
 	clients[idx].name  = NULL;
 
 	if(verbose)
-		printf("got connection from %s\n", addrtostr(&clients[idx].addr));
+		printf("client[%d] (socket %d) connected from %s\n", idx, pollfds[idx].fd, addrtostr(&clients[idx].addr));
 
 	return 1;
 }
@@ -143,10 +143,15 @@ char svr_recv(int idx)
 	char in[RECV_BUFSIZ], *newline;
 
 	/* FIXME: only recv up to a new line */
-	if(recv(pollfds[idx].fd, in, RECV_BUFSIZ, 0) == -1){
-		fputs("recv() ", stderr);
-		svr_err(idx);
-		return 1;
+	switch(recv(pollfds[idx].fd, in, RECV_BUFSIZ, 0)){
+		case -1:
+			fputs("recv() ", stderr);
+			svr_err(idx);
+			return 1;
+
+		case 0:
+			svr_hup(idx);
+			return 1;
 	}
 
 	newline = strchr(in, '\n');
@@ -187,7 +192,7 @@ char svr_recv(int idx)
 
 void sigh(int sig)
 {
-	const char buffer[] = "caught deadly signal\n";
+	const char buffer[] = "Caught deadly signal\n";
 	write(STDERR_FILENO, buffer, sizeof buffer);
 
 	cleanup();
