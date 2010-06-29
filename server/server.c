@@ -50,7 +50,6 @@ int nonblock(int);
 void cleanup(void);
 void sigh(int);
 void freeclient(int);
-int  toclientf(int, const char *, ...);
 
 char svr_conn(int);
 char svr_recv(int);
@@ -62,20 +61,6 @@ void svr_err( int);
  * --> --i in the loop
  */
 
-
-int toclientf(int idx, const char *fmt, ...)
-{
-	va_list l;
-	int ret;
-
-	va_start(l, fmt);
-	ret = vfprintf(clients[idx].file, fmt, l);
-	va_end(l);
-
-	fflush(clients[idx].file);
-
-	return ret;
-}
 
 int nonblock(int fd)
 {
@@ -119,6 +104,11 @@ char svr_conn(int idx)
 		return 0;
 	}
 
+	if(setvbuf(clients[idx].file, NULL, _IONBF, 0)){
+		perror("setvbuf()");
+		return 0;
+	}
+
 	if(verbose)
 		printf("client[%d] (socket %d) connected from %s\n", idx, pollfds[idx].fd, addrtostr(&clients[idx].addr));
 
@@ -135,7 +125,7 @@ void svr_hup(int idx)
 	if(clients[idx].state == ACCEPTED)
 		for(i = 0; i < nclients; i++)
 			if(i != idx && clients[i].state == ACCEPTED)
-				toclientf(i, "CLIENT_DISCO %s\n", clients[idx].name);
+				fprintf(clients[i].file, "CLIENT_DISCO %s\n", clients[idx].name);
 
 	freeclient(idx);
 
@@ -226,7 +216,7 @@ char svr_recv(int idx)
 
 			for(i = 0; i < nclients; i++)
 				if(i != idx && clients[i].state == ACCEPTED)
-					toclientf(i, "CLIENT_CONN %s\n", name);
+					fprintf(clients[i].file, "CLIENT_CONN %s\n", name);
 
 		}else{
 			TO_CLIENT(idx, "ERR need name");
@@ -240,7 +230,7 @@ char svr_recv(int idx)
 			TO_CLIENT(idx, "CLIENT_LIST_START");
 			for(i = 0; i < nclients; i++)
 				if(i != idx && clients[i].state == ACCEPTED)
-					toclientf(idx, "CLIENT_LIST %s\n", clients[i].name);
+					fprintf(clients[idx].file, "CLIENT_LIST %s\n", clients[i].name);
 			TO_CLIENT(idx, "CLIENT_LIST_END");
 
 		}else if(!strncmp(in, "MESSAGE ", 8)){
@@ -253,7 +243,7 @@ char svr_recv(int idx)
 
 			for(i = 0; i < nclients; i++)
 				if(i != idx && clients[i].state == ACCEPTED)
-					toclientf(i, "%s\n", in);
+					fprintf(clients[i].file, "%s\n", in);
 		}else{
 			TO_CLIENT(idx, "ERR command unknown");
 		}
@@ -361,6 +351,8 @@ int main(int argc, char **argv)
 				pollfds[idx].fd = cfd;
 
 				if(!svr_conn(idx)){
+					if(clients[idx].file)
+						fclose(clients[idx].file);
 					clients = realloc(clients, --nclients * sizeof(*clients));
 					pollfds = realloc(pollfds,   nclients * sizeof(*pollfds));
 					close(cfd);
