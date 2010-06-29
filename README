@@ -19,17 +19,29 @@ Client -> Server:
 	NAME %s
 		client name - send when client name is changed
 	MESSAGE %s
-		send a message
+		client sends a message to all
+	CLIENT_LIST
+		server replies like so:
+		CLIENT_LIST_START
+		CLIENT_LIST %s
+		CLIENT_LIST_END
+		for each client except the queryer
 
 Server -> Client:
 	CLIENT_CONN %s
 		a new client has connected, [b]with name[/b]
 	CLIENT_DISCO %s
-		authenticated client disconnected
+		authenticated (named) client disconnected
+	ERR %s
+		client message error
+	CLIENT_LIST*
+		see client->server::CLIENT_LIST
+	MESSAGE %s
+		message from server to all
 
 
 
-Initial Contact
+Initial Contact/Handshake
 ---------------
 
 Server sends
@@ -38,7 +50,7 @@ where version is something like 1.2 (always in the form %d.%d)
 
 client either disconnects or continues, with the following
 NAME Timmy
-the server then responds with OK or BAD, depending on whether the name's in use
-if BAD the server will close connection
+the server then responds with ERR %s or OK
+if ERR, server then closes the connection
 
 otherwise the connection is successful

@@ -21,7 +21,7 @@
 #define LISTEN_BACKLOG 5
 #define SLEEP_MS       5000
 #define RECV_BUFSIZ    512
-#define TO_CLIENT(i, msg) write(pollfds[i].fd, msg, strlen(msg))
+#define TO_CLIENT(i, msg) write(pollfds[i].fd, msg"\n", 1+strlen(msg))
 
 static struct client
 {
@@ -50,6 +50,7 @@ int nonblock(int);
 void cleanup(void);
 void sigh(int);
 void freeclient(int);
+int  toclientf(int, const char *, ...);
 
 char svr_conn(int);
 char svr_recv(int);
@@ -60,6 +61,21 @@ void svr_err( int);
  * i.e. the clients array has been altered
  * --> --i in the loop
  */
+
+
+int toclientf(int idx, const char *fmt, ...)
+{
+	va_list l;
+	int ret;
+
+	va_start(l, fmt);
+	ret = vfprintf(clients[idx].file, fmt, l);
+	va_end(l);
+
+	fflush(clients[idx].file);
+
+	return ret;
+}
 
 int nonblock(int fd)
 {
@@ -119,7 +135,7 @@ void svr_hup(int idx)
 	if(clients[idx].state == ACCEPTED)
 		for(i = 0; i < nclients; i++)
 			if(i != idx && clients[i].state == ACCEPTED)
-				fprintf(clients[i].file, "CLIENT_DISCO %s\n", clients[idx].name);
+				toclientf(i, "CLIENT_DISCO %s\n", clients[idx].name);
 
 	freeclient(idx);
 
@@ -185,7 +201,7 @@ char svr_recv(int idx)
 			int len = strlen(name), i;
 
 			if(len == 0){
-				TO_CLIENT(idx, "need non-zero length name\n");
+				TO_CLIENT(idx, "ERR need non-zero length name");
 				fprintf(stderr, "client %d - zero length name\n", idx);
 				svr_hup(idx);
 				return 1;
@@ -193,7 +209,7 @@ char svr_recv(int idx)
 
 			for(i = 0; i < nclients; i++)
 				if(i != idx && clients[i].state == ACCEPTED && !strcmp(clients[i].name, name)){
-					TO_CLIENT(idx, "name in use\n");
+					TO_CLIENT(idx, "ERR name in use");
 					fprintf(stderr, "client %d - name (%s) in use\n", idx, name);
 					svr_hup(idx);
 					return 1;
@@ -206,19 +222,41 @@ char svr_recv(int idx)
 			if(verbose)
 				printf("client[%d] (socket %d) name accepted: %s\n", idx, pollfds[idx].fd, name);
 
+			TO_CLIENT(idx, "OK");
+
 			for(i = 0; i < nclients; i++)
 				if(i != idx && clients[i].state == ACCEPTED)
-					fprintf(clients[i].file, "CLIENT_CONN %s\n", name);
+					toclientf(i, "CLIENT_CONN %s\n", name);
 
 		}else{
-			TO_CLIENT(idx, "need name\n");
+			TO_CLIENT(idx, "ERR need name");
 			fprintf(stderr, "client %d - name not given\n", idx);
 			svr_hup(idx);
 			return 1;
 		}
 	}else{
-		/* TODO: generic protocl shiz */
-		fprintf(stderr, "client %d: %s\n", idx, in);
+		if(!strcmp(in, "CLIENT_LIST")){
+			int i;
+			TO_CLIENT(idx, "CLIENT_LIST_START");
+			for(i = 0; i < nclients; i++)
+				if(i != idx && clients[i].state == ACCEPTED)
+					toclientf(idx, "CLIENT_LIST %s\n", clients[i].name);
+			TO_CLIENT(idx, "CLIENT_LIST_END");
+
+		}else if(!strncmp(in, "MESSAGE ", 8)){
+			int i;
+
+			if(!strlen(in + 8)){
+				TO_CLIENT(idx, "ERR need message");
+				return 0;
+			}
+
+			for(i = 0; i < nclients; i++)
+				if(i != idx && clients[i].state == ACCEPTED)
+					toclientf(i, "%s\n", in);
+		}else{
+			TO_CLIENT(idx, "ERR command unknown");
+		}
 	}
 
 	return 0;

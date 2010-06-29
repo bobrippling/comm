@@ -24,12 +24,10 @@ commsvr : ${SVR_OBJS} settings.h
 	${VERBOSE}${CC} ${CFLAGS} -c -o $@ $<
 
 
-.PHONY : clean new mostlyclean all love lint
+.PHONY : clean mostlyclean
 
 clean: mostlyclean
 	${VERBOSE}rm -f commsvr
 
 mostlyclean:
 	${VERBOSE}rm -f *.o
-
-# TODO: deps
