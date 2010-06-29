@@ -1,20 +1,32 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <poll.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <errno.h>
+#include <string.h>
+#include <setjmp.h>
+
+#include <sys/socket.h>
+#include <arpa/inet.h>
 
 #include "settings.h"
+#include "util.h"
+
+#include "server.h"
 
 #define LISTEN_BACKLOG 5
-#define SLEEP_MS       50
+#define SLEEP_MS       5000
 #define RECV_BUFSIZ    512
 
-#define TO_CLIENT(i, msg) write(clients[i].pfd.fd, msg, strlen(msg))
+#define TO_CLIENT(i, msg) write(pollfds[i].fd, msg, strlen(msg))
 
-
-struct client
+static struct client
 {
-	struct pollfd pfd;
-	const char *name;
+	char *name;
+
+	struct sockaddr_in addr;
 
 	enum
 	{
@@ -23,10 +35,19 @@ struct client
 	} state;
 } *clients = NULL;
 
-static int server, nclients = 0;
+static struct pollfd *pollfds = NULL;
+
+static int server = -1, nclients = 0;
+static char verbose = 0;
+
+jmp_buf allocerr;
 
 
-void svr_conn(int);
+int nonblock(int);
+void cleanup(void);
+void sigh(int);
+
+char svr_conn(int);
 char svr_recv(int);
 void svr_hup( int);
 void svr_err( int);
@@ -37,16 +58,168 @@ void svr_err( int);
  */
 
 
-int server_main()
+int nonblock(int fd)
 {
-	struct sockaddr_in addr;
 	int flags;
+	if((flags = fcntl(fd, F_GETFL, 0)) == -1)
+		flags = 0;
+	flags |= O_NONBLOCK;
+
+	if(fcntl(fd, F_SETFL, flags) == -1){
+		perror("fcntl()");
+		return 1;
+	}
+	return 0;
+}
+
+void cleanup()
+{
+	int i;
+
+
+	for(i = 0; i < nclients; i++){
+		free(clients[i].name);
+		close(pollfds[i].fd);
+	}
+
+	free(clients);
+	free(pollfds);
+}
+
+char svr_conn(int idx)
+{
+	static char buffer[] = "Comm v"VERSION"\n";
+
+	if(write(pollfds[idx].fd, buffer, sizeof buffer) == -1){
+		perror("write()");
+		return 0;
+	}
+
+	clients[idx].state = ACCEPTING;
+	clients[idx].name  = NULL;
+
+	if(verbose)
+		puts("got connection");
+
+	return 1;
+}
+
+void svr_hup(int idx)
+{
+	int i;
+
+	if(verbose)
+		printf("client[%d] (socket %d) disconnected\n", idx, pollfds[idx].fd);
+
+	close(pollfds[idx].fd);
+	pollfds[idx].fd = -1;
+
+	for(i = idx; i < nclients-1; i++){
+		clients[i] = clients[i+1];
+		pollfds[i] = pollfds[i+1];
+	}
+
+	clients = realloc(clients, --nclients);
+}
+
+void svr_err(int idx)
+{
+	fprintf(stderr, "error with client %d (socket %d)", idx, pollfds[idx].fd);
+	if(errno)
+		fprintf(stderr, ": %s\n", strerror(errno));
+	else
+		fputc('\n', stderr);
+	svr_hup(idx);
+}
+
+char svr_recv(int idx)
+{
+	/* TODO: any size buffer using dynamic mem */
+	char in[RECV_BUFSIZ], *newline;
+
+	/* FIXME: only recv up to a new line */
+	if(recv(pollfds[idx].fd, in, RECV_BUFSIZ, 0) == -1){
+		fputs("recv() ", stderr);
+		svr_err(idx);
+		return 1;
+	}
+
+	newline = strchr(in, '\n');
+	if(newline)
+		*newline = '\0';
+
+
+	if(clients[idx].state == ACCEPTING){
+		if(!strncmp(in, "NAME ", 5)){
+			int len = strlen(in + 5);
+			if(len == 0){
+				TO_CLIENT(idx, "need non-zero length name\n");
+				fprintf(stderr, "client %d - zero length name\n", idx);
+				svr_hup(idx);
+				return 1;
+			}
+
+			/* TODO: check name isn't in use */
+			strcpy(clients[idx].name = cmalloc(len+1), in + 5);
+
+			clients[idx].state = ACCEPTED;
+
+			if(verbose)
+				printf("client[%d] (socket %d) name accepted: %s\n", idx, pollfds[idx].fd, in + 5);
+
+		}else{
+			TO_CLIENT(idx, "need name\n");
+			fprintf(stderr, "client %d - name not given\n", idx);
+			svr_hup(idx);
+			return 1;
+		}
+	}else{
+		/* TODO: generic protocl shiz */
+	}
+
+	return 0;
+}
+
+void sigh(int sig)
+{
+	const char buffer[] = "caught deadly signal\n";
+	write(STDERR_FILENO, buffer, sizeof buffer);
+	close(server);
+	exit(sig);
+}
+
+int main(int argc, char **argv)
+{
+	struct sockaddr_in svr_addr;
+	int i, port = DEFAULT_PORT;
+
+	if(setjmp(allocerr)){
+		perror("longjmp'd to allocerr");
+		return 1;
+	}
 
 	/* ignore sigpipe - sent when recv() called on a disconnected socket */
-	if(signal(SIGPIPE, SIG_IGN) == SIG_ERR){
+	if(signal(SIGPIPE, SIG_IGN) == SIG_ERR ||
+			signal(SIGINT, &sigh) == SIG_ERR ||
+			signal(SIGTERM, &sigh) == SIG_ERR){
 		perror("signal()");
 		return 1;
 	}
+
+	for(i = 1; i < argc; i++)
+		if(!strcmp(argv[i], "-p")){
+			if(++i < argc)
+				port = atoi(argv[i]);
+			else{
+				fputs("need port\n", stderr);
+				return 1;
+			}
+		}else if(!strcmp(argv[i], "-v")){
+			verbose = 1;
+		}else{
+			fprintf(stderr, "Usage: %s [-p port]\n", *argv);
+			return 1;
+		}
 
 	server = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -55,10 +228,11 @@ int server_main()
 		return 1;
 	}
 
-	addr.sin_family = AF_INET;
-	addr.sin_port   = global_settings.port;
+	memset(&svr_addr, '\0', sizeof svr_addr);
+	svr_addr.sin_family = AF_INET;
+	svr_addr.sin_port   = htons(port);
 
-	if(bind(server, (struct sockaddr *)&addr, sizeof addr) == -1){
+	if(bind(server, (struct sockaddr *)&svr_addr, sizeof svr_addr) == -1){
 		perror("bind()");
 		close(server);
 		return 1;
@@ -70,39 +244,46 @@ int server_main()
 		return 1;
 	}
 
-	if((flags = fcntl(fd, F_GETFL, 0)) == -1)
-		flags = 0;
-	flags |= O_NONBLOCK;
-
-	if(fcntl(fd, F_SETFL, flags) == -1){
-		perror("fcntl()");
+	if(nonblock(server)){
 		close(server);
 		return 1;
 	}
 
 	for(;;){
-		int cfd = accept(server, NULL, NULL), i, ret;
+		struct sockaddr_in addr;
+		socklen_t len = sizeof addr;
+		int cfd = accept(server, (struct sockaddr *)&addr, &len), ret;
 
 		if(cfd != -1){
-			struct pollfd *new = realloc(clients, ++nclients * sizeof(*clients));
+			struct client *new = realloc(clients, ++nclients * sizeof(*clients));
+			struct pollfd *newpfds = realloc(pollfds, nclients * sizeof(*newpfds));
 
-			if(!new){
-				fputs("realloc() error (continuing without accept()): ", stderr);
-				perror(NULL);
-				close(cfd);
+			if(!new || !newpfds){
+				fputs("realloc() error: ", stderr);
+				perror("realloc()");
+				return 1;
 			}else{
+				int idx = nclients-1;
+
 				clients = new;
-				if(!svr_conn(clients[nclients-1].pfd.fd = cfd)){
+				pollfds = newpfds;
+
+				memcpy(&clients[idx].addr, &addr, sizeof addr);
+
+				pollfds[idx].fd = cfd;
+
+				if(!svr_conn(idx)){
 					clients = realloc(clients, --nclients);
+					pollfds = realloc(pollfds, nclients);
 					close(cfd);
 				}
 			}
 		}
 
 		for(i = 0; i < nclients; i++)
-			clients[i].pfd.events = POLLIN | POLLERR | POLLHUP;
+			pollfds[i].events = POLLIN | POLLERR | POLLHUP;
 
-		ret = poll(clients, nclients, SLEEP_MS);
+		ret = poll(pollfds, nclients, SLEEP_MS);
 		/* need to timeout, since we're also accept()ing above */
 
 		/*
@@ -120,92 +301,15 @@ int server_main()
 
 #define BIT(a, b) (((a) & (b)) == (b))
 		for(i = 0; i < nclients; i++){
-			if(BIT(clients[i].revents, POLLHUP))
+			if(BIT(pollfds[i].revents, POLLHUP))
 				svr_hup(i);
-			if(BIT(clients[i].revents, POLLERR))
+			if(BIT(pollfds[i].revents, POLLERR))
 				svr_err(i);
-			if(BIT(clients[i].revents, POLLIN))
+			if(BIT(pollfds[i].revents, POLLIN))
 				i -= svr_recv(i);
 		}
 	}
 
-	return 0;
-}
-
-void svr_conn(int index)
-{
-	static char buffer[] = "Comm v"VERSION"\n";
-
-	if(write(fd, buffer, sizeof buffer) == -1){
-		perror("write()");
-		return 0;
-	}
-
-	clients[index].state = ACCEPTING;
-	clients[index].name  = NULL;
-
-	return 1;
-}
-
-void svr_hup(int index)
-{
-	int i;
-
-	close(clients[index].pfd.fd);
-	clients[index].pfd.fd = -1;
-
-	for(i = index; i < nclients-1; i++)
-		clients[i] = clients[i+1];
-
-	clients = realloc(clients, --nclients);
-}
-
-void svr_err(int index)
-{
-	fprintf(stderr, "error with client %d (socket %d)", index, clients[index].pfd.fd);
-	if(errno)
-		fprintf(stderr, ": %s\n", strerror(errno));
-	else
-		fputc('\n', stderr);
-	svr_hup(index);
-}
-
-char svr_recv(int index)
-{
-	/* TODO: any size buffer using dynamic mem */
-	char in[RECV_BUFSIZ];
-
-	/* FIXME: only recv up to a new line */
-	if(recv(clients[index].pfd.fd, in, RECV_BUFSIZ, RECV_FLAGS) == -1){
-		fputs("recv() ", stderr);
-		svr_err(index);
-		return 1;
-	}
-
-	if(clients[index].state == ACCEPTING){
-		if(!strcmp(in, "NAME ", 5)){
-			int len = strlen(in + 5);
-			if(len == 0){
-				TO_CLIENT(index, "need non-zero length name\n");
-				fprintf(stderr, "client %d - zero length name\n", index);
-				svr_hup(index);
-				return 1;
-			}
-
-			/* TODO: check name isn't in use */
-			strcpy(clients[index].name = cmalloc(len),
-					in + 5);
-
-			clients[index].state = ACCEPTED;
-		}else{
-			TO_CLIENT(index, "need name\n");
-			fprintf(stderr, "client %d - name not given\n", index);
-			svr_hup(index);
-			return 1;
-		}
-	}else{
-		/* TODO: generic protocl shiz */
-	}
-
+	cleanup();
 	return 0;
 }

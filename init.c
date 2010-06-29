@@ -15,7 +15,7 @@
 #define LOCALE        "en_GB.UTF-8"
 
 struct settings global_settings;
-
+jmp_buf allocerr;
 
 static void usage(char *);
 #define USAGE() do { usage(*argv); return 1; } while(0)
