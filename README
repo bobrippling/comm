@@ -34,7 +34,7 @@ Initial Contact
 
 Server sends
 Comm v$(VERSION)\n
-where version is something like 1.2.4
+where version is something like 1.2 (always in the form %d.%d)
 
 client either disconnects or continues, with the following
 NAME Timmy
