@@ -1,13 +1,11 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
-#define VERSION "0.1"
-#define DEFAULT_PORT 2848
+#define VERSION_MAJOR 0
+#define VERSION_MINOR 1
+#define VERSION       "0.1"
 
-struct settings
-{
-	const char *name;
-	int port;
-};
+#define DEFAULT_PORT 2848
+#define LINE_SIZE 512
 
 #endif

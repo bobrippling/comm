@@ -19,8 +19,7 @@
 #include "server.h"
 
 #define LISTEN_BACKLOG 5
-#define SLEEP_MS       5000
-#define RECV_BUFSIZ    512
+#define SLEEP_MS       100
 #define TO_CLIENT(i, msg) write(pollfds[i].fd, msg"\n", 1+strlen(msg))
 
 static struct client
@@ -166,10 +165,10 @@ void svr_err(int idx)
 char svr_recv(int idx)
 {
 	/* TODO: any size buffer using dynamic mem */
-	char in[RECV_BUFSIZ], *newline;
+	char in[LINE_SIZE], *newline;
 
 	/* FIXME: only recv up to a new line */
-	switch(recv(pollfds[idx].fd, in, RECV_BUFSIZ, 0)){
+	switch(recv(pollfds[idx].fd, in, LINE_SIZE, 0)){
 		case -1:
 			fputs("recv() ", stderr);
 			svr_err(idx);
@@ -183,6 +182,10 @@ char svr_recv(int idx)
 	newline = strchr(in, '\n');
 	if(newline)
 		*newline = '\0';
+
+	if(verbose > 1)
+		fprintf(stderr, "recv() from client %d (%d): \"%s\"\n",
+				idx, pollfds[idx].fd, in);
 
 
 	if(clients[idx].state == ACCEPTING){
@@ -290,9 +293,10 @@ int main(int argc, char **argv)
 				return 1;
 			}
 		}else if(!strcmp(argv[i], "-v")){
-			verbose = 1;
+			if(++verbose > 1)
+				printf("verbose %d\n", verbose);
 		}else{
-			fprintf(stderr, "Usage: %s [-p port]\n", *argv);
+			fprintf(stderr, "Usage: %s [-p port] [-v*]\n", *argv);
 			return 1;
 		}
 

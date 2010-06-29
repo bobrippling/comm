@@ -7,14 +7,12 @@
 #include <errno.h>
 #include <setjmp.h>
 
-#include "settings.h"
+#include "../settings.h"
 #include "ui/ui.h"
 
-#define DEFAULT_PORT  2848
 #define DEFAULT_NAME  "Timmy"
 #define LOCALE        "en_GB.UTF-8"
 
-struct settings global_settings;
 jmp_buf allocerr;
 
 static void usage(char *);
@@ -23,26 +21,23 @@ static void usage(char *);
 static void usage(char *progname)
 {
 	fprintf(stderr, "Usage: %s [options] host\n", progname);
-	fputs(" -l: Listen/Host mode\n"
-			  " -p: Port\n"
-			  " -u: Username\n", stderr);
+	fputs(" -p port: Port\n"
+			  " -n name: Username\n", stderr);
 }
 
 
 int main(int argc, char **argv)
 {
-	int ret = 0, i;
-	char argv_options = 1;
+	int ret = 0, i, port = DEFAULT_PORT;
+	char argv_options = 1, *host = NULL;
+	const char *name = DEFAULT_NAME;
 
 	setlocale(LC_ALL, LOCALE);
 
 	if(setjmp(allocerr)){
-		ui_message(UI_ERROR, "Out of memory!");
+		perror("malloc()");
 		return 1;
 	}
-
-	global_settings.name = DEFAULT_NAME;
-	global_settings.port = DEFAULT_PORT;
 
 	for(i = 1; i < argc; i++)
 		if(argv_options && argv[i][0] == '-'){
@@ -52,6 +47,24 @@ int main(int argc, char **argv)
 						argv_options = 0;
 						break;
 
+					case 'n':
+						if(++i < argc)
+							name = argv[i];
+						else{
+							fputs("need name\n", stderr);
+							return 1;
+						}
+						break;
+
+					case 'p':
+						if(++i < argc)
+							port = atoi(argv[i]);
+						else{
+							fputs("need port\n", stderr);
+							return 1;
+						}
+						break;
+
 					default:
 						fprintf(stderr, "Unrecognised arg: \"%s\"\n", argv[1]);
 						USAGE();
@@ -59,8 +72,9 @@ int main(int argc, char **argv)
 			else
 				/* strlen '-...' != 2 */
 				USAGE();
-		}else
-			/* ! "-..." */
+		}else if(!host)
+			host = argv[i];
+		else
 			USAGE();
 
 #if 0
@@ -72,7 +86,7 @@ int main(int argc, char **argv)
 		puts("not daemonising");
 #endif
 
-	ui_main();
+	ui_main(name, host, port);
 
 	return ret;
 }

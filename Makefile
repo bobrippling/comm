@@ -8,12 +8,21 @@ CXX							= g++
 LDFLAGS					=
 
 SVR_OBJS				= server/server.o util.o socket_util.o
+TCOMM_OBJS			= client/init.o   util.o socket_util.o client/ui/term.o
 VERBOSE					= @
 
+.PHONY : clean mostlyclean all
 
-commsvr : ${SVR_OBJS} settings.h
+
+all: commsvr tcomm
+
+commsvr : ${SVR_OBJS}
 	${VERBOSE}echo LD $@
-	${VERBOSE}${CC} ${CFLAGS} ${LDFLAGS} -o $@ ${SVR_OBJS}
+	${VERBOSE}${CC} ${CFLAGS} ${LDFLAGS} -o $@ $^
+
+tcomm : ${TCOMM_OBJS}
+	${VERBOSE}echo LD $@
+	${VERBOSE}${CXX} ${CXXFLAGS} ${LDFLAGS} -o $@ $^
 
 %.o: %.cpp
 	${VERBOSE}echo CXX $<
@@ -24,10 +33,12 @@ commsvr : ${SVR_OBJS} settings.h
 	${VERBOSE}${CC} ${CFLAGS} -c -o $@ $<
 
 
-.PHONY : clean mostlyclean
-
 clean: mostlyclean
-	${VERBOSE}rm -f commsvr comm
+	${VERBOSE}rm -f commsvr tcomm
 
 mostlyclean:
 	${VERBOSE}find . -iname \*.o|xargs rm -f
+
+
+server.o: server/server.c settings.h util.h \
+ socket_util.h server/server.h

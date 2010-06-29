@@ -14,7 +14,7 @@ enum ui_answer
 char *ui_getstring(const char *);
 
 void ui_addtext(const char *, ...);
-int ui_main(void);
+int ui_main(const char *, char *, int);
 
 #endif
 
