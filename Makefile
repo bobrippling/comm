@@ -7,7 +7,7 @@ CC							= gcc
 CXX							= g++
 LDFLAGS					=
 
-SVR_OBJS				= server.o util.o socket_util.o
+SVR_OBJS				= server/server.o util.o socket_util.o
 VERBOSE					= @
 
 
@@ -27,7 +27,7 @@ commsvr : ${SVR_OBJS} settings.h
 .PHONY : clean mostlyclean
 
 clean: mostlyclean
-	${VERBOSE}rm -f commsvr
+	${VERBOSE}rm -f commsvr comm
 
 mostlyclean:
-	${VERBOSE}rm -f *.o
+	${VERBOSE}find . -iname \*.o|xargs rm -f
