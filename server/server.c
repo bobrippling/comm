@@ -257,7 +257,7 @@ char svr_recv(int idx)
 
 void sigh(int sig)
 {
-	const char buffer[] = "Caught deadly signal\n";
+	const char buffer[] = "We get signal\n";
 	write(STDERR_FILENO, buffer, sizeof buffer);
 
 	cleanup();
