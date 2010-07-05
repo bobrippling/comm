@@ -305,14 +305,14 @@ int main(int argc, char **argv)
 				p++;
 			}
 
-			if(*p == '\0'){
-				if(verbose > 1)
-					printf("verbose %d\n", verbose);
-			}else
+			if(*p != '\0')
 				USAGE();
 		}else{
 			USAGE();
 		}
+
+	if(verbose > 1)
+		printf("verbose %d\n", verbose);
 
 	server = socket(AF_INET, SOCK_STREAM, 0);
 
