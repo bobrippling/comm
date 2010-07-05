@@ -22,6 +22,9 @@
 #define SLEEP_MS       100
 #define TO_CLIENT(i, msg) write(pollfds[i].fd, msg"\n", 1+strlen(msg))
 
+#define CLIENT_FMT  "client %d (socket %d)"
+#define CLIENT_ARGS idx, pollfds[idx].fd
+
 static struct client
 {
 	struct sockaddr_in addr;
@@ -92,24 +95,27 @@ char svr_conn(int idx)
 	static char buffer[] = "Comm v"VERSION"\n";
 
 	if(write(pollfds[idx].fd, buffer, sizeof buffer) == -1){
-		perror("write()");
+		fprintf(stderr, CLIENT_FMT" write(): ", CLIENT_ARGS);
+		perror(NULL);
 		return 0;
 	}
 
 	clients[idx].state = ACCEPTING;
 	clients[idx].name  = NULL;
 	if(!(clients[idx].file  = fdopen(pollfds[idx].fd, "r+"))){
-		perror("fdopen()");
+		fprintf(stderr, CLIENT_FMT" fdopen(): ", CLIENT_ARGS);
+		perror(NULL);
 		return 0;
 	}
 
 	if(setvbuf(clients[idx].file, NULL, _IONBF, 0)){
-		perror("setvbuf()");
+		fprintf(stderr, CLIENT_FMT" setvbuf(): ", CLIENT_ARGS);
+		perror(NULL);
 		return 0;
 	}
 
 	if(verbose)
-		printf("client[%d] (socket %d) connected from %s\n", idx, pollfds[idx].fd, addrtostr(&clients[idx].addr));
+		printf(CLIENT_FMT" connected from %s\n", CLIENT_ARGS, addrtostr(&clients[idx].addr));
 
 	return 1;
 }
@@ -119,7 +125,7 @@ void svr_hup(int idx)
 	int i;
 
 	if(verbose)
-		printf("client[%d] (socket %d) disconnected\n", idx, pollfds[idx].fd);
+		printf(CLIENT_FMT" disconnected\n", CLIENT_ARGS);
 
 	if(clients[idx].state == ACCEPTED)
 		for(i = 0; i < nclients; i++)
@@ -154,9 +160,9 @@ void freeclient(int idx)
 
 void svr_err(int idx)
 {
-	fprintf(stderr, "error with client %d (socket %d)", idx, pollfds[idx].fd);
+	fprintf(stderr, CLIENT_FMT" error", CLIENT_ARGS);
 	if(errno)
-		fprintf(stderr, ": %s\n", strerror(errno));
+		perror(NULL);
 	else
 		fputc('\n', stderr);
 	svr_hup(idx);
@@ -184,8 +190,7 @@ char svr_recv(int idx)
 		*newline = '\0';
 
 	if(verbose > 1)
-		fprintf(stderr, "recv() from client %d (%d): \"%s\"\n",
-				idx, pollfds[idx].fd, in);
+		fprintf(stderr, CLIENT_FMT" recv(): \"%s\"\n", CLIENT_ARGS, in);
 
 
 	if(clients[idx].state == ACCEPTING){
@@ -195,7 +200,7 @@ char svr_recv(int idx)
 
 			if(len == 0){
 				TO_CLIENT(idx, "ERR need non-zero length name");
-				fprintf(stderr, "client %d - zero length name\n", idx);
+				fprintf(stderr, CLIENT_FMT": zero length name\n", CLIENT_ARGS);
 				svr_hup(idx);
 				return 1;
 			}
@@ -203,7 +208,7 @@ char svr_recv(int idx)
 			for(i = 0; i < nclients; i++)
 				if(i != idx && clients[i].state == ACCEPTED && !strcmp(clients[i].name, name)){
 					TO_CLIENT(idx, "ERR name in use");
-					fprintf(stderr, "client %d - name (%s) in use\n", idx, name);
+					fprintf(stderr, CLIENT_FMT": name %s in use\n", CLIENT_ARGS, name);
 					svr_hup(idx);
 					return 1;
 				}
@@ -213,7 +218,7 @@ char svr_recv(int idx)
 			clients[idx].state = ACCEPTED;
 
 			if(verbose)
-				printf("client[%d] (socket %d) name accepted: %s\n", idx, pollfds[idx].fd, name);
+				printf(CLIENT_FMT" name accepted: %s\n", CLIENT_ARGS, name);
 
 			TO_CLIENT(idx, "OK");
 
@@ -223,7 +228,7 @@ char svr_recv(int idx)
 
 		}else{
 			TO_CLIENT(idx, "ERR need name");
-			fprintf(stderr, "client %d - name not given\n", idx);
+			fprintf(stderr, CLIENT_FMT" name not given\n", CLIENT_ARGS);
 			svr_hup(idx);
 			return 1;
 		}
