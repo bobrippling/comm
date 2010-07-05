@@ -8,6 +8,10 @@
 
 #define DEBUG 0
 
+#if DEBUG
+#include <stdio.h>
+#endif
+
 int lookup(const char *host, int port, struct sockaddr_in *addr)
 {
 	struct addrinfo *res = NULL;
@@ -32,7 +36,7 @@ int lookup(const char *host, int port, struct sockaddr_in *addr)
 	}
 #endif
 
-	memcpy(addr, res->ai_addr, sizeof addr);
+	memcpy(addr, res->ai_addr, sizeof *addr);
 	addr->sin_port = htons(port);
 
 	freeaddrinfo(res);
@@ -41,8 +45,8 @@ int lookup(const char *host, int port, struct sockaddr_in *addr)
 
 const char *addrtostr(struct sockaddr_in *ad)
 {
-#define BUFSIZ 32
-	static char buf[BUFSIZ];
-	return inet_ntop(AF_INET, &ad->sin_addr, buf, BUFSIZ);
-#undef BUFSIZ
+#define BUFSIZE 32
+	static char buf[BUFSIZE];
+	return inet_ntop(AF_INET, &ad->sin_addr, buf, BUFSIZE);
+#undef BUFSIZE
 }
