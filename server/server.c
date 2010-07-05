@@ -20,7 +20,7 @@
 
 #define LISTEN_BACKLOG 5
 #define SLEEP_MS       100
-#define TO_CLIENT(i, msg) write(pollfds[i].fd, msg"\n", 1+strlen(msg))
+#define TO_CLIENT(i, msg) fwrite(msg"\n", sizeof *msg, 1+strlen(msg), clients[i].file)
 
 #define CLIENT_FMT  "client %d (socket %d)"
 #define CLIENT_ARGS idx, pollfds[idx].fd
@@ -94,12 +94,6 @@ char svr_conn(int idx)
 {
 	static char buffer[] = "Comm v"VERSION"\n";
 
-	if(write(pollfds[idx].fd, buffer, sizeof buffer) == -1){
-		fprintf(stderr, CLIENT_FMT" write(): ", CLIENT_ARGS);
-		perror(NULL);
-		return 0;
-	}
-
 	clients[idx].state = ACCEPTING;
 	clients[idx].name  = NULL;
 	if(!(clients[idx].file  = fdopen(pollfds[idx].fd, "r+"))){
@@ -107,6 +101,13 @@ char svr_conn(int idx)
 		perror(NULL);
 		return 0;
 	}
+
+	if(fwrite(buffer, sizeof *buffer, sizeof buffer, clients[idx].file) == 0){
+		fprintf(stderr, CLIENT_FMT" fwrite(): ", CLIENT_ARGS);
+		perror(NULL);
+		return 0;
+	}
+
 
 	if(setvbuf(clients[idx].file, NULL, _IONBF, 0)){
 		fprintf(stderr, CLIENT_FMT" setvbuf(): ", CLIENT_ARGS);
