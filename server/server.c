@@ -20,7 +20,8 @@
 
 #define LISTEN_BACKLOG 5
 #define SLEEP_MS       100
-#define TO_CLIENT(i, msg) fwrite(msg"\n", sizeof *msg, 1+strlen(msg), clients[i].file)
+#define TO_CLIENT(i, msg) fwrite(msg, sizeof *msg, 1+strlen(msg), clients[i].file)
+/*                                                  ^include the '\0' */
 
 #define CLIENT_FMT  "client %d (socket %d)"
 #define CLIENT_ARGS idx, pollfds[idx].fd
@@ -52,6 +53,7 @@ int nonblock(int);
 void cleanup(void);
 void sigh(int);
 void freeclient(int);
+int toclientf(int, const char *, ...);
 
 char svr_conn(int);
 char svr_recv(int);
@@ -63,6 +65,21 @@ void svr_err( int);
  * --> --i in the loop
  */
 
+int toclientf(int idx, const char *fmt, ...)
+{
+	va_list l;
+	char nul = '\0';
+	int ret;
+
+	va_start(l, fmt);
+	ret = vfprintf(clients[idx].file, fmt, l);
+	va_end(l);
+
+	if(ret == -1)
+		return -1;
+
+	return fwrite(&nul, sizeof nul, 1, clients[idx].file);
+}
 
 int nonblock(int fd)
 {
@@ -92,7 +109,7 @@ void cleanup()
 
 char svr_conn(int idx)
 {
-	static char buffer[] = "Comm v"VERSION"\n";
+	static char buffer[] = "Comm v"VERSION"";
 
 	clients[idx].state = ACCEPTING;
 	clients[idx].name  = NULL;
@@ -107,7 +124,6 @@ char svr_conn(int idx)
 		perror(NULL);
 		return 0;
 	}
-
 
 	if(setvbuf(clients[idx].file, NULL, _IONBF, 0)){
 		fprintf(stderr, CLIENT_FMT" setvbuf(): ", CLIENT_ARGS);
@@ -131,7 +147,7 @@ void svr_hup(int idx)
 	if(clients[idx].state == ACCEPTED)
 		for(i = 0; i < nclients; i++)
 			if(i != idx && clients[i].state == ACCEPTED)
-				fprintf(clients[i].file, "CLIENT_DISCO %s\n", clients[idx].name);
+				toclientf(i, "CLIENT_DISCO %s", clients[idx].name);
 
 	freeclient(idx);
 
@@ -171,11 +187,10 @@ void svr_err(int idx)
 
 char svr_recv(int idx)
 {
-	/* TODO: any size buffer using dynamic mem */
-	char in[LINE_SIZE], *newline;
+	char in[LINE_SIZE] = { 0 }, *nul;
+	int ret;
 
-	/* FIXME: only recv up to a new line */
-	switch(recv(pollfds[idx].fd, in, LINE_SIZE, 0)){
+	switch(ret = recv(pollfds[idx].fd, in, LINE_SIZE, MSG_PEEK)){
 		case -1:
 			fputs("recv() ", stderr);
 			svr_err(idx);
@@ -186,13 +201,25 @@ char svr_recv(int idx)
 			return 1;
 	}
 
-	newline = strchr(in, '\n');
-	if(newline)
-		*newline = '\0';
+	if((nul = strchr(in, '\0')) && nul < (in + ret)){
+		/* recv just up to the '\0' */
+		int len = nul - in + 1;
+
+		if(len > LINE_SIZE)
+			len = LINE_SIZE;
+
+		ret = recv(pollfds[idx].fd, in, len, 0);
+	}else{
+		if(ret == LINE_SIZE){
+			fprintf(stderr, CLIENT_FMT" running with data: LINE_SIZE exceeded\n", CLIENT_ARGS);
+			recv(pollfds[idx].fd, in, LINE_SIZE, 0);
+		}else
+			/* need more data */
+			return 0;
+	}
 
 	if(verbose > 1)
 		fprintf(stderr, CLIENT_FMT" recv(): \"%s\"\n", CLIENT_ARGS, in);
-
 
 	if(clients[idx].state == ACCEPTING){
 		if(!strncmp(in, "NAME ", 5)){
@@ -225,7 +252,7 @@ char svr_recv(int idx)
 
 			for(i = 0; i < nclients; i++)
 				if(i != idx && clients[i].state == ACCEPTED)
-					fprintf(clients[i].file, "CLIENT_CONN %s\n", name);
+					toclientf(i, "CLIENT_CONN %s", name);
 
 		}else{
 			TO_CLIENT(idx, "ERR need name");
@@ -239,7 +266,7 @@ char svr_recv(int idx)
 			TO_CLIENT(idx, "CLIENT_LIST_START");
 			for(i = 0; i < nclients; i++)
 				if(i != idx && clients[i].state == ACCEPTED)
-					fprintf(clients[idx].file, "CLIENT_LIST %s\n", clients[i].name);
+					toclientf(idx, "CLIENT_LIST %s", clients[i].name);
 			TO_CLIENT(idx, "CLIENT_LIST_END");
 
 		}else if(!strncmp(in, "MESSAGE ", 8)){
@@ -252,7 +279,7 @@ char svr_recv(int idx)
 
 			for(i = 0; i < nclients; i++)
 				if(i != idx && clients[i].state == ACCEPTED)
-					fprintf(clients[i].file, "%s\n", in);
+					toclientf(i, "%s", in);
 		}else{
 			TO_CLIENT(idx, "ERR command unknown");
 		}
