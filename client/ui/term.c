@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
+#include <stdarg.h>
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -20,16 +22,51 @@ static FILE *sockf;
 static const char *name;
 
 int connectedsock(char *, int);
+int toserverf(const char *, ...);
+
+void showclients(void);
 
 int sock_read(void);
 int stdin_read(void);
+int gotdata(char *);
+
+void showclients()
+{
+	toserverf("CLIENT_LIST");
+	/*
+	CLIENT_LIST_START
+	CLIENT_LIST %s
+	CLIENT_LIST_END
+	*/
+}
+
+/* ----------- */
+
+
+int toserverf(const char *fmt, ...)
+{
+	va_list l;
+	char nul = '\0';
+	int ret;
+
+	va_start(l, fmt);
+	ret = vfprintf(sockf, fmt, l);
+	va_end(l);
+
+	if(ret == -1)
+		return -1;
+
+	return fwrite(&nul, sizeof(char), 1, sockf);
+}
+
 
 int sock_read()
 {
-	char buffer[LINE_SIZE], *nl;
+	char buffer[LINE_SIZE] = { 0 };
+	char *nul;
 	int ret;
 
-	ret = recv(sock, buffer, LINE_SIZE, 0);
+	ret = recv(sock, buffer, LINE_SIZE, MSG_PEEK);
 
 	if(ret == 0){
 		/* disco */
@@ -40,9 +77,33 @@ int sock_read()
 		return 1;
 	}
 
-	if((nl = strchr(buffer, '\n')))
-		*nl = '\0';
+	if((nul = strchr(buffer, '\0')) && nul < (buffer + ret)){
+		/* got a newline, recieve _up_to_ that, only */
+		/* assert(newret == oldret) */
+		int len = nul - buffer + 1;
 
+		if(len > LINE_SIZE)
+			len = LINE_SIZE; /* prevent 1 byte sploitz */
+
+		ret = recv(sock, buffer, len, 0);
+
+		return gotdata(buffer);
+	}else{
+		/* need to wait for more, or buffer isn't big enough */
+		if(ret == LINE_SIZE){
+			/* need a larger buffer */
+			fputs("error - buffer not big enough, discarding data\n", stderr);
+		}else{
+			/* save for later, i.e. don't recv() */
+		}
+		return 0;
+	}
+}
+
+
+int gotdata(char *buffer)
+{
+#define UNKNOWN_MESSAGE(b) fprintf(stderr, "Unknown message from server: \"%s\"\n", b)
 	if(!strncmp("ERR ", buffer, 4)){
 		printf("protocol error: %s\n", buffer + 4);
 		return 0;
@@ -60,23 +121,23 @@ int sock_read()
 			else if(!strcmp(buffer, "CLIENT_LIST")){
 				/* TODO */
 			}else
-				fprintf(stderr, "unknown message from server: %s\n", buffer);
+				UNKNOWN_MESSAGE(buffer);
 			break;
 
 		case VERSION_WAIT:
 		{
 			int maj, min;
 			if(sscanf(buffer, "Comm v%d.%d", &maj, &min) == 2){
-				printf("Server Version %d.%d\n", maj, min);
+				printf("Server Version OK: %d.%d, checking name...\n", maj, min);
 				if(maj == VERSION_MAJOR && min == VERSION_MINOR){
 					state = NAME_WAIT;
-					fprintf(sockf, "NAME %s\n", name);
+					toserverf("NAME %s", name);
 				}else{
-					puts("server version mismatch");
+					printf("Server version mismatch: %d.%d\n", maj, min);
 					return 1;
 				}
 			}else{
-				printf("Unknown message from server (%s)\n", buffer);
+				UNKNOWN_MESSAGE(buffer);
 				return 1;
 			}
 			break;
@@ -87,7 +148,7 @@ int sock_read()
 				state = ACCEPTED;
 				puts("Name accepted, fire away");
 			}else{
-				printf("Unknown message from server (%s)\n", buffer);
+				UNKNOWN_MESSAGE(buffer);
 				return 1;
 			}
 			break;
@@ -98,24 +159,31 @@ int sock_read()
 
 int stdin_read()
 {
-	char buffer[LINE_SIZE];
+	char buffer[LINE_SIZE], *nl;
 
 	if(fgets(buffer, LINE_SIZE, stdin)){
+		if((nl = strchr(buffer, '\n')))
+			*nl = '\0';
+
 		if(*buffer == '/'){
 			/* command */
 			if(!strcmp(buffer+1, "exit"))
 				return 1;
-			/*else if(!strcmp(buffer+1, "ls"))
-				showclients();*/
+			else if(!strcmp(buffer+1, "ls"))
+				showclients();
+			else
+				printf("unknown command: %s\n", buffer+1);
 		}else{
 			/* message */
-			fprintf(sockf, "MESSAGE %s\n", buffer);
+			toserverf("MESSAGE %s: %s", name, buffer);
 		}
-	}else
+		return 0;
+	}else{
+		if(ferror(stdin))
+			perror("fgets()");
 		/* eof */
 		return 1;
-
-	return 0;
+	}
 }
 
 
@@ -133,7 +201,10 @@ int connectedsock(char *host, int port)
 
 	addr.sin_family = AF_INET;
 	if(!lookup(host, port, &addr)){
-		perror("lookup()");
+		if(errno)
+			perror("lookup()");
+		else
+			fprintf(stderr, "lookup(): couldn't lookup %s\n", host);
 		close(fd);
 		return -1;
 	}
@@ -172,12 +243,14 @@ int ui_main(const char *nme, char *host, int port)
 		goto bail;
 	}
 
-	printf("Connected to %s:%d, checking name...\n", host, port);
+	printf("Connected to %s:%d, checking version...\n", host, port);
 
 	memset(pollfds, '\0', 2 * sizeof pollfds);
 	pollfds[0].fd = sock;
+	pollfds[0].events = POLLIN;
+
 	pollfds[1].fd = STDIN_FILENO;
-	pollfds[0].events = pollfds[1].events = POLLIN;
+	pollfds[1].events = POLLIN | POLLHUP;
 
 	for(;;){
 		int pret = poll(pollfds, 1 + (state == ACCEPTED), TIMEOUT);
@@ -195,6 +268,14 @@ int ui_main(const char *nme, char *host, int port)
 
 		if(BIT(pollfds[1].revents, POLLIN) && stdin_read())
 			goto bail;
+		if(BIT(pollfds[1].revents, POLLHUP)){
+			/*
+			 * get here if we're reading input from a pipe
+			 * && eof
+			 */
+			fputs("tcomm: input hangup\n", stderr);
+			goto bail;
+		}
 	}
 
 bail:

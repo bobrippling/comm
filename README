@@ -3,13 +3,9 @@ Comm v2.0
 Protocol
 --------
 
-	<TYPE> <DATA>\n
+	<TYPE><DATA>\0
 
-any actual newlines are escaped like so:
-	"Rob: hi there
-	what's going on?"
-becomes
-	MESSAGE Rob: hi there\\nwhat's goin on?
+See poorman\'s\ tcomm.sh for a netcat example
 
 
 Message Types
@@ -45,7 +41,7 @@ Initial Contact/Handshake
 ---------------
 
 Server sends
-Comm v$(VERSION)\n
+Comm v$(VERSION)
 where version is something like 1.2 (always in the form %d.%d)
 
 client either disconnects or continues, with the following

@@ -1,3 +1,5 @@
+Generalise client::sock_read() and server::svr_recv() into the same socket_util.c::func()
+
 Functionality:
 	kick function
 	edit previous message (index - 1, ONLY) like Skype
