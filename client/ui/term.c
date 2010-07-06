@@ -201,10 +201,7 @@ int connectedsock(char *host, int port)
 
 	addr.sin_family = AF_INET;
 	if(!lookup(host, port, &addr)){
-		if(errno)
-			perror("lookup()");
-		else
-			fprintf(stderr, "lookup(): couldn't lookup %s\n", host);
+		fprintf(stderr, "couldn't lookup %s: %s\n", host, lookup_strerror());
 		close(fd);
 		return -1;
 	}

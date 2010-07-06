@@ -12,14 +12,24 @@
 #include <stdio.h>
 #endif
 
+static int lookup_errno = 0;
+
+const char *lookup_strerror()
+{
+	return gai_strerror(lookup_errno);
+}
+
 int lookup(const char *host, int port, struct sockaddr_in *addr)
 {
 	struct addrinfo *res = NULL;
+	int ret;
 
-	if(getaddrinfo(host,
+	if((ret = getaddrinfo(host,
 				NULL /* service - uninitialised in ret */,
-				NULL, &res))
+				NULL, &res))){
+		lookup_errno = ret;
 		return 0;
+	}
 
 	/*if(!inet_pton(AF_INET, host, &addr.sin_addr))
 		return false;*/
