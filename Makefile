@@ -1,28 +1,31 @@
-CFLAGS = -g -W -Wall -Wcast-align -Wcast-qual -Wshadow -Wnested-externs \
-		-Waggregate-return -Wbad-function-cast -Wpointer-arith -Wcast-align -Wwrite-strings \
-		-Wstrict-prototypes -Wmissing-prototypes -Winline -Wredundant-decls -Wextra \
-		-pedantic -pipe
+CFLAGS = -g -Wextra -Wall -pedantic -pipe -std=c99
 
-CC							= gcc
-CXX							= g++
-LDFLAGS					=
+CC              = gcc
+CXX             = g++
+LDFLAGS         =
 
-SVR_OBJS				= server/server.o util.o socket_util.o
-TCOMM_OBJS			= client/init.o   util.o socket_util.o client/ui/term.o
-VERBOSE					= @
+SVR_OBJS        = server/server.o util.o socket_util.o
+TCOMM_OBJS      = client/init.o   util.o socket_util.o client/common.o client/ui/term.o
+FIFO_OBJS       = client/init.o   util.o socket_util.o client/common.o client/ui/fifo.o
+VERBOSE         = @
 
 .PHONY : clean mostlyclean all
 
 
-all: commsvr tcomm
+all: svrcomm tcomm fifocomm
 
-commsvr : ${SVR_OBJS}
+svrcomm : ${SVR_OBJS}
 	${VERBOSE}echo LD $@
 	${VERBOSE}${CC} ${CFLAGS} ${LDFLAGS} -o $@ $^
 
 tcomm : ${TCOMM_OBJS}
 	${VERBOSE}echo LD $@
 	${VERBOSE}${CXX} ${CXXFLAGS} ${LDFLAGS} -o $@ $^
+
+fifocomm : ${FIFO_OBJS}
+	${VERBOSE}echo LD $@
+	${VERBOSE}${CXX} ${CXXFLAGS} ${LDFLAGS} -o $@ $^
+
 
 %.o: %.cpp
 	${VERBOSE}echo CXX $<
