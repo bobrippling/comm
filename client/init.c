@@ -28,7 +28,7 @@ static void usage(char *progname)
 
 int main(int argc, char **argv)
 {
-	int ret = 0, i, port = DEFAULT_PORT;
+	int i, port = DEFAULT_PORT;
 	char argv_options = 1, *host = NULL;
 	const char *name = DEFAULT_NAME;
 
@@ -86,7 +86,5 @@ int main(int argc, char **argv)
 		puts("not daemonising");
 #endif
 
-	ui_main(name, host, port);
-
-	return ret;
+	return ui_main(name, host, port);
 }

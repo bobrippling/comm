@@ -1,3 +1,4 @@
+#define _POSIX_SOURCE 1
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
@@ -11,18 +12,17 @@
 
 #include "../../settings.h"
 #include "../../socket_util.h"
+#include "../common.h"
 
 #include "ui.h"
 
 #define TIMEOUT 100
+#define TO_SERVER_F(...) toserverf(sock, __VA_ARGS__)
 
 static enum state { VERSION_WAIT, NAME_WAIT, ACCEPTED } state = VERSION_WAIT;
 static int sock;
 static FILE *sockf;
 static const char *name;
-
-int connectedsock(char *, int);
-int toserverf(const char *, ...);
 
 void showclients(void);
 
@@ -32,7 +32,7 @@ int gotdata(char *);
 
 void showclients()
 {
-	toserverf("CLIENT_LIST");
+	TO_SERVER_F("CLIENT_LIST");
 	/*
 	CLIENT_LIST_START
 	CLIENT_LIST %s
@@ -43,26 +43,9 @@ void showclients()
 /* ----------- */
 
 
-int toserverf(const char *fmt, ...)
-{
-	va_list l;
-	char nul = '\0';
-	int ret;
-
-	va_start(l, fmt);
-	ret = vfprintf(sockf, fmt, l);
-	va_end(l);
-
-	if(ret == -1)
-		return -1;
-
-	return fwrite(&nul, sizeof(char), 1, sockf);
-}
-
-
 int sock_read()
 {
-	char buffer[LINE_SIZE] = { 0 };
+	static char buffer[LINE_SIZE] = { 0 };
 	char *nul;
 	int ret;
 
@@ -131,7 +114,7 @@ int gotdata(char *buffer)
 				printf("Server Version OK: %d.%d, checking name...\n", maj, min);
 				if(maj == VERSION_MAJOR && min == VERSION_MINOR){
 					state = NAME_WAIT;
-					toserverf("NAME %s", name);
+					TO_SERVER_F("NAME %s", name);
 				}else{
 					printf("Server version mismatch: %d.%d\n", maj, min);
 					return 1;
@@ -175,7 +158,7 @@ int stdin_read()
 				printf("unknown command: %s\n", buffer+1);
 		}else{
 			/* message */
-			toserverf("MESSAGE %s: %s", name, buffer);
+			TO_SERVER_F("MESSAGE %s: %s", name, buffer);
 		}
 		return 0;
 	}else{
@@ -184,34 +167,6 @@ int stdin_read()
 		/* eof */
 		return 1;
 	}
-}
-
-
-int connectedsock(char *host, int port)
-{
-	int fd = socket(AF_INET, SOCK_STREAM, 0);
-	struct sockaddr_in addr;
-
-	if(fd == -1){
-		perror("socket()");
-		return -1;
-	}
-
-	memset(&addr, '\0', sizeof addr);
-
-	addr.sin_family = AF_INET;
-	if(!lookup(host, port, &addr)){
-		fprintf(stderr, "couldn't lookup %s: %s\n", host, lookup_strerror());
-		close(fd);
-		return -1;
-	}
-
-	if(connect(fd, (struct sockaddr *)&addr, sizeof addr) == -1){
-		perror("connect()");
-		return -1;
-	}
-
-	return fd;
 }
 
 int ui_main(const char *nme, char *host, int port)
@@ -255,6 +210,8 @@ int ui_main(const char *nme, char *host, int port)
 		if(pret == 0)
 			continue;
 		else if(pret < 0){
+			if(errno == EINTR)
+				continue;
 			perror("poll()");
 			return 1;
 		}
