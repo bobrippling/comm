@@ -1,3 +1,4 @@
+#define _POSIX_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -20,8 +21,8 @@
 
 #define LISTEN_BACKLOG 5
 #define SLEEP_MS       100
-#define TO_CLIENT(i, msg) fwrite(msg, sizeof *msg, 1+strlen(msg), clients[i].file)
-/*                                                  ^include the '\0' */
+#define TO_CLIENT(i, msg) fwrite(msg"\n", sizeof *msg, strlen(msg) + 1, clients[i].file)
+/*                                                  ^don't include the '\0', but the '\n' */
 
 #define CLIENT_FMT  "client %d (socket %d)"
 #define CLIENT_ARGS idx, pollfds[idx].fd
@@ -67,8 +68,8 @@ void svr_err( int);
 
 int toclientf(int idx, const char *fmt, ...)
 {
+	static const char nl = '\n';
 	va_list l;
-	char nul = '\0';
 	int ret;
 
 	va_start(l, fmt);
@@ -78,7 +79,7 @@ int toclientf(int idx, const char *fmt, ...)
 	if(ret == -1)
 		return -1;
 
-	return fwrite(&nul, sizeof nul, 1, clients[idx].file);
+	return fwrite(&nl, sizeof nl, 1, clients[idx].file);
 }
 
 int nonblock(int fd)
@@ -89,10 +90,8 @@ int nonblock(int fd)
 		flags = 0;
 	flags |= O_NONBLOCK;
 
-	if(fcntl(fd, F_SETFL, flags) == -1){
-		perror("fcntl()");
+	if(fcntl(fd, F_SETFL, flags) == -1)
 		return 1;
-	}
 	return 0;
 }
 
@@ -109,7 +108,7 @@ void cleanup()
 
 char svr_conn(int idx)
 {
-	static char buffer[] = "Comm v"VERSION"";
+	static const char buffer[] = "Comm v"VERSION"\n";
 
 	clients[idx].state = ACCEPTING;
 	clients[idx].name  = NULL;
@@ -119,14 +118,14 @@ char svr_conn(int idx)
 		return 0;
 	}
 
-	if(fwrite(buffer, sizeof *buffer, sizeof buffer, clients[idx].file) == 0){
-		fprintf(stderr, CLIENT_FMT" fwrite(): ", CLIENT_ARGS);
+	if(setvbuf(clients[idx].file, NULL, _IONBF, 0)){
+		fprintf(stderr, CLIENT_FMT" setvbuf(): ", CLIENT_ARGS);
 		perror(NULL);
 		return 0;
 	}
 
-	if(setvbuf(clients[idx].file, NULL, _IONBF, 0)){
-		fprintf(stderr, CLIENT_FMT" setvbuf(): ", CLIENT_ARGS);
+	if(fwrite(buffer, sizeof *buffer, sizeof buffer, clients[idx].file) == 0){
+		fprintf(stderr, CLIENT_FMT" fwrite(): ", CLIENT_ARGS);
 		perror(NULL);
 		return 0;
 	}
@@ -187,7 +186,7 @@ void svr_err(int idx)
 
 char svr_recv(int idx)
 {
-	char in[LINE_SIZE] = { 0 }, *nul;
+	char in[LINE_SIZE] = { 0 }, *newl;
 	int ret;
 
 	switch(ret = recv(pollfds[idx].fd, in, LINE_SIZE, MSG_PEEK)){
@@ -201,14 +200,15 @@ char svr_recv(int idx)
 			return 1;
 	}
 
-	if((nul = strchr(in, '\0')) && nul < (in + ret)){
-		/* recv just up to the '\0' */
-		int len = nul - in + 1;
+	if((newl = strchr(in, '\n')) && newl < (in + ret)){
+		/* recv just up to the '\n' */
+		int len = newl - in + 1;
 
 		if(len > LINE_SIZE)
 			len = LINE_SIZE;
 
 		ret = recv(pollfds[idx].fd, in, len, 0);
+		*newl = '\0';
 	}else{
 		if(ret == LINE_SIZE){
 			fprintf(stderr, CLIENT_FMT" running with data: LINE_SIZE exceeded\n", CLIENT_ARGS);
@@ -348,8 +348,7 @@ int main(int argc, char **argv)
 		printf("verbose %d\n", verbose);
 
 	server = socket(AF_INET, SOCK_STREAM, 0);
-
-	if(!server == -1){
+	if(server == -1){
 		perror("socket()");
 		return 1;
 	}
@@ -375,6 +374,7 @@ int main(int argc, char **argv)
 	}
 
 	if(nonblock(server)){
+		perror("nonblock()");
 		close(server);
 		return 1;
 	}
@@ -390,6 +390,7 @@ int main(int argc, char **argv)
 
 			if(!new || !newpfds){
 				perror("realloc()");
+				cleanup();
 				return 1;
 			}else{
 				int idx = nclients-1;
@@ -434,15 +435,13 @@ int main(int argc, char **argv)
 		for(i = 0; ret > 0 && i < nclients; i++){
 			if(BIT(pollfds[i].revents, POLLHUP)){
 				ret--;
-				svr_hup(i);
-				i--;
+				svr_hup(i--);
 				continue;
 			}
 
 			if(BIT(pollfds[i].revents, POLLERR)){
 				ret--;
-				svr_err(i);
-				i--;
+				svr_err(i--);
 				continue;
 			}
 
@@ -452,7 +451,5 @@ int main(int argc, char **argv)
 			}
 		}
 	}
-
-	cleanup();
-	return 0;
+	/* UNREACHABLE */
 }

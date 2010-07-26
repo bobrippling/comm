@@ -3,7 +3,7 @@ Comm v2.0
 Protocol
 --------
 
-	<TYPE><DATA>\0
+	<TYPE><DATA>\n
 
 See poorman\'s\ tcomm.sh for a netcat example
 
@@ -41,12 +41,12 @@ Initial Contact/Handshake
 ---------------
 
 Server sends
-Comm v$(VERSION)
+Comm v$VERSION
 where version is something like 1.2 (always in the form %d.%d)
 
-client either disconnects or continues, with the following
+client either disconnects, or continues with the following
 NAME Timmy
 the server then responds with ERR %s or OK
 if ERR, server then closes the connection
 
-otherwise the connection is successful
+otherwise the handshake is successful
