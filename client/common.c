@@ -8,10 +8,11 @@
 #include <arpa/inet.h>
 
 #include "../socket_util.h"
+#include "ui/ui.h"
 
 #include "common.h"
 
-int connectedsock(char *host, int port)
+int connectedsock(const char *host, int port)
 {
 	int fd = socket(AF_INET, SOCK_STREAM, 0);
 	struct sockaddr_in addr;
@@ -25,36 +26,39 @@ int connectedsock(char *host, int port)
 
 	addr.sin_family = AF_INET;
 	if(!lookup(host, port, &addr)){
-		fprintf(stderr, "couldn't lookup %s: %s\n", host, lookup_strerror());
+		ui_warning("couldn't lookup %s: %s", host, lookup_strerror());
 		close(fd);
 		return -1;
 	}
 
 	if(connect(fd, (struct sockaddr *)&addr, sizeof addr) == -1){
-		perror("connect()");
+		ui_perror("connect()");
 		return -1;
 	}
 
 	return fd;
 }
 
-int toserverf(int fd, const char *fmt, ...)
+int toserverf(FILE *f, const char *fmt, ...)
 {
-#define BSIZ 4096
-	static char buffer[BSIZ];
-
 	va_list l;
 	int ret;
 
 	va_start(l, fmt);
-	ret = vsnprintf(buffer, BSIZ, fmt, l);
+	ret = toserver(f, fmt, l);
 	va_end(l);
+	return ret;
+}
+
+int toserver(FILE *f, const char *fmt, va_list l)
+{
+	static const char nl = '\n';
+	int ret;
+
+	ret = vfprintf(f, fmt, l);
 
 	if(ret == -1)
 		return -1;
-	else if(ret >= BSIZ)
-		buffer[BSIZ-1] = '\0';
 
-	return write(fd, buffer, strlen(buffer));
-#undef BSIZ
+	return fwrite(&nl, sizeof nl, 1, f);
 }

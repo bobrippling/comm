@@ -5,14 +5,14 @@ CXX             = g++
 LDFLAGS         =
 
 SVR_OBJS        = server/server.o util.o socket_util.o
-TCOMM_OBJS      = client/init.o   util.o socket_util.o client/common.o client/ui/term.o
+TCOMM_OBJS      = client/init.o   util.o socket_util.o client/common.o client/comm.o client/ui/term.o
 FIFO_OBJS       = client/init.o   util.o socket_util.o client/common.o client/ui/fifo.o
 VERBOSE         = @
 
 .PHONY : clean mostlyclean all
 
 
-all: svrcomm tcomm fifocomm
+all: svrcomm tcomm #fifocomm
 
 svrcomm : ${SVR_OBJS}
 	${VERBOSE}echo LD $@

@@ -8,7 +8,7 @@
 #include <setjmp.h>
 
 #include "../settings.h"
-#include "ui/ui.h"
+#include "comm.h"
 
 #define DEFAULT_NAME  "Timmy"
 #define LOCALE        "en_GB.UTF-8"
@@ -86,5 +86,5 @@ int main(int argc, char **argv)
 		puts("not daemonising");
 #endif
 
-	return ui_main(name, host, port);
+	return comm_main(name, host, port);
 }
