@@ -4,16 +4,25 @@ usage(){
 	if [ -n "$1" ]
 	then echo $1 >&2
 	fi
-	echo "Usage: $0 [-p port] host" >&2
+	echo "Usage: $0 [-p port] [-n name] host" >&2
 	exit 1
 }
 
 host=
 port=2848
+name="Tim"
 
 while [ -n "$1" ]
 do
-	if [ "$1" = "-p" ]
+	if [ "$1" = "-n" ]
+	then
+		shift
+		if [ -z "$1" ]
+		then
+			usage "need name"
+		fi
+		name="$1"
+	elif [ "$1" = "-p" ]
 	then
 		shift
 		if [ -z "$1" ]
@@ -34,4 +43,4 @@ if [ -z "$host" ]
 then usage "need host"
 fi
 
-netcat -c $host $port
+(echo "NAME $name"; sed -u "s/^/MESSAGE $name: /")|netcat -c $host $port
