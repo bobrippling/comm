@@ -25,6 +25,9 @@ void ui_error(  const char *fmt, ...) { print(stderr, fmt); }
 
 void ui_perror(const char *err) { perror(err); }
 
+int  ui_init() { return 0; }
+void ui_term() {}
+
 void showclients()
 {
 	/* FIXME */
