@@ -291,12 +291,24 @@ char svr_recv(int idx)
 
 void sigh(int sig)
 {
-	const char buffer[] = "We get signal\n";
-	write(STDERR_FILENO, buffer, sizeof buffer);
+	if(sig == SIGINT){
+		int i;
+		printf("\nComm v"VERSION" Server Status - %d clients\n", nclients);
+		if(nclients){
+			puts("Index  FD  Name\n");
+			for(i = 0; i < nclients; i++)
+				printf("%3d %3d %s\n", i, pollfds[i].fd, clients[i].name);
+		}
+		fflush(stdout);
+		signal(SIGINT, &sigh);
+	}else{
+		const char buffer[] = "We get signal\n";
+		write(STDERR_FILENO, buffer, sizeof buffer);
 
-	cleanup();
+		cleanup();
 
-	exit(sig);
+		exit(sig);
+	}
 }
 
 int main(int argc, char **argv)
@@ -317,8 +329,9 @@ int main(int argc, char **argv)
 	/* ignore sigpipe - sent when recv() called on a disconnected socket */
 	if( signal(SIGPIPE, SIG_IGN) == SIG_ERR ||
 			signal(SIGINT,  &sigh)   == SIG_ERR ||
-			signal(SIGSEGV, &sigh)   == SIG_ERR ||
-			signal(SIGTERM, &sigh)   == SIG_ERR){
+			signal(SIGQUIT, &sigh)   == SIG_ERR ||
+			signal(SIGTERM, &sigh)   == SIG_ERR ||
+			signal(SIGSEGV, &sigh)   == SIG_ERR){
 		perror("signal()");
 		return 1;
 	}
@@ -411,6 +424,10 @@ int main(int argc, char **argv)
 					close(cfd);
 				}
 			}
+		}else if(errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK){
+			perror("accept()");
+			cleanup();
+			return 1;
 		}
 
 		for(i = 0; i < nclients; i++)
@@ -427,6 +444,9 @@ int main(int argc, char **argv)
 		if(ret == 0)
 			continue;
 		else if(ret < 0){
+			if(errno == EINTR)
+				continue;
+
 			perror("poll()");
 			cleanup();
 			return 1;
