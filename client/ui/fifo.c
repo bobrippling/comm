@@ -21,8 +21,8 @@
 	}while(0)
 
 
-static const char *file_output = "fifocomm_out";
-static const char *file_input  = "fifocomm_in";
+static const char *file_output = "out";
+static const char *file_input  = "in";
 
 static void output(const char *msg, va_list l);
 void ui_info(   const char *fmt, ...) { OUTPUT(fmt); }
@@ -61,9 +61,13 @@ int initfifo()
 
 int ui_init()
 {
+	if(access(file_output, F_OK) == 0){
+		fprintf(stderr, "not overwriting %s\n", file_output);
+		return 1;
+	}
 	if(initfifo())
 		return 1;
-	close(open(file_output, O_WRONLY | O_TRUNC));
+	creat(file_output, 0600); /* so the user can tail -f */
 	return 0;
 }
 
@@ -78,7 +82,7 @@ int ui_doevents()
 	static char buffer[LINE_SIZE], *nl;
 	int fd, nread, saverrno;
 
-	fd = open(file_input, O_RDONLY | O_NONBLOCK);
+	fd = open(file_input, O_RDONLY | O_NONBLOCK, 0600);
 
 	if(fd == -1){
 		initfifo();
@@ -94,9 +98,11 @@ int ui_doevents()
 
 	switch(poll(&pfd, 1, 100)){
 		case 0:
+			close(fd);
 			return 0;
 		case -1:
 			ui_perror("poll()");
+			close(fd);
 			return 1;
 	}
 

@@ -7,8 +7,6 @@
 #include "../comm.h"
 #include "../../settings.h"
 
-#define SLEEP_MS 50
-
 #define print(f, fmt) do{ \
 		va_list l; \
 		va_start(l, fmt); \
@@ -50,7 +48,7 @@ int ui_doevents()
 		pfd.fd = STDIN_FILENO;
 		pfd.events = POLLIN;
 
-		switch(poll(&pfd, 1, SLEEP_MS)){
+		switch(poll(&pfd, 1, 100)){
 			case 0:
 				return 0;
 			case -1:
