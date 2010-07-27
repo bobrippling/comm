@@ -45,4 +45,4 @@ fi
 
 # Doesn't check for newlines in $name, oh well
 
-(echo "NAME $name"; sed -u "s/^/MESSAGE $name: /")|netcat -c $host $port
+(echo "NAME $name"; sed -u "s/^/MESSAGE $name: /")|netcat $host $port
