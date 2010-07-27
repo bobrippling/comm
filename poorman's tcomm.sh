@@ -18,16 +18,14 @@ do
 	then
 		shift
 		if [ -z "$1" ]
-		then
-			usage "need name"
+		then usage "need name"
 		fi
 		name="$1"
 	elif [ "$1" = "-p" ]
 	then
 		shift
 		if [ -z "$1" ]
-		then
-			usage "need port"
+		then usage "need port"
 		fi
 		port="$1"
 	elif [ -z "$host" ]
@@ -41,6 +39,10 @@ done
 
 if [ -z "$host" ]
 then usage "need host"
+elif [ -z "$name" ]
+then usage "need name"
 fi
+
+# Doesn't check for newlines in $name, oh well
 
 (echo "NAME $name"; sed -u "s/^/MESSAGE $name: /")|netcat -c $host $port
