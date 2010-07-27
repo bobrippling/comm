@@ -22,7 +22,7 @@
 #define LISTEN_BACKLOG 5
 #define SLEEP_MS       100
 #define TO_CLIENT(i, msg) fwrite(msg"\n", sizeof *msg, strlen(msg) + 1, clients[i].file)
-/*                                                  ^don't include the '\0', but the '\n' */
+/*                                                     ^don't include the '\0', but the '\n' */
 
 #define CLIENT_FMT  "client %d (socket %d)"
 #define CLIENT_ARGS idx, pollfds[idx].fd
@@ -104,12 +104,13 @@ void cleanup()
 
 	free(clients);
 	free(pollfds);
+
+	shutdown(server, SHUT_RDWR);
+	close(server);
 }
 
 char svr_conn(int idx)
 {
-	static const char buffer[] = "Comm v"VERSION"\n";
-
 	clients[idx].state = ACCEPTING;
 	clients[idx].name  = NULL;
 	if(!(clients[idx].file  = fdopen(pollfds[idx].fd, "r+"))){
@@ -124,7 +125,7 @@ char svr_conn(int idx)
 		return 0;
 	}
 
-	if(fwrite(buffer, sizeof *buffer, sizeof buffer, clients[idx].file) == 0){
+	if(TO_CLIENT(idx, "Comm v"VERSION) == 0){
 		fprintf(stderr, CLIENT_FMT" fwrite(): ", CLIENT_ARGS);
 		perror(NULL);
 		return 0;
