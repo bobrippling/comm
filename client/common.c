@@ -18,7 +18,7 @@ int connectedsock(const char *host, int port)
 	struct sockaddr_in addr;
 
 	if(fd == -1){
-		perror("socket()");
+		ui_perror("socket()");
 		return -1;
 	}
 
@@ -26,7 +26,7 @@ int connectedsock(const char *host, int port)
 
 	addr.sin_family = AF_INET;
 	if(!lookup(host, port, &addr)){
-		ui_warning("couldn't lookup %s: %s", host, lookup_strerror());
+		ui_error("couldn't lookup %s: %s", host, lookup_strerror());
 		close(fd);
 		return -1;
 	}

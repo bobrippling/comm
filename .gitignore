@@ -2,3 +2,4 @@
 svrcomm
 tcomm
 fifocomm
+fifocomm_out fifocomm_in

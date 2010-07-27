@@ -1,9 +1,11 @@
 #define _POSIX_SOURCE 1
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdarg.h>
-#include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <unistd.h>
+#include <signal.h>
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -26,6 +28,8 @@ static const char *name;
 
 static int sock_read(void);
 static int gotdata(char *);
+void sigh(int sig);
+void cleanup(void);
 
 enum commstate comm_getstate(void)
 {
@@ -149,13 +153,37 @@ int comm_sendmessage(const char *msg, ...)
 	return ret;
 }
 
+void cleanup()
+{
+	ui_term();
+	shutdown(sock, SHUT_RDWR);
+	if(sockf)
+		fclose(sockf);
+	else
+		close(sock);
+}
+
+void sigh(int sig)
+{
+	ui_warning("we get signal %d\n", sig);
+	cleanup();
+	exit(sig);
+}
+
 int comm_main(const char *nme, const char *host, int port)
 {
 	struct pollfd pollfds;
 	int ret = 0;
 
+	signal(SIGINT , &sigh);
+	signal(SIGTERM, &sigh);
+	signal(SIGQUIT, &sigh);
+
+	if(ui_init())
+		return 1;
+
 	if(!host){
-		ui_perror("need host");
+		ui_error("need host");
 		return 1;
 	}
 
@@ -199,10 +227,6 @@ int comm_main(const char *nme, const char *host, int port)
 	}
 
 bail:
-	shutdown(sock, SHUT_RDWR);
-	if(sockf)
-		fclose(sockf);
-	else
-		close(sock);
+	cleanup();
 	return ret;
 }
