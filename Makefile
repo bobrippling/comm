@@ -1,8 +1,4 @@
-CFLAGS = -g -Wextra -Wall -pedantic -pipe -std=c99
-
-CC              = gcc
-CXX             = g++
-LDFLAGS         =
+include config.mk
 
 SVR_OBJS        = server/server.o util.o socket_util.o
 CLIENT_OBJS     = client/init.o   util.o socket_util.o client/common.o client/comm.o
