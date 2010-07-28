@@ -13,10 +13,10 @@
 #include "../comm.h"
 #include "ui.h"
 
-#define OUTPUT(fmt) do{ \
+#define OUTPUT(f, fmt) do{ \
 		va_list l; \
 		va_start(l, fmt); \
-		output(fmt, l); \
+		output(f, fmt, l); \
 		va_end(l); \
 	}while(0)
 
@@ -24,29 +24,28 @@
 static const char *file_output = "out";
 static const char *file_input  = "in";
 
-static void output(const char *msg, va_list l);
-void ui_info(   const char *fmt, ...) { OUTPUT(fmt); }
-void ui_message(const char *fmt, ...) { OUTPUT(fmt); }
-void ui_warning(const char *fmt, ...) { OUTPUT(fmt); }
+static void output(FILE *, const char *, va_list);
+
+void ui_info(   const char *fmt, ...) { OUTPUT(NULL, fmt); }
+void ui_message(const char *fmt, ...) { OUTPUT(NULL, fmt); }
+void ui_warning(const char *fmt, ...) { OUTPUT(stderr, fmt); }
+void ui_error(  const char *fmt, ...) { OUTPUT(stderr, fmt); }
 void ui_perror( const char *msg     ) { ui_error("%s: %s", msg, strerror(errno)); }
 
-void ui_error(const char *fmt, ...)
-{
-	va_list l;
-	va_start(l, fmt);
-	vfprintf(stderr, fmt, l);
-	va_end(l);
-	fputc('\n', stderr);
-}
 
-
-void output(const char *msg, va_list l)
+void output(FILE *f, const char *msg, va_list l)
 {
-	FILE *f = fopen(file_output, "a");
+	char clos = 0;
+	if(!f){
+		f = fopen(file_output, "a");
+		clos = 1;
+	}
+
 	if(f){
 		vfprintf(f, msg, l);
 		fputc('\n', f);
-		fclose(f);
+		if(clos)
+			fclose(f);
 	}
 }
 
