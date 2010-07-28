@@ -9,7 +9,7 @@
 #include <poll.h>
 #include <unistd.h>
 
-#include "../../settings.h"
+#include "../../config.h"
 #include "../comm.h"
 #include "ui.h"
 

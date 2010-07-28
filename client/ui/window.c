@@ -5,7 +5,7 @@
 
 #include "ui.h"
 #include "../log.h"
-#include "../settings.h"
+#include "../config.h"
 #include "../comm.h"
 
 #define HEIGHT 400

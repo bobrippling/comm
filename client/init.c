@@ -7,7 +7,7 @@
 #include <errno.h>
 #include <setjmp.h>
 
-#include "../settings.h"
+#include "../config.h"
 #include "comm.h"
 
 #define DEFAULT_NAME  "Timmy"

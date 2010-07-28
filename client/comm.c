@@ -16,7 +16,7 @@
 #include "ui/ui.h"
 
 #include "comm.h"
-#include "../settings.h"
+#include "../config.h"
 
 #define TO_SERVER_F(...) toserverf(sockf, __VA_ARGS__)
 

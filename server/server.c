@@ -13,7 +13,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
-#include "../settings.h"
+#include "../config.h"
 #include "../util.h"
 #include "../socket_util.h"
 

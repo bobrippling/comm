@@ -39,18 +39,16 @@ clean: mostlyclean
 mostlyclean:
 	${VERBOSE}find . -iname \*.o|xargs rm -f
 
-
-server/server.o: server/server.c settings.h util.h \
- socket_util.h server/server.h
-client/init.o: client/init.c client/../settings.h client/comm.h
-client/ui/fifo.o: client/ui/fifo.c client/ui/../comm.h
-client/ui/term.o: client/ui/term.c client/ui/../comm.h client/ui/../../settings.h
+client/init.o: client/init.c client/../config.h client/comm.h
+client/ui/fifo.o: client/ui/fifo.c client/ui/../../config.h client/ui/../comm.h \
+ client/ui/ui.h
+client/ui/term.o: client/ui/term.c client/ui/../comm.h client/ui/../../config.h
 client/ui/line.o: client/ui/line.c client/ui/line.h
 client/common.o: client/common.c client/../socket_util.h client/ui/ui.h \
  client/common.h
 client/comm.o: client/comm.c client/common.h client/ui/ui.h client/comm.h \
- client/../settings.h
-client/server.o: server/server.c server/../settings.h server/../util.h \
+ client/../config.h
+server/server.o: server/server.c server/../config.h server/../util.h \
  server/../socket_util.h server/server.h
 socket_util.o: socket_util.c socket_util.h
 util.o: util.c util.h

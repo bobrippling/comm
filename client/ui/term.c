@@ -5,7 +5,7 @@
 #include <unistd.h>
 
 #include "../comm.h"
-#include "../../settings.h"
+#include "../../config.h"
 
 #define print(f, fmt) do{ \
 		va_list l; \
