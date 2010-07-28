@@ -295,7 +295,7 @@ void sigh(int sig)
 		int i;
 		printf("\nComm v"VERSION" Server Status - %d clients\n", nclients);
 		if(nclients){
-			puts("Index  FD  Name\n");
+			puts("Index FD Name");
 			for(i = 0; i < nclients; i++)
 				printf("%3d %3d %s\n", i, pollfds[i].fd, clients[i].name);
 		}
