@@ -18,7 +18,6 @@
 #include "comm.h"
 #include "../settings.h"
 
-#define TIMEOUT 100
 #define TO_SERVER_F(...) toserverf(sockf, __VA_ARGS__)
 
 static enum commstate comm_state = VERSION_WAIT;
@@ -210,7 +209,7 @@ int comm_main(const char *nme, const char *host, int port)
 	pollfds.events = POLLIN;
 
 	for(; !ui_doevents();){
-		int pret = poll(&pollfds, 1, TIMEOUT);
+		int pret = poll(&pollfds, 1, CLIENT_SOCK_WAIT);
 
 		if(pret == 0)
 			continue;

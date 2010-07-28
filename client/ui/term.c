@@ -48,7 +48,7 @@ int ui_doevents()
 		pfd.fd = STDIN_FILENO;
 		pfd.events = POLLIN;
 
-		switch(poll(&pfd, 1, 100)){
+		switch(poll(&pfd, 1, CLIENT_UI_WAIT)){
 			case 0:
 				return 0;
 			case -1:
