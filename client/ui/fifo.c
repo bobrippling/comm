@@ -46,7 +46,8 @@ void output(FILE *f, const char *msg, va_list l)
 		fputc('\n', f);
 		if(clos)
 			fclose(f);
-	}
+	}else
+		ui_error("fopen()");
 }
 
 int initfifo()
@@ -84,7 +85,8 @@ int ui_doevents()
 	fd = open(file_input, O_RDONLY | O_NONBLOCK, 0600);
 
 	if(fd == -1){
-		initfifo();
+		if(initfifo())
+			return 1;
 		fd = open(file_input, O_RDONLY | O_NONBLOCK);
 		if(fd == -1){
 			ui_perror("open()");
