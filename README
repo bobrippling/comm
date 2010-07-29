@@ -22,6 +22,9 @@ Client -> Server:
 		CLIENT_LIST %s
 		CLIENT_LIST_END
 		for each client except the queryer
+	RENAME %s
+		_request_ to change name
+		server sends OK or ERR
 
 Server -> Client:
 	CLIENT_CONN %s
