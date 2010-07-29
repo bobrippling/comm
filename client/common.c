@@ -62,3 +62,14 @@ int toserver(FILE *f, const char *fmt, va_list l)
 
 	return fwrite(&nl, sizeof nl, 1, f);
 }
+
+void perrorf(const char *fmt, ...)
+{
+	if(fmt){
+		va_list l;
+		va_start(l, fmt);
+		vfprintf(stderr, fmt, l);
+		va_end(l);
+	}
+	perror(NULL);
+}

@@ -23,6 +23,8 @@ void ui_error(  const char *fmt, ...) { print(stderr, fmt); }
 
 void ui_perror(const char *err) { perror(err); }
 
+void ui_gotclient( const char *cname) { ui_info("Client: %s", cname); }
+
 int  ui_init() { return 0; }
 void ui_term() {}
 

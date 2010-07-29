@@ -96,10 +96,10 @@ static int gotdata(char *buffer)
 				ui_info("client disconnected from server: %s", buffer + 13);
 			else if(!strncmp(buffer, "MESSAGE ", 8))
 				ui_message("%s", buffer + 8);
-			else if(!strcmp(buffer, "CLIENT_LIST"))
-				/* TODO - mid-way through a client list */
-				;
-			else
+			else if(!strncmp(buffer, "CLIENT_LIST", 11)){
+				if(strcmp(buffer + 11, "_START") && strcmp(buffer + 11, "_END"))
+					ui_gotclient(buffer + 12); /* ignore FIXME: maintain list of clients */
+			}else
 				UNKNOWN_MESSAGE(buffer);
 			break;
 
@@ -152,6 +152,11 @@ int comm_sendmessage(const char *msg, ...)
 	return ret;
 }
 
+int comm_listclients()
+{
+	return !!fputs("CLIENT_LIST\n", sockf);
+}
+
 void cleanup()
 {
 	ui_term();
@@ -178,7 +183,7 @@ int comm_main(const char *nme, const char *host, int port)
 	signal(SIGTERM, &sigh);
 	signal(SIGQUIT, &sigh);
 
-	if(ui_init())
+	if(ui_init(host, port))
 		return 1;
 
 	if(!host){
@@ -220,7 +225,6 @@ int comm_main(const char *nme, const char *host, int port)
 			return 1;
 		}
 
-#define BIT(a, b) (((a) & (b)) == (b))
 		if(BIT(pollfds.revents, POLLIN) && sock_read())
 			goto bail;
 	}

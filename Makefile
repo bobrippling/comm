@@ -1,5 +1,7 @@
 include config.mk
 
+CFLAGS         += -std=c99
+
 SVR_OBJS        = server/server.o util.o socket_util.o
 CLIENT_OBJS     = client/init.o   util.o socket_util.o client/common.o client/comm.o
 TCOMM_OBJS      = ${CLIENT_OBJS} client/ui/term.o
@@ -34,14 +36,14 @@ fifocomm : ${FIFO_OBJS}
 
 
 clean: mostlyclean
-	${VERBOSE}rm -f commsvr tcomm
+	${VERBOSE}rm -f svrcomm tcomm fifocomm
 
 mostlyclean:
 	${VERBOSE}find . -iname \*.o|xargs rm -f
 
 client/init.o: client/init.c client/../config.h client/comm.h
 client/ui/fifo.o: client/ui/fifo.c client/ui/../../config.h client/ui/../comm.h \
- client/ui/ui.h
+ client/ui/ui.h client/ui/../common.h
 client/ui/term.o: client/ui/term.c client/ui/../comm.h client/ui/../../config.h
 client/ui/line.o: client/ui/line.c client/ui/line.h
 client/common.o: client/common.c client/../socket_util.h client/ui/ui.h \
