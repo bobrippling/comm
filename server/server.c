@@ -361,7 +361,7 @@ int main(int argc, char **argv)
 	if(verbose > 1)
 		printf("verbose %d\n", verbose);
 
-	server = socket(AF_INET, SOCK_STREAM, 0);
+	server = socket(PF_INET, SOCK_STREAM, 0);
 	if(server == -1){
 		perror("socket()");
 		return 1;

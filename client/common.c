@@ -14,7 +14,7 @@
 
 int connectedsock(const char *host, int port)
 {
-	int fd = socket(AF_INET, SOCK_STREAM, 0);
+	int fd = socket(PF_INET, SOCK_STREAM, 0);
 	struct sockaddr_in addr;
 
 	if(fd == -1){
