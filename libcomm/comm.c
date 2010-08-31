@@ -74,7 +74,7 @@ static int comm_process(comm_t *ct, char *buffer, CALLBACK(callback))
 	fprintf(stderr, "libcomm: Unknown message from server: \"%s\"", b)
 
 	if(!strncmp("ERR ", buffer, 4)){
-		callback(COMM_ERR, buffer + 4);
+		callback(COMM_ERR, "%s", buffer + 4);
 		return 0;
 	}
 
@@ -82,17 +82,17 @@ static int comm_process(comm_t *ct, char *buffer, CALLBACK(callback))
 		case ACCEPTED:
 			/* normal message */
 			if(!strncmp(buffer, "CLIENT_CONN ", 12))
-				callback(COMM_CLIENT_CONN, buffer + 12);
+				callback(COMM_CLIENT_CONN, "%s", buffer + 12);
 
 			else if(!strncmp(buffer, "CLIENT_DISCO ", 13))
-				callback(COMM_CLIENT_DISCO, buffer + 13);
+				callback(COMM_CLIENT_DISCO, "%s", buffer + 13);
 
 			else if(!strncmp(buffer, "MESSAGE ", 8))
-				callback(COMM_MSG, buffer + 8);
+				callback(COMM_MSG, "%s", buffer + 8);
 
 			else if(!strncmp(buffer, "CLIENT_LIST", 11)){
 				if(strcmp(buffer + 11, "_START") && strcmp(buffer + 11, "_END"))
-					callback(COMM_CLIENT_LIST, buffer + 12); /* _START/_END are ignored FIXME: maintain list of clients */
+					callback(COMM_CLIENT_LIST, "%s", buffer + 12); /* _START/_END are ignored FIXME: maintain list of clients */
 			}else
 				UNKNOWN_MESSAGE(buffer);
 			break;
@@ -100,7 +100,7 @@ static int comm_process(comm_t *ct, char *buffer, CALLBACK(callback))
 		case NAME_WAIT:
 			if(!strcmp(buffer, "OK")){
 				ct->state = ACCEPTED;
-				callback(COMM_INFO, "Name accepted");
+				callback(COMM_INFO, "%s", "Name accepted");
 			}else{
 				UNKNOWN_MESSAGE(buffer);
 				return 1;
