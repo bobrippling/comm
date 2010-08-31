@@ -5,3 +5,4 @@ fifocomm
 out
 in
 client/java/bin
+libcomm/libcomm.a

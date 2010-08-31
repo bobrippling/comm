@@ -8,10 +8,10 @@ TCOMM_OBJS      = ${CLIENT_OBJS} client/ui/term.o
 FIFO_OBJS       = ${CLIENT_OBJS} client/ui/fifo.o
 VERBOSE         = @
 
-.PHONY : clean mostlyclean all
+.PHONY : clean mostlyclean all libcomm
 
 
-all: svrcomm tcomm fifocomm
+all: svrcomm tcomm fifocomm libcomm
 
 svrcomm : ${SVR_OBJS}
 	${VERBOSE}echo LD $@
@@ -25,6 +25,8 @@ fifocomm : ${FIFO_OBJS}
 	${VERBOSE}echo LD $@
 	${VERBOSE}${CXX} ${CXXFLAGS} ${LDFLAGS} -o $@ $^
 
+libcomm :
+	@make -C libcomm
 
 %.o: %.cpp
 	${VERBOSE}echo CXX $<
