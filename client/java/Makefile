@@ -1,17 +1,20 @@
 VERBOSE = @
 
-.PHONY: clean run
+.PHONY: clean run all
 
-Main.class:
+all: Main.class
 
-%.class : %.java
+%.class : %.java bin
 	${VERBOSE}echo javac $<
 	${VERBOSE}javac -d bin $<
 
-clean:
-	find bin -type f -delete
+bin:
+	mkdir -p bin
 
-run: Main.class
+clean:
+	find bin -delete
+
+run: all
 	sh -c 'cd bin; java Main localhost'
 
 Comm.class: Comm.java
