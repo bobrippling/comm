@@ -69,7 +69,7 @@ int ui_doevents()
 				else if(!strcmp(buffer+1, "ls"))
 					showclients();
 				else
-					printf("unknown command: %s\n", buffer+1);
+					printf("unknown command: %s (use \"ls\" or \"exit\")\n", buffer+1);
 			}else{
 				/* message */
 				comm_sendmessage("%s", buffer);

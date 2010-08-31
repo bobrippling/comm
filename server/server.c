@@ -70,7 +70,7 @@ int toclientf(int idx, const char *fmt, ...)
 {
 	static const char nl = '\n';
 	va_list l;
-	int ret;
+	int ret, fw;
 
 	va_start(l, fmt);
 	ret = vfprintf(clients[idx].file, fmt, l);
@@ -79,7 +79,11 @@ int toclientf(int idx, const char *fmt, ...)
 	if(ret == -1)
 		return -1;
 
-	return fwrite(&nl, sizeof nl, 1, clients[idx].file);
+	fw = fwrite(&nl, sizeof nl, 1, clients[idx].file);
+
+	if(fw == -1)
+		return -1;
+	return fw+ ret;
 }
 
 int nonblock(int fd)
@@ -293,7 +297,7 @@ void sigh(int sig)
 {
 	if(sig == SIGINT){
 		int i;
-		printf("\nComm v"VERSION" Server Status - %d clients\n", nclients);
+		printf("\nComm v"VERSION" Server Status - %d clients (SIGQUIT ^\\ to quit)\n", nclients);
 		if(nclients){
 			puts("Index FD Name");
 			for(i = 0; i < nclients; i++)
