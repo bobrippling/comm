@@ -18,4 +18,4 @@ run: all
 	sh -c 'cd bin; java Main localhost'
 
 Comm.class: Comm.java
-Main.class: Main.java
+Main.class: Main.java Comm.class

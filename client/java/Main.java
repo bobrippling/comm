@@ -94,7 +94,7 @@ class Main
 				}
 			}
 		}
-		/* TODO new Thread(new CommCheck()).start();*/
+		new Thread(new CommCheck()).start();
 
 		BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
 		try{
@@ -111,11 +111,6 @@ class Main
 						System.err.println(e);
 						break;
 					}
-					String msg = comm.nextmessage();
-					if(msg == null)
-						System.out.println("No messages");
-					else
-						System.out.println(msg);
 				}
 			}while(true);
 		}catch(IOException e){
