@@ -12,10 +12,10 @@ libcomm.a: comm.o common.o socket_util.o
 	@ar rc $@ $^
 
 test: test.c libcomm.a
-	@echo CC $@
+	@echo CC $@ \(+libcomm.a\)
 	@${CC} ${CFLAGS} -o $@ $^
 
 clean:
-	@rm -f libcomm.a *.o
+	@rm -f libcomm.a *.o test
 
 .PHONY: clean

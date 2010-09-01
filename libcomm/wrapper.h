@@ -1,5 +1,5 @@
-#ifndef COMMON_H
-#define COMMON_H
+#ifndef WRAPPER_H
+#define WRAPPER_H
 
 int connectedsock(const char *host, int port);
 int toserver(FILE *f, const char *fmt, va_list l);

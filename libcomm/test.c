@@ -46,7 +46,7 @@ int main(void)
 
 	comm_init(&ct);
 
-	if(comm_open(&ct, "127.0.0.1", 5678, "Tim")){
+	if(comm_open(&ct, "127.0.0.1", 2848, "Tim")){
 		printf("couldn't open: %s\n", comm_lasterr(&ct));
 		return 1;
 	}
