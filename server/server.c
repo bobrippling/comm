@@ -9,6 +9,7 @@
 #include <string.h>
 #include <setjmp.h>
 #include <stdarg.h>
+#include <ctype.h>
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -228,20 +229,28 @@ char svr_recv(int idx)
 
 	if(clients[idx].state == ACCEPTING){
 		if(!strncmp(in, "NAME ", 5)){
-			char *name = in + 5;
+			char *name = in + 5, *p = name;
 			int len = strlen(name), i;
 
 			if(len == 0){
 				TO_CLIENT(idx, "ERR need non-zero length name");
-				fprintf(stderr, CLIENT_FMT": zero length name\n", CLIENT_ARGS);
+				fprintf(stderr, CLIENT_FMT" zero length name\n", CLIENT_ARGS);
 				svr_hup(idx);
 				return 1;
 			}
 
+			for(; *p; p++)
+				if(!isgraph(*p)){
+					TO_CLIENT(idx, "ERR name contains invalid character(s)");
+					fprintf(stderr, CLIENT_FMT" invalid character(s) in name\n", CLIENT_ARGS);
+					svr_hup(idx);
+					return 1;
+				}
+
 			for(i = 0; i < nclients; i++)
 				if(i != idx && clients[i].state == ACCEPTED && !strcmp(clients[i].name, name)){
 					TO_CLIENT(idx, "ERR name in use");
-					fprintf(stderr, CLIENT_FMT": name %s in use\n", CLIENT_ARGS, name);
+					fprintf(stderr, CLIENT_FMT" name %s in use\n", CLIENT_ARGS, name);
 					svr_hup(idx);
 					return 1;
 				}
