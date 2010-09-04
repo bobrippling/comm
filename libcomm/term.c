@@ -71,8 +71,8 @@ int main(int argc, char **argv)
 		port = DEFAULT_PORT;
 
 	comm_init(&ct);
-	if(comm_open(&ct, host, port, name)){
-		printf("couldn't open: %s\n", comm_lasterr(&ct));
+	if(comm_connect(&ct, host, port, name)){
+		printf("couldn't connect: %s\n", comm_lasterr(&ct));
 		return 1;
 	}
 

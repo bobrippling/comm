@@ -155,7 +155,7 @@ void comm_init(comm_t *ct)
 	ct->sock = -1;
 }
 
-int comm_open(comm_t *ct, const char *host,
+int comm_connect(comm_t *ct, const char *host,
 		int port, const char *name)
 {
 	ct->name = name;

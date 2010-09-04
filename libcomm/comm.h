@@ -32,7 +32,7 @@ enum callbacktype
 
 void comm_init(comm_t *);
 
-int comm_open(comm_t *, const char *host,
+int comm_connect(comm_t *, const char *host,
 		int port, const char *name);
 
 int comm_sendmessage(comm_t *, const char *msg, ...);
