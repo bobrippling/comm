@@ -56,6 +56,7 @@ void cleanup(void);
 void sigh(int);
 void freeclient(int);
 int toclientf(int, const char *, ...);
+int validname(const char *);
 
 char svr_conn(int);
 char svr_recv(int);
@@ -98,6 +99,15 @@ int nonblock(int fd)
 	if(fcntl(fd, F_SETFL, flags) == -1)
 		return 1;
 	return 0;
+}
+
+int validname(const char *n)
+{
+	const char *p;
+	for(p = n; *p; p++)
+		if(!isgraph(*p))
+			return 0;
+	return 1;
 }
 
 void cleanup()
@@ -229,7 +239,7 @@ char svr_recv(int idx)
 
 	if(clients[idx].state == ACCEPTING){
 		if(!strncmp(in, "NAME ", 5)){
-			char *name = in + 5, *p = name;
+			char *name = in + 5;
 			int len = strlen(name), i;
 
 			if(len == 0){
@@ -239,13 +249,12 @@ char svr_recv(int idx)
 				return 1;
 			}
 
-			for(; *p; p++)
-				if(!isgraph(*p)){
-					TO_CLIENT(idx, "ERR name contains invalid character(s)");
-					fprintf(stderr, CLIENT_FMT" invalid character(s) in name\n", CLIENT_ARGS);
-					svr_hup(idx);
-					return 1;
-				}
+			if(!validname(name)){
+				TO_CLIENT(idx, "ERR name contains invalid character(s)");
+				fprintf(stderr, CLIENT_FMT" invalid character(s) in name\n", CLIENT_ARGS);
+				svr_hup(idx);
+				return 1;
+			}
 
 			for(i = 0; i < nclients; i++)
 				if(i != idx && clients[i].state == ACCEPTED && !strcmp(clients[i].name, name)){
@@ -255,7 +264,7 @@ char svr_recv(int idx)
 					return 1;
 				}
 
-			strcpy(clients[idx].name = cmalloc(len+1), name);
+			clients[idx].name = cstrdup(name);
 
 			clients[idx].state = ACCEPTED;
 
@@ -294,8 +303,56 @@ char svr_recv(int idx)
 			for(i = 0; i < nclients; i++)
 				if(i != idx && clients[i].state == ACCEPTED)
 					toclientf(i, "%s", in);
+
+		}else if(!strncmp(in, "RENAME ", 7)){
+			char *name = in + 7, *last;
+
+			while(isspace(*name))
+				name++;
+
+			last = name;
+			while(*last)
+				last++;
+			last--;
+			while(isspace(*last) && last > name)
+				last--;
+			if(isspace(*last))
+				*last = '\0';
+
+			if(!strlen(name) || strlen(name) > MAX_NAME_LEN)
+				TO_CLIENT(idx, "ERR need name");
+			else if(!validname(name))
+				TO_CLIENT(idx, "ERR invalid name");
+			else{
+				if(!strcmp(clients[idx].name, name)){
+					TO_CLIENT(idx, "ERR can't rename to the same name");
+				}else{
+					int i, good = 1;
+
+					for(i = 0; i < nclients; i++)
+						if(clients[idx].state == ACCEPTED && !strcmp(name, clients[idx].name)){
+							good = 0;
+							break;
+						}
+
+					if(good){
+						char oldname[MAX_NAME_LEN];
+						char *new;
+						strncpy(oldname, clients[idx].name, MAX_NAME_LEN);
+
+						new = realloc(clients[idx].name, strlen(name) + 1);
+						if(!new)
+							longjmp(allocerr, 1);
+						strcpy(clients[idx].name = new, name);
+						for(i = 0; i < nclients; i++)
+							/* send back to idx too, to confirm */
+							toclientf(i, "RENAME %s %s", oldname, new);
+					}else
+						TO_CLIENT(idx, "ERR name already taken");
+				}
+			}
 		}else{
-			TO_CLIENT(idx, "ERR command unknown");
+			toclientf(idx, "ERR command \"%s\" unknown", in);
 		}
 	}
 

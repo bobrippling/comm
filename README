@@ -34,9 +34,11 @@ Server -> Client:
 	ERR %s
 		client message error
 	CLIENT_LIST*
-		see client->server::CLIENT_LIST
+		see (client->server)::CLIENT_LIST
 	MESSAGE %s
 		message from server to all
+	RENAME %s %s
+		client %s[0] renamed to %s[1]
 
 
 
