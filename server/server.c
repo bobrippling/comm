@@ -301,7 +301,7 @@ void sigh(int sig)
 		if(nclients){
 			puts("Index FD Name");
 			for(i = 0; i < nclients; i++)
-				printf("%3d %3d %s\n", i, pollfds[i].fd, clients[i].name);
+				printf("%3d %3d  %s\n", i, pollfds[i].fd, clients[i].name);
 		}
 		fflush(stdout);
 		signal(SIGINT, &sigh);
@@ -362,8 +362,13 @@ int main(int argc, char **argv)
 			USAGE();
 		}
 
-	if(verbose > 1)
-		printf("verbose %d\n", verbose);
+	if(verbose > 1){
+		if(verbose > 2){
+			fputs("max verbose level is 2\n", stderr);
+			return 1;
+		}else
+			printf("verbose %d\n", verbose);
+	}
 
 	server = socket(PF_INET, SOCK_STREAM, 0);
 	if(server == -1){

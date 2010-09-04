@@ -22,7 +22,7 @@ int connectedsock(const char *host, int port)
 		return -1;
 	}
 
-	memset(&addr, '\0', sizeof addr);
+	memset(&addr, 0, sizeof addr);
 
 	addr.sin_family = AF_INET;
 	if(!lookup(host, port, &addr)){

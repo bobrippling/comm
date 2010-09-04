@@ -5,7 +5,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 
-#include "socket_util.h"
+#include "resolv.h"
 
 #define DEBUG 0
 

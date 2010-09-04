@@ -8,9 +8,9 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
-#include "socket_util.h"
+#include "resolv.h"
 
-#include "common.h"
+#include "wrapper.h"
 
 int connectedsock(const char *host, int port)
 {

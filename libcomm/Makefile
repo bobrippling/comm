@@ -6,7 +6,7 @@ all: libcomm.a test
 	@echo CC $<
 	@${CC} -c ${CFLAGS} -o $@ $<
 
-libcomm.a: comm.o common.o socket_util.o
+libcomm.a: comm.o wrapper.o resolv.o
 	@echo AR $@
 	@rm -f $@
 	@ar rc $@ $^

@@ -12,9 +12,9 @@
 
 #include <poll.h>
 
-#include "common.h"
+#include "wrapper.h"
 #include "comm.h"
-#include "socket_util.h"
+#include "resolv.h"
 #include "../config.h"
 
 #define TO_SERVER_F(...) toserverf(ct->sockf, __VA_ARGS__)
