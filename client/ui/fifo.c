@@ -28,6 +28,7 @@ static char dir[PATH_LEN] = { 0 };
 static char file_output [PATH_LEN] = { 0 },
             file_info   [PATH_LEN] = { 0 },
             file_clients[PATH_LEN] = { 0 },
+            file_err    [PATH_LEN] = { 0 },
             /* fifos below */
             file_cmd    [PATH_LEN] = { 0 },
             file_input  [PATH_LEN] = { 0 };
@@ -42,8 +43,8 @@ static int setup_files(void);
 
 void ui_info(   const char *fmt, ...) { OUTPUT(file_info,  fmt); }
 void ui_message(const char *fmt, ...) { OUTPUT(file_output, fmt); }
-void ui_warning(const char *fmt, ...) { OUTPUT(NULL, fmt); }
-void ui_error(  const char *fmt, ...) { OUTPUT(NULL, fmt); }
+void ui_warning(const char *fmt, ...) { OUTPUT(file_err, fmt); }
+void ui_error(  const char *fmt, ...) { OUTPUT(file_err, fmt); }
 void ui_perror( const char *msg     ) { ui_error("%s: %s", msg, strerror(errno)); }
 
 void ui_gotclient(const char *cname)
@@ -139,6 +140,7 @@ int ui_init(const char *host2, int port2)
 	snprintf(file_output,  PATH_LEN, "%s/%s", dir, "out");
 	snprintf(file_info,    PATH_LEN, "%s/%s", dir, "server");
 	snprintf(file_clients, PATH_LEN, "%s/%s", dir, "clients");
+	snprintf(file_err,     PATH_LEN, "%s/%s", dir, "err");
 
 	snprintf(file_input,   PATH_LEN, "%s/%s", dir, "in");
 	snprintf(file_cmd,     PATH_LEN, "%s/%s", dir, "cmd");
