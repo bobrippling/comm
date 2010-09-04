@@ -24,6 +24,7 @@ enum callbacktype
 	COMM_MSG,
 	COMM_INFO,
 	COMM_ERR,
+	COMM_RENAME,
 	COMM_CLIENT_CONN,
 	COMM_CLIENT_DISCO,
 	COMM_CLIENT_LIST
@@ -35,8 +36,9 @@ int comm_open(comm_t *, const char *host,
 		int port, const char *name);
 
 int comm_sendmessage(comm_t *, const char *msg, ...);
+int comm_rename(comm_t *, const char *);
 int comm_recv(comm_t *,
-		void (callback(enum callbacktype, const char *, ...)));
+	void (callback(enum callbacktype, const char *, ...)));
 
 void comm_close(comm_t *);
 

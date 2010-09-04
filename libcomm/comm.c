@@ -90,9 +90,13 @@ static int comm_process(comm_t *ct, char *buffer, CALLBACK(callback))
 			else if(!strncmp(buffer, "MESSAGE ", 8))
 				callback(COMM_MSG, "%s", buffer + 8);
 
+			else if(!strncmp(buffer, "RENAME ", 7))
+				callback(COMM_RENAME, "%s", buffer + 7);
+
 			else if(!strncmp(buffer, "CLIENT_LIST", 11)){
 				if(strcmp(buffer + 11, "_START") && strcmp(buffer + 11, "_END"))
-					callback(COMM_CLIENT_LIST, "%s", buffer + 12); /* _START/_END are ignored FIXME: maintain list of clients */
+					callback(COMM_CLIENT_LIST, "%s", buffer + 12);
+				/* _START/_END are ignored FIXME: maintain list of clients */
 			}else
 				UNKNOWN_MESSAGE(buffer);
 			break;
@@ -197,18 +201,24 @@ void comm_close(comm_t *ct)
 	comm_init(ct);
 }
 
+int comm_rename(comm_t *ct, const char *name)
+{
+	return fprintf(ct->sockf, "RENAME %s", name) <= 0;
+}
+
 int comm_sendmessage(comm_t *ct, const char *msg, ...)
 {
 	va_list l;
 	int ret;
 
-	fprintf(ct->sockf, "MESSAGE %s: ", ct->name);
+	if(fprintf(ct->sockf, "MESSAGE %s: ", ct->name) <= 0)
+		return 1;
 
 	va_start(l, msg);
 	ret = toserver(ct->sockf, msg, l);
 	va_end(l);
 
-	return ret;
+	return ret <= 0 ? 1 : 0;
 }
 
 int comm_recv(comm_t *ct, CALLBACK(callback))

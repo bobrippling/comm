@@ -6,4 +6,4 @@ out
 in
 client/java/bin
 libcomm/libcomm.a
-libcomm/test
+libcomm/term

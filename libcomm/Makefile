@@ -1,6 +1,6 @@
 CFLAGS += -std=c99
 
-all: libcomm.a test
+all: libcomm.a term
 
 .c.o:
 	@echo CC $<
@@ -11,11 +11,11 @@ libcomm.a: comm.o wrapper.o resolv.o
 	@rm -f $@
 	@ar rc $@ $^
 
-test: test.c libcomm.a
+term: term.c libcomm.a
 	@echo CC $@ \(+libcomm.a\)
 	@${CC} ${CFLAGS} -o $@ $^
 
 clean:
-	@rm -f libcomm.a *.o test
+	@rm -f libcomm.a *.o term
 
 .PHONY: clean
