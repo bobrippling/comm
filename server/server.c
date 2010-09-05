@@ -45,7 +45,7 @@ static struct client
 
 static struct pollfd *pollfds = NULL;
 
-static int server = -1, nclients = 0;
+static int server = -1, nclients = 0, background = 0;
 static char verbose = 0;
 
 jmp_buf allocerr;
@@ -361,7 +361,7 @@ char svr_recv(int idx)
 
 void sigh(int sig)
 {
-	if(sig == SIGINT){
+	if(sig == SIGINT && !background){
 		int i;
 		printf("\nComm v"VERSION" Server Status - %d clients (SIGQUIT ^\\ to quit)\n", nclients);
 		if(nclients){
@@ -398,10 +398,12 @@ int main(int argc, char **argv)
 
 	/* ignore sigpipe - sent when recv() called on a disconnected socket */
 	if( signal(SIGPIPE, SIG_IGN) == SIG_ERR ||
+			/* usual suspects... */
 			signal(SIGINT,  &sigh)   == SIG_ERR ||
 			signal(SIGQUIT, &sigh)   == SIG_ERR ||
 			signal(SIGTERM, &sigh)   == SIG_ERR ||
-			signal(SIGSEGV, &sigh)   == SIG_ERR){
+			signal(SIGSEGV, &sigh)   == SIG_ERR ||
+			signal(SIGHUP,  &sigh)   == SIG_ERR){
 		perror("signal()");
 		return 1;
 	}
@@ -424,6 +426,8 @@ int main(int argc, char **argv)
 
 			if(*p != '\0')
 				USAGE();
+		}else if(!strcmp(argv[i], "-b")){
+			background = 1;
 		}else{
 			USAGE();
 		}
@@ -434,6 +438,29 @@ int main(int argc, char **argv)
 			return 1;
 		}else
 			printf("verbose %d\n", verbose);
+	}
+
+	if(background){
+		if(verbose)
+			printf("%s: closing output and forking to background\n", *argv);
+
+		switch(fork()){
+			case 0:
+				if(setsid() == (pid_t)-1){
+					perror("setsid()");
+					return 1;
+				}
+				close(STDOUT_FILENO);
+				close(STDERR_FILENO);
+				close(STDIN_FILENO);
+				break;
+			case -1:
+				perror("fork()");
+				return 1;
+			default:
+				/* parent */
+				return 0;
+		}
 	}
 
 	server = socket(PF_INET, SOCK_STREAM, 0);
