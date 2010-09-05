@@ -16,7 +16,6 @@
 
 void callback(enum callbacktype, const char *fmt, ...);
 
-
 void callback(enum callbacktype type, const char *fmt, ...)
 {
 	const char *type_str = "unknown";

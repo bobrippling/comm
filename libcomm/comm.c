@@ -19,13 +19,10 @@
 
 #define TO_SERVER_F(...) toserverf(ct->sockf, __VA_ARGS__)
 
-#define CALLBACK(name) \
-	void (name(enum callbacktype, const char *, ...))
+static int comm_read(comm_t *, comm_callback callback);
+static int comm_process(comm_t *ct, char *buffer, comm_callback callback);
 
-static int comm_read(comm_t *, CALLBACK(callback));
-static int comm_process(comm_t *ct, char *buffer, CALLBACK(callback));
-
-static int comm_read(comm_t *ct, CALLBACK(callback))
+static int comm_read(comm_t *ct, comm_callback callback)
 {
 	char buffer[LINE_SIZE] = { 0 }, *newl;
 	int ret;
@@ -68,7 +65,7 @@ static int comm_read(comm_t *ct, CALLBACK(callback))
 
 
 /* expects a nul-terminated single line, with _no_ \n at the end */
-static int comm_process(comm_t *ct, char *buffer, CALLBACK(callback))
+static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 {
 #define UNKNOWN_MESSAGE(b) \
 	fprintf(stderr, "libcomm: Unknown message from server: \"%s\"", b)
@@ -221,7 +218,7 @@ int comm_sendmessage(comm_t *ct, const char *msg, ...)
 	return ret <= 0 ? 1 : 0;
 }
 
-int comm_recv(comm_t *ct, CALLBACK(callback))
+int comm_recv(comm_t *ct, comm_callback callback)
 {
 	while(1){
 		int pret = poll(&ct->pollfds, 1, CLIENT_SOCK_WAIT);

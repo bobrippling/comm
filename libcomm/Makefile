@@ -12,7 +12,7 @@ libcomm.a: comm.o wrapper.o resolv.o
 	@ar rc $@ $^
 
 term: term.c libcomm.a
-	@echo CC $@ \(+libcomm.a\)
+	@echo CC $@
 	@${CC} ${CFLAGS} -o $@ $^
 
 clean:

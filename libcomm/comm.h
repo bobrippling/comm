@@ -30,6 +30,8 @@ enum callbacktype
 	COMM_CLIENT_LIST
 };
 
+typedef void (*comm_callback)(enum callbacktype, const char *, ...);
+
 void comm_init(comm_t *);
 
 int comm_connect(comm_t *, const char *host,
@@ -37,8 +39,7 @@ int comm_connect(comm_t *, const char *host,
 
 int comm_sendmessage(comm_t *, const char *msg, ...);
 int comm_rename(comm_t *, const char *);
-int comm_recv(comm_t *,
-	void (callback(enum callbacktype, const char *, ...)));
+int comm_recv(comm_t *, comm_callback);
 
 void comm_close(comm_t *);
 
