@@ -23,11 +23,17 @@ const char *lookup_strerror()
 int lookup(const char *host, int port, struct sockaddr_in *addr)
 {
 	struct addrinfo *res = NULL;
+	struct addrinfo hints;
 	int ret;
+
+	memset(&hints, '\0', sizeof hints);
+	/* prevent getaddrinfo returning an ipv6 address */
+	hints.ai_family   = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
 
 	if((ret = getaddrinfo(host,
 				NULL /* service - uninitialised in ret */,
-				NULL, &res))){
+				&hints, &res))){
 		lookup_errno = ret;
 		return 0;
 	}
@@ -48,7 +54,7 @@ int lookup(const char *host, int port, struct sockaddr_in *addr)
 #endif
 
 	memcpy(addr, res->ai_addr, sizeof *addr);
-	addr->sin_port = htons(port);
+	addr->sin_port = htons(port); /* initialise service */
 
 	freeaddrinfo(res);
 	return 1;
