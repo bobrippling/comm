@@ -18,8 +18,7 @@
 #include "../util.h"
 #include "../socket_util.h"
 
-#include "server.h"
-
+#define LOG_FILE       "svrcomm.log"
 #define LISTEN_BACKLOG 5
 #define SLEEP_MS       100
 #define TO_CLIENT(i, msg) fwrite(msg"\n", sizeof *msg, strlen(msg) + 1, clients[i].file)
@@ -384,12 +383,7 @@ void sigh(int sig)
 int main(int argc, char **argv)
 {
 	struct sockaddr_in svr_addr;
-	int i, port = DEFAULT_PORT;
-
-#define USAGE() do { \
-		fprintf(stderr, "Usage: %s [-p port] [-v*]\n", *argv); \
-		return 1; \
-	} while(0)
+	int i, port = DEFAULT_PORT, log = 0;
 
 	if(setjmp(allocerr)){
 		perror("longjmp'd to allocerr");
@@ -425,12 +419,13 @@ int main(int argc, char **argv)
 			}
 
 			if(*p != '\0')
-				USAGE();
+				goto usage;
 		}else if(!strcmp(argv[i], "-b")){
 			background = 1;
-		}else{
-			USAGE();
-		}
+		}else if(!strcmp(argv[i], "-l")){
+			log = 1;
+		}else
+			goto usage;
 
 	if(verbose > 1){
 		if(verbose > 2){
@@ -438,6 +433,21 @@ int main(int argc, char **argv)
 			return 1;
 		}else
 			printf("verbose %d\n", verbose);
+	}
+
+	if(log){
+		int logfd = creat(LOG_FILE, 0644);
+		if(logfd == -1){
+			perror("log: creat()");
+			return 1;
+		}
+		if(dup2(logfd, STDOUT_FILENO) == -1 ||
+			 dup2(logfd, STDERR_FILENO) == -1){
+			perror("dup2()");
+			close(logfd);
+			return 1;
+		}
+		close(logfd); /* cleanup */
 	}
 
 	if(background){
@@ -450,8 +460,10 @@ int main(int argc, char **argv)
 					perror("setsid()");
 					return 1;
 				}
-				close(STDOUT_FILENO);
-				close(STDERR_FILENO);
+				if(!log){
+					close(STDOUT_FILENO);
+					close(STDERR_FILENO);
+				}
 				close(STDIN_FILENO);
 				break;
 			case -1:
@@ -575,4 +587,12 @@ int main(int argc, char **argv)
 		}
 	}
 	/* UNREACHABLE */
+
+usage:
+	fprintf(stderr, "Usage: %s [-p port] [-v*] [-b] [-l]\n"
+									" -p: Port to listen on\n"
+									" -v: Verbose\n"
+									" -b: Fork to background\n"
+									" -l: Redirect output to logs\n", *argv);
+	return 1;
 }

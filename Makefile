@@ -53,6 +53,6 @@ client/common.o: client/common.c client/../socket_util.h client/ui/ui.h \
 client/comm.o: client/comm.c client/common.h client/ui/ui.h client/comm.h \
  client/../config.h
 server/server.o: server/server.c server/../config.h server/../util.h \
- server/../socket_util.h server/server.h
+ server/../socket_util.h
 socket_util.o: socket_util.c socket_util.h
 util.o: util.c util.h
