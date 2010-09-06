@@ -5,12 +5,12 @@ typedef struct
 {
 	enum commstate
 	{
-		VERSION_WAIT, NAME_WAIT, ACCEPTED
+		COMM_VERSION_WAIT, COMM_NAME_WAIT, COMM_ACCEPTED
 	} state;
 
 	struct sockaddr_in hostaddr;
 	int port;
-	const char *name;
+	char *name;
 
 	int sock;
 	FILE *sockf;
@@ -19,7 +19,7 @@ typedef struct
 	const char *lasterr;
 } comm_t;
 
-enum callbacktype
+enum comm_callbacktype
 {
 	COMM_MSG,
 	COMM_INFO,
@@ -30,7 +30,7 @@ enum callbacktype
 	COMM_CLIENT_LIST
 };
 
-typedef void (*comm_callback)(enum callbacktype, const char *, ...);
+typedef void (*comm_callback)(enum comm_callbacktype, const char *, ...);
 
 void comm_init(comm_t *);
 

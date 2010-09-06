@@ -76,7 +76,7 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 	}
 
 	switch(ct->state){
-		case ACCEPTED:
+		case COMM_ACCEPTED:
 			/* normal message */
 			if(!strncmp(buffer, "CLIENT_CONN ", 12))
 				callback(COMM_CLIENT_CONN, "%s", buffer + 12);
@@ -98,9 +98,9 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 				UNKNOWN_MESSAGE(buffer);
 			break;
 
-		case NAME_WAIT:
+		case COMM_NAME_WAIT:
 			if(!strcmp(buffer, "OK")){
-				ct->state = ACCEPTED;
+				ct->state = COMM_ACCEPTED;
 				callback(COMM_INFO, "%s", "Name accepted");
 			}else{
 				UNKNOWN_MESSAGE(buffer);
@@ -108,13 +108,13 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 			}
 			break;
 
-		case VERSION_WAIT:
+		case COMM_VERSION_WAIT:
 		{
 			int maj, min;
 			if(sscanf(buffer, "Comm v%d.%d", &maj, &min) == 2){
 				if(maj == VERSION_MAJOR && min == VERSION_MINOR){
 					callback(COMM_INFO, "Server Version OK: %d.%d, checking name...", maj, min);
-					ct->state = NAME_WAIT;
+					ct->state = COMM_NAME_WAIT;
 					TO_SERVER_F("NAME %s", ct->name);
 				}else{
 					callback(COMM_ERR, "Server version mismatch: %d.%d", maj, min);
@@ -148,14 +148,22 @@ const char *comm_lasterr(comm_t *ct)
 void comm_init(comm_t *ct)
 {
 	memset(ct, '\0', sizeof *ct);
-	ct->state = VERSION_WAIT;
+	ct->state = COMM_VERSION_WAIT;
 	ct->sock = -1;
 }
 
 int comm_connect(comm_t *ct, const char *host,
 		int port, const char *name)
 {
-	ct->name = name;
+	ct->name = malloc(strlen(name) + 1);
+	if(!ct->name){
+		ct->lasterr = strerror(errno);
+		return 1;
+	}
+	strcpy(ct->name, name);
+
+	if(port == -1)
+		port = DEFAULT_PORT;
 
 	if((ct->sock = connectedsock(host, port)) == -1)
 		goto bail_noclose;
@@ -171,7 +179,7 @@ int comm_connect(comm_t *ct, const char *host,
 	ct->pollfds.fd     = ct->sock;
 	ct->pollfds.events = POLLIN;
 
-	ct->state = VERSION_WAIT;
+	ct->state = COMM_VERSION_WAIT;
 
 	return 0;
 bail:
@@ -194,6 +202,7 @@ void comm_close(comm_t *ct)
 		fclose(ct->sockf);
 	else
 		close(ct->sock);
+	free(ct->name);
 
 	comm_init(ct);
 }

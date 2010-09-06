@@ -1,4 +1,4 @@
-CFLAGS += -std=c99
+CFLAGS += -std=c99 -fstack-protector
 
 all: libcomm.a term
 
@@ -12,10 +12,14 @@ libcomm.a: comm.o wrapper.o resolv.o
 	@ar rc $@ $^
 
 term: term.c libcomm.a
-	@echo CC $@
+	@echo LD $@
 	@${CC} ${CFLAGS} -o $@ $^
 
 clean:
 	@rm -f libcomm.a *.o term
+
+comm.c: comm.h
+resolv.c: resolv.h
+wrapper.c: wrapper.h
 
 .PHONY: clean

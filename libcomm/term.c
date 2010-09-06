@@ -14,9 +14,9 @@
 #include "../config.h"
 #include "comm.h"
 
-void callback(enum callbacktype, const char *fmt, ...);
+void callback(enum comm_callbacktype, const char *fmt, ...);
 
-void callback(enum callbacktype type, const char *fmt, ...)
+void callback(enum comm_callbacktype type, const char *fmt, ...)
 {
 	const char *type_str = "unknown";
 	va_list l;
