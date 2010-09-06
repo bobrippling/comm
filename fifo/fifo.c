@@ -200,7 +200,7 @@ int lewp()
 
 	while(!finito){
 		if(comm_recv(&commt, &commcallback)){
-			fputs("comm_recv() fail", stderr);
+			fprintf(stderr, "comm_recv() failed: %s\n", comm_lasterr(&commt));
 			return 1;
 		}
 

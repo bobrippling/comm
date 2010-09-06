@@ -32,7 +32,8 @@ static int comm_read(comm_t *ct, comm_callback callback)
 
 	if(ret == 0){
 		/* disco */
-		/* TODO: disco */
+		comm_close(ct);
+		ct->lasterr = "server disconnect";
 		return 1;
 	}else if(ret < 0){
 		ct->lasterr = strerror(errno);
@@ -215,12 +216,19 @@ int comm_sendmessage(comm_t *ct, const char *msg, ...)
 
 int comm_recv(comm_t *ct, comm_callback callback)
 {
-	while(1){
-		int pret = poll(&ct->pollfds, 1, CLIENT_SOCK_WAIT);
+	/*
+	 * need to loop to process all the messages we've missed
+	 * i.e. not just one message per comm_recv() call
+	 */
+	for(;;){
+		int pret;
+
+		errno = 0;
+		pret = poll(&ct->pollfds, 1, CLIENT_SOCK_WAIT);
 
 		if(pret == 0)
 			/* nothing to declare */
-			return 0;
+			return 0; /* XXX here is the function's normal exit point */
 		else if(pret < 0){
 			if(errno == EINTR)
 				continue;
@@ -237,9 +245,11 @@ int comm_recv(comm_t *ct, comm_callback callback)
 bail:
 	{
 		int save = errno;
-		comm_close(ct);
+		if(comm_state(ct) != COMM_DISCONNECTED)
+			comm_close(ct);
 		errno = save;
-		ct->lasterr = strerror(errno);
+		if(errno)
+			ct->lasterr = strerror(errno);
 		return 1;
 	}
 }

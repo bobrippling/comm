@@ -114,8 +114,10 @@ G_MODULE_EXPORT gboolean timeout(gpointer data)
 {
 	UNUSED(data);
 
-	if(comm_recv(&commt, &commcallback))
+	if(comm_recv(&commt, &commcallback)){
+		addtextf("disconnected: %s\n", comm_lasterr(&commt));
 		on_btnDisconnect_clicked(NULL, NULL);
+	}
 
 	return TRUE; /* must be ~0 */
 }
