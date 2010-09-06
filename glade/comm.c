@@ -29,30 +29,36 @@ comm_t commt;
 
 
 /* events */
-G_MODULE_EXPORT void on_btnConnect_clicked(GtkButton *button, gpointer data)
+G_MODULE_EXPORT void on_btnDisconnect_clicked(GtkButton *button, gpointer data)
 {
 	UNUSED(button);
 	UNUSED(data);
 
-	if(entryIn && entryHost){
-		const char *host = gtk_entry_get_text(GTK_ENTRY(entryHost));
-		const char *name = gtk_entry_get_text(GTK_ENTRY(entryName));
+	if(comm_state(&commt) != COMM_DISCONNECTED)
+		comm_close(&commt);
+}
 
-		if(!strlen(name) || !strlen(host)){
-			if(!strlen(name))
-				addtext("need name\n");
-			else
-				addtext("need host\n");
-			return;
-		}
+G_MODULE_EXPORT void on_btnConnect_clicked(GtkButton *button, gpointer data)
+{
+	const char *host = gtk_entry_get_text(GTK_ENTRY(entryHost));
+	const char *name = gtk_entry_get_text(GTK_ENTRY(entryName));
 
-		if(comm_connect(&commt, host, -1, name))
-			addtextf("Couldn't connect to %s: %s\n", host, comm_lasterr(&commt));
+	UNUSED(button);
+	UNUSED(data);
+
+
+	if(!strlen(name) || !strlen(host)){
+		if(!strlen(name))
+			addtext("need name\n");
 		else
-			addtextf("Connected to %s\n", host);
+			addtext("need host\n");
+		return;
+	}
 
-	}else
-		g_warning("couldn't find entryHost/entryIn");
+	if(comm_connect(&commt, host, -1, name))
+		addtextf("Couldn't connect to %s: %s\n", host, comm_lasterr(&commt));
+	else
+		addtextf("Connected to %s\n", host);
 }
 
 G_MODULE_EXPORT void on_btnSend_clicked(GtkButton *button, gpointer data)
@@ -60,14 +66,11 @@ G_MODULE_EXPORT void on_btnSend_clicked(GtkButton *button, gpointer data)
 	UNUSED(button);
 	UNUSED(data);
 
-	if(entryIn){
-		if(comm_state(&commt) == COMM_ACCEPTED){
-			if(comm_sendmessage(&commt, gtk_entry_get_text(GTK_ENTRY(entryIn))))
-				addtextf("error sending message: %s\n", comm_lasterr(&commt));
-		}else
-			addtext("not connected!\n");
+	if(comm_state(&commt) == COMM_ACCEPTED){
+		if(comm_sendmessage(&commt, gtk_entry_get_text(GTK_ENTRY(entryIn))))
+			addtextf("error sending message: %s\n", comm_lasterr(&commt));
 	}else
-		g_warning("couldn't find entryIn");
+		addtext("not connected!\n");
 }
 
 static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
@@ -104,10 +107,8 @@ G_MODULE_EXPORT gboolean timeout(gpointer data)
 {
 	UNUSED(data);
 
-	if(comm_recv(&commt, &commcallback)){
-		/* TODO: disco */
-		/*comm_close(&commt);*/
-	}
+	if(comm_recv(&commt, &commcallback))
+		on_btnDisconnect_clicked(NULL, NULL);
 
 	return TRUE; /* must be ~0 */
 }
@@ -116,16 +117,15 @@ G_MODULE_EXPORT gboolean timeout(gpointer data)
 
 static int getobjects(GtkBuilder *b)
 {
-#define GET_WIDGET(x) GTK_WIDGET(gtk_builder_get_object(b, x))
-	entryHost = GET_WIDGET("entryHost");
-	entryIn   = GET_WIDGET("entryIn");
-	entryName = GET_WIDGET("entryName");
-	txtMain   = GET_WIDGET("txtMain");
+#define GET_WIDGET(x) if(!((x) = GTK_WIDGET(gtk_builder_get_object(b, #x)))) return 1
+	GET_WIDGET(entryHost);
+	GET_WIDGET(entryIn);
+	GET_WIDGET(entryName);
+	GET_WIDGET(txtMain);
 	/*(GtkWidget *)g_object_get_data(G_OBJECT(winmain), "entryIn");*/
 
-	if(!entryHost || !entryIn || !txtMain)
-		return 1;
 	return 0;
+#undef GET_WIDGET
 }
 
 int main(int argc, char **argv)
