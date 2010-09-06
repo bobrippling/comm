@@ -1,5 +1,5 @@
 .PHONY : clean mostlyclean all \
-	libcomm term glade
+	server libcomm term glade
 
 all: server libcomm term glade
 

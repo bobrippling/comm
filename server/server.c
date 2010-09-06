@@ -455,6 +455,7 @@ int main(int argc, char **argv)
 		if(verbose)
 			printf("%s: closing output and forking to background\n", *argv);
 
+		signal(SIGCHLD, SIG_IGN);
 		switch(fork()){
 			case 0:
 				if(setsid() == (pid_t)-1){
@@ -508,36 +509,50 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
+#define INTERRUPT_WRAP(funcall, failcode) \
+	while(!(funcall)) \
+		if(errno != EINTR) \
+			failcode
+
 	for(;;){
 		struct sockaddr_in addr;
 		socklen_t len = sizeof addr;
 		int cfd = accept(server, (struct sockaddr *)&addr, &len), ret;
 
 		if(cfd != -1){
-			struct client *new     = realloc(clients, ++nclients * sizeof(*clients));
-			struct pollfd *newpfds = realloc(pollfds,   nclients * sizeof(*newpfds));
+			struct client *new;
+			struct pollfd *newpfds;
+			int idx = ++nclients - 1;
 
-			if(!new || !newpfds){
-				perror("realloc()");
-				cleanup();
-				return 1;
-			}else{
-				int idx = nclients-1;
+			INTERRUPT_WRAP(
+					new = realloc(clients, nclients * sizeof(*clients)),
+					{
+						perror("realloc()");
+						cleanup();
+						return 1;
+					})
 
-				clients = new;
-				pollfds = newpfds;
+			INTERRUPT_WRAP(
+					newpfds = realloc(pollfds, nclients * sizeof(*newpfds)),
+					{
+						perror("realloc()");
+						cleanup();
+						return 1;
+					})
 
-				memcpy(&clients[idx].addr, &addr, sizeof addr);
+			clients = new;
+			pollfds = newpfds;
 
-				pollfds[idx].fd = cfd;
+			memcpy(&clients[idx].addr, &addr, sizeof addr);
 
-				if(!svr_conn(idx)){
-					if(clients[idx].file)
-						fclose(clients[idx].file);
-					clients = realloc(clients, --nclients * sizeof(*clients));
-					pollfds = realloc(pollfds,   nclients * sizeof(*pollfds));
-					close(cfd);
-				}
+			pollfds[idx].fd = cfd;
+
+			if(!svr_conn(idx)){
+				if(clients[idx].file)
+					fclose(clients[idx].file);
+				clients = realloc(clients, --nclients * sizeof(*clients));
+				pollfds = realloc(pollfds,   nclients * sizeof(*pollfds));
+				close(cfd);
 			}
 		}else if(errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK){
 			perror("accept()");
