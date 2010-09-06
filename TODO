@@ -1,9 +1,9 @@
 Generalise client::sock_read() and server::svr_recv() into the same socket_util.c::func()
 
+Sort out new directory tree + Makefile(s)
+
 Functionality:
 	kick function
 	edit previous message (index - 1, ONLY) like Skype
-	irc commands - /disco, etc
 
-GUI:
-	wxWidgets
+http://gtkforums.com/viewtopic.php?t=988

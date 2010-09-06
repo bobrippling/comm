@@ -1,6 +1,6 @@
 include config.mk
 
-CFLAGS         += -std=c99
+CFLAGS         += -std=c99 -fstack-protector
 
 SVR_OBJS        = server/server.o util.o socket_util.o
 CLIENT_OBJS     = client/init.o   util.o socket_util.o client/common.o client/comm.o
