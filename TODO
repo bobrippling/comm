@@ -6,5 +6,7 @@ Functionality:
 	kick function
 	edit previous message (index - 1, ONLY) like Skype
 
+change fifo (depracated/) to use libcomm
+
 gtk:
 	http://gtkforums.com/viewtopic.php?t=988
