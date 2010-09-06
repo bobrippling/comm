@@ -300,7 +300,8 @@ char svr_recv(int idx)
 			}
 
 			for(i = 0; i < nclients; i++)
-				if(i != idx && clients[i].state == ACCEPTED)
+				if(clients[i].state == ACCEPTED)
+					/* send back to idx */
 					toclientf(i, "%s", in);
 
 		}else if(!strncmp(in, "RENAME ", 7)){
