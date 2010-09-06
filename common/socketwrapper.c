@@ -8,9 +8,10 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
+#include "socketwrapper.h"
 #include "resolv.h"
 
-#include "wrapper.h"
+#include "../config.h"
 
 int connectedsock(const char *host, int port)
 {
@@ -63,13 +64,26 @@ int toserver(FILE *f, const char *fmt, va_list l)
 	return fwrite(&nl, sizeof nl, 1, f);
 }
 
-void perrorf(const char *fmt, ...)
+int recv_newline(char *in, int /*recv*/ret, int fd)
 {
-	if(fmt){
-		va_list l;
-		va_start(l, fmt);
-		vfprintf(stderr, fmt, l);
-		va_end(l);
+	char *newl;
+
+	if((newl = strchr(in, '\n')) && newl < (in + ret)){
+		/* recv just up to the '\n' */
+		int len = newl - in + 1;
+
+		if(len > LINE_SIZE)
+			len = LINE_SIZE;
+
+		ret = recv(fd, in, len, 0);
+		*newl = '\0';
+	}else{
+		if(ret == LINE_SIZE){
+			fputs("comm error: running with data: LINE_SIZE exceeded\n", stderr);
+			recv(fd, in, LINE_SIZE, 0);
+		}else
+			/* need more data */
+			return 1;
 	}
-	perror(NULL);
+	return 0;
 }

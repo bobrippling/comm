@@ -1,6 +1,8 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <setjmp.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include "util.h"
 
@@ -22,4 +24,15 @@ char *cstrdup(const char *s)
 		longjmp(allocerr, 1);
 	strcpy(p, s);
 	return p;
+}
+
+void perrorf(const char *fmt, ...)
+{
+	if(fmt){
+		va_list l;
+		va_start(l, fmt);
+		vfprintf(stderr, fmt, l);
+		va_end(l);
+	}
+	perror(NULL);
 }

@@ -18,8 +18,8 @@ term:
 glade:
 	$Qmake -C $@
 
-clean: mostlyclean
-	$Qrm -f server/svrcomm glade/comm term/comm
+clean:
+	$Qrm -f server/server glade/comm term/comm
 	$Qfind . -iname \*.o|xargs rm -f
 
 include config.mk

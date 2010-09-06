@@ -12,9 +12,10 @@
 
 #include <poll.h>
 
-#include "wrapper.h"
 #include "comm.h"
-#include "resolv.h"
+
+#include "../common/resolv.h"
+#include "../common/socketwrapper.h"
 #include "../config.h"
 
 #define TO_SERVER_F(...) toserverf(ct->sockf, __VA_ARGS__)
@@ -24,7 +25,7 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback);
 
 static int comm_read(comm_t *ct, comm_callback callback)
 {
-	char buffer[LINE_SIZE] = { 0 }, *newl;
+	char buffer[LINE_SIZE] = { 0 };
 	int ret;
 
 	ret = recv(ct->sock, buffer, LINE_SIZE, MSG_PEEK);
@@ -38,29 +39,10 @@ static int comm_read(comm_t *ct, comm_callback callback)
 		return 1;
 	}
 
-	if((newl = strchr(buffer, '\n')) && newl < (buffer + ret)){
-		/* got a newline, recieve _up_to_ that, only */
-		/* assert(newret == oldret) */
-		int len = newl - buffer + 1;
-
-		if(len > LINE_SIZE)
-			len = LINE_SIZE;
-
-		ret = recv(ct->sock, buffer, len, 0);
-
-		*newl = '\0';
-
-		return comm_process(ct, buffer, callback);
-	}else{
-		/* need to wait for more, or buffer isn't big enough */
-		if(ret == LINE_SIZE){
-			/* need a larger buffer */
-			fputs("libcomm: error - buffer not big enough, discarding data\n", stderr);
-		}else{
-			;
-		}
+	if(recv_newline(buffer, ret, ct->sock))
+		/* not full */
 		return 0;
-	}
+	return comm_process(ct, buffer, callback);
 }
 
 

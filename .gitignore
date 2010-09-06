@@ -2,4 +2,4 @@
 libcomm/libcomm.a
 term/comm
 glade/comm
-svrcomm
+server/server

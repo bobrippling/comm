@@ -1,7 +1,3 @@
-Generalise client::sock_read() and server::svr_recv() into the same socket_util.c::func()
-
-Move/combine term/{resolve,wrapper}.c with {socket_,}util.c
-
 Functionality:
 	kick function
 	edit previous message (index - 1, ONLY) like Skype

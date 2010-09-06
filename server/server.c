@@ -15,8 +15,9 @@
 #include <arpa/inet.h>
 
 #include "../config.h"
-#include "../util.h"
-#include "../socket_util.h"
+#include "../common/resolv.h"
+#include "../common/socketwrapper.h"
+#include "../common/util.h"
 
 #define LOG_FILE       "svrcomm.log"
 #define LISTEN_BACKLOG 5
@@ -201,7 +202,7 @@ void svr_err(int idx)
 
 char svr_recv(int idx)
 {
-	char in[LINE_SIZE] = { 0 }, *newl;
+	char in[LINE_SIZE] = { 0 };
 	int ret;
 
 	switch(ret = recv(pollfds[idx].fd, in, LINE_SIZE, MSG_PEEK)){
@@ -215,23 +216,9 @@ char svr_recv(int idx)
 			return 1;
 	}
 
-	if((newl = strchr(in, '\n')) && newl < (in + ret)){
-		/* recv just up to the '\n' */
-		int len = newl - in + 1;
-
-		if(len > LINE_SIZE)
-			len = LINE_SIZE;
-
-		ret = recv(pollfds[idx].fd, in, len, 0);
-		*newl = '\0';
-	}else{
-		if(ret == LINE_SIZE){
-			fprintf(stderr, CLIENT_FMT" running with data: LINE_SIZE exceeded\n", CLIENT_ARGS);
-			recv(pollfds[idx].fd, in, LINE_SIZE, 0);
-		}else
-			/* need more data */
-			return 0;
-	}
+	if(recv_newline(in, ret, pollfds[idx].fd))
+		/* not enough data */
+		return 0;
 
 	if(verbose > 1)
 		fprintf(stderr, CLIENT_FMT" recv(): \"%s\"\n", CLIENT_ARGS, in);

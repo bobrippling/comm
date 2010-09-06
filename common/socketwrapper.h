@@ -5,6 +5,7 @@ int connectedsock(const char *host, int port);
 int toserver(FILE *f, const char *fmt, va_list l);
 int toserverf(FILE *f, const char *, ...);
 
-void perrorf(const char *fmt, ...);
+/* returns 1 if buffer unfilled, 0 if full */
+int recv_newline(char *in, int recvret, int fd);
 
 #endif
