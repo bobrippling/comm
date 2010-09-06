@@ -29,6 +29,13 @@ comm_t commt;
 
 
 /* events */
+G_MODULE_EXPORT void on_close(void)
+{
+	if(comm_state(&commt) != COMM_DISCONNECTED)
+		comm_close(&commt);
+	gtk_main_quit();
+}
+
 G_MODULE_EXPORT void on_btnDisconnect_clicked(GtkButton *button, gpointer data)
 {
 	UNUSED(button);

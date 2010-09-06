@@ -58,6 +58,10 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 	}
 
 	switch(ct->state){
+		case COMM_DISCONNECTED:
+			fputs("libcomm: major logic error, you should never see this\n", stderr);
+			break;
+
 		case COMM_ACCEPTED:
 			/* normal message */
 			if(!strncmp(buffer, "CLIENT_CONN ", 12))
@@ -130,7 +134,7 @@ const char *comm_lasterr(comm_t *ct)
 void comm_init(comm_t *ct)
 {
 	memset(ct, '\0', sizeof *ct);
-	ct->state = COMM_VERSION_WAIT;
+	ct->state = COMM_DISCONNECTED;
 	ct->sock = -1;
 }
 
