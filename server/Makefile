@@ -1,4 +1,4 @@
-server: server.o ../common/resolv.o ../common/socketwrapper.o ../common/util.o
+svrcomm: server.o ../common/resolv.o ../common/socketwrapper.o ../common/util.o
 	$Qecho LD server
 	$Q${CC} ${LDFLAGS} -o $@ $^
 

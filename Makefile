@@ -1,25 +1,28 @@
+MAKEFLAGS = --no-print-directory
+
 .PHONY : clean mostlyclean all \
-	server libcomm term glade
+	server libcomm term glade fifo
 
-all: server libcomm term glade
-
-term:  libcomm
-glade: libcomm
+all: server libcomm term glade fifo
 
 server:
-	$Qmake -C $@
+	$Qmake ${MAKEFLAGS} -C $@
 
 libcomm:
-	$Qmake -C $@
+	$Qmake ${MAKEFLAGS} -C $@
 
-term:
-	$Qmake -C $@
+term: libcomm
+	$Qmake ${MAKEFLAGS} -C $@
 
-glade:
-	$Qmake -C $@
+glade: libcomm
+	$Qmake ${MAKEFLAGS} -C $@
+
+fifo: libcomm
+	$Qmake ${MAKEFLAGS} -C $@
 
 clean:
-	$Qrm -f server/server glade/comm term/comm
+	$Qrm -f server/svrcomm glade/guicomm \
+		term/termcomm fifo/fifocomm libcomm/libcomm.a
 	$Qfind . -iname \*.o|xargs rm -f
 
 include config.mk

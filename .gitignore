@@ -1,5 +1,5 @@
 *.o
 libcomm/libcomm.a
-term/comm
-glade/comm
-server/server
+term/termcomm
+glade/guicomm
+server/svrcomm

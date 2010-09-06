@@ -1,4 +1,4 @@
-comm: term.o ../libcomm/libcomm.a
+termcomm: term.o ../libcomm/libcomm.a
 	$Qecho LD $@
 	$Q${CC} ${CFLAGS} -o $@ $^
 
