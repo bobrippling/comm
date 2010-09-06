@@ -10,7 +10,7 @@
 #include <arpa/inet.h>
 
 #include "gtkutil.h"
-#include "../../libcomm/comm.h"
+#include <comm.h>
 
 #define COMM_GLADE "main.glade"
 #define WIN_MAIN   "winMain"
