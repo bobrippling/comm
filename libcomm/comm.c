@@ -148,7 +148,7 @@ const char *comm_lasterr(comm_t *ct)
 void comm_init(comm_t *ct)
 {
 	memset(ct, '\0', sizeof *ct);
-	ct->state = COMM_VERSION_WAIT;
+	ct->state = COMM_DISCONNECTED;
 	ct->sock = -1;
 }
 

@@ -5,6 +5,7 @@ typedef struct
 {
 	enum commstate
 	{
+		COMM_DISCONNECTED,
 		COMM_VERSION_WAIT, COMM_NAME_WAIT, COMM_ACCEPTED
 	} state;
 
