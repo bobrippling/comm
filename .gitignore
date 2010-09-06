@@ -3,3 +3,4 @@ libcomm/libcomm.a
 term/termcomm
 glade/guicomm
 server/svrcomm
+fifo/fifocomm
