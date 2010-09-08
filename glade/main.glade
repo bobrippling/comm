@@ -28,25 +28,63 @@
                 <property name="visible">True</property>
                 <property name="orientation">vertical</property>
                 <child>
-                  <object class="GtkHBox" id="hboxHost">
+                  <object class="GtkHBox" id="hboxCfg">
                     <property name="visible">True</property>
                     <child>
-                      <object class="GtkLabel" id="lblHost">
-                        <property name="width_request">34</property>
+                      <object class="GtkVBox" id="vboxCfgLabels">
+                        <property name="width_request">106</property>
                         <property name="visible">True</property>
-                        <property name="label" translatable="yes">Host:</property>
+                        <property name="orientation">vertical</property>
+                        <child>
+                          <object class="GtkLabel" id="lblHost">
+                            <property name="visible">True</property>
+                            <property name="label" translatable="yes">Host:</property>
+                          </object>
+                          <packing>
+                            <property name="fill">False</property>
+                            <property name="position">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="lblName">
+                            <property name="width_request">34</property>
+                            <property name="visible">True</property>
+                            <property name="label" translatable="yes">Name:</property>
+                          </object>
+                          <packing>
+                            <property name="fill">False</property>
+                            <property name="position">1</property>
+                          </packing>
+                        </child>
                       </object>
                       <packing>
-                        <property name="expand">False</property>
-                        <property name="fill">False</property>
                         <property name="position">0</property>
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkEntry" id="entryHost">
+                      <object class="GtkVBox" id="vboxCfgText">
                         <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="invisible_char">&#x25CF;</property>
+                        <property name="orientation">vertical</property>
+                        <child>
+                          <object class="GtkEntry" id="entryHost">
+                            <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="invisible_char">&#x25CF;</property>
+                          </object>
+                          <packing>
+                            <property name="position">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkEntry" id="entryName">
+                            <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="invisible_char">&#x25CF;</property>
+                          </object>
+                          <packing>
+                            <property name="position">1</property>
+                          </packing>
+                        </child>
                       </object>
                       <packing>
                         <property name="position">1</property>
@@ -57,38 +95,6 @@
                     <property name="expand">False</property>
                     <property name="padding">2</property>
                     <property name="position">0</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkHBox" id="hboxName">
-                    <property name="visible">True</property>
-                    <child>
-                      <object class="GtkLabel" id="lblName">
-                        <property name="width_request">34</property>
-                        <property name="visible">True</property>
-                        <property name="label" translatable="yes">Name:</property>
-                      </object>
-                      <packing>
-                        <property name="expand">False</property>
-                        <property name="fill">False</property>
-                        <property name="position">0</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkEntry" id="entryName">
-                        <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="invisible_char">&#x25CF;</property>
-                      </object>
-                      <packing>
-                        <property name="position">1</property>
-                      </packing>
-                    </child>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="padding">2</property>
-                    <property name="position">1</property>
                   </packing>
                 </child>
                 <child>
@@ -120,7 +126,7 @@
                     </child>
                   </object>
                   <packing>
-                    <property name="position">2</property>
+                    <property name="position">1</property>
                   </packing>
                 </child>
               </object>
@@ -128,6 +134,16 @@
                 <property name="expand">False</property>
                 <property name="padding">2</property>
                 <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkHSeparator" id="hseparatorLeft">
+                <property name="visible">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="padding">2</property>
+                <property name="position">1</property>
               </packing>
             </child>
             <child>
@@ -141,7 +157,7 @@
                 <property name="enable_grid_lines">horizontal</property>
               </object>
               <packing>
-                <property name="position">1</property>
+                <property name="position">2</property>
               </packing>
             </child>
           </object>
@@ -149,6 +165,17 @@
             <property name="expand">False</property>
             <property name="padding">1</property>
             <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkVSeparator" id="vseparatorMain">
+            <property name="visible">True</property>
+            <property name="orientation">vertical</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="padding">2</property>
+            <property name="position">1</property>
           </packing>
         </child>
         <child>
@@ -166,6 +193,15 @@
               </packing>
             </child>
             <child>
+              <object class="GtkHSeparator" id="hseparatorText">
+                <property name="visible">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child>
               <object class="GtkHBox" id="hboxIn">
                 <property name="height_request">27</property>
                 <property name="visible">True</property>
@@ -174,6 +210,7 @@
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="invisible_char">&#x25CF;</property>
+                    <property name="activates_default">True</property>
                   </object>
                   <packing>
                     <property name="padding">2</property>
@@ -200,13 +237,13 @@
               </object>
               <packing>
                 <property name="expand">False</property>
-                <property name="position">1</property>
+                <property name="position">2</property>
               </packing>
             </child>
           </object>
           <packing>
             <property name="padding">1</property>
-            <property name="position">1</property>
+            <property name="position">2</property>
           </packing>
         </child>
       </object>
