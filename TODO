@@ -3,4 +3,6 @@ Functionality:
 	edit previous message (index - 1, ONLY) like Skype
 
 gtk:
+	disable certain buttons <=> state
+	spacing
 	http://gtkforums.com/viewtopic.php?t=988
