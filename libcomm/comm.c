@@ -7,10 +7,32 @@
 #include <unistd.h>
 #include <signal.h>
 
-#include <sys/socket.h>
-#include <arpa/inet.h>
+#ifdef _WIN32
 
-#include <poll.h>
+	/* winsock.h has select()... wtf */
+# include <winsock.h>
+# include "../common/sockprintf.h"
+
+# define TO_SERVER_F(...) sockprintf_newline(ct->sock, __VA_ARGS__)
+# define CLOSE(ct) closesocket(ct->sock)
+
+	static int wsastartup_called = 0;
+
+#else
+# include <sys/select.h>
+# include <sys/socket.h>
+# include <arpa/inet.h>
+
+# define closesocket(s) close(s)
+# define TO_SERVER_F(...) toserverf(ct->sockf, __VA_ARGS__)
+# define CLOSE(ct) \
+	if(ct->sockf) \
+		fclose(ct->sockf); \
+	else \
+		closesocket(ct->sock);
+
+#endif
+
 
 #include "comm.h"
 
@@ -18,40 +40,20 @@
 #include "../common/socketwrapper.h"
 #include "../config.h"
 
-#define TO_SERVER_F(...) toserverf(ct->sockf, __VA_ARGS__)
-
-static int comm_read(comm_t *, comm_callback callback);
 static int comm_process(comm_t *ct, char *buffer, comm_callback callback);
-
-static int comm_read(comm_t *ct, comm_callback callback)
-{
-	char buffer[LINE_SIZE] = { 0 };
-	int ret;
-
-	ret = recv(ct->sock, buffer, LINE_SIZE, MSG_PEEK);
-
-	if(ret == 0){
-		/* disco */
-		comm_close(ct);
-		ct->lasterr = "server disconnect";
-		return 1;
-	}else if(ret < 0){
-		ct->lasterr = strerror(errno);
-		return 1;
-	}
-
-	if(recv_newline(buffer, ret, ct->sock))
-		/* not full */
-		return 0;
-	return comm_process(ct, buffer, callback);
-}
-
+static void comm_setlasterr(comm_t *);
+#ifdef _WIN32
+static void comm_setlasterr_WSA(comm_t *);
+#endif
 
 /* expects a nul-terminated single line, with _no_ \n at the end */
 static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 {
 #define UNKNOWN_MESSAGE(b) \
-	fprintf(stderr, "libcomm: Unknown message from server: \"%s\"", b)
+	do{ \
+		fprintf(stderr, "libcomm: Unknown message from server: \"%s\"\n", b); \
+		ct->lasterr = "Invalid message for Comm Protocol"; \
+	}while(0)
 
 	if(!strncmp("ERR ", buffer, 4)){
 		callback(COMM_ERR, "%s", buffer + 4);
@@ -118,6 +120,29 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 	return 0;
 }
 
+#ifdef _WIN32
+static void comm_setlasterr_WSA(comm_t *ct)
+{
+#define BSIZ 256
+	static char buffer[BSIZ];
+	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
+			NULL, WSAGetLastError(), 0 /* lang */, buffer, BSIZ, NULL);
+
+  ct->lasterr = buffer;
+#undef BSIZ
+}
+#endif
+
+static void comm_setlasterr(comm_t *ct)
+{
+#ifdef _WIN32
+	if(WSAGetLastError())
+			comm_setlasterr_WSA(ct);
+	else
+#endif
+		ct->lasterr = strerror(errno);
+}
+
 /* end of static */
 
 enum commstate comm_state(comm_t *ct)
@@ -129,7 +154,7 @@ const char *comm_lasterr(comm_t *ct)
 {
 	if(ct->lasterr)
 		return ct->lasterr;
-	return "(no error)";
+	return "(unknown error)";
 }
 
 void comm_init(comm_t *ct)
@@ -142,6 +167,22 @@ void comm_init(comm_t *ct)
 int comm_connect(comm_t *ct, const char *host,
 		int port, const char *name)
 {
+#ifdef _WIN32
+	if(!wsastartup_called){
+#define WINSOCK_VER (short)0x0202
+		WSADATA wsaData;
+		int ret = WSAStartup(WINSOCK_VER, &wsaData);
+
+		wsastartup_called = 1;
+
+		if(ret != 0){
+			fprintf(stderr, "libcomm: WSAStartup: %d, WSALastError: %d\n",
+					ret, WSAGetLastError());
+			comm_setlasterr_WSA(ct);
+			return 1;
+		}
+	}
+#endif
 	ct->name = malloc(strlen(name) + 1);
 	if(!ct->name){
 		ct->lasterr = strerror(errno);
@@ -152,43 +193,38 @@ int comm_connect(comm_t *ct, const char *host,
 	if(port == -1)
 		port = DEFAULT_PORT;
 
+	/* TODO: async */
 	if((ct->sock = connectedsock(host, port)) == -1)
 		goto bail_noclose;
 
+#ifndef _WIN32
 	ct->sockf = fdopen(ct->sock, "r+");
 	if(!ct->sockf)
 		goto bail;
 
 	if(setvbuf(ct->sockf, NULL, _IONBF, 0))
 		goto bail;
-
-	memset(&ct->pollfds, '\0', sizeof ct->pollfds);
-	ct->pollfds.fd     = ct->sock;
-	ct->pollfds.events = POLLIN;
+#endif
 
 	ct->state = COMM_VERSION_WAIT;
 
 	return 0;
+#ifndef _WIN32
 bail:
-	if(ct->sockf)
-		fclose(ct->sockf);
-	else
-		close(ct->sock);
+	CLOSE(ct);
+#endif
 bail_noclose:
-	if(errno)
-		ct->lasterr = strerror(errno);
-	else if(!(ct->lasterr = lookup_strerror()))
-		ct->lasterr = "(unknown error)";
+	if(!(ct->lasterr = lookup_strerror()))
+		comm_setlasterr(ct);
 	return 1;
 }
 
 void comm_close(comm_t *ct)
 {
+#ifndef _WIN32
 	shutdown(ct->sock, SHUT_RDWR);
-	if(ct->sockf)
-		fclose(ct->sockf);
-	else
-		close(ct->sock);
+#endif
+	CLOSE(ct);
 	free(ct->name);
 
 	comm_init(ct);
@@ -196,7 +232,7 @@ void comm_close(comm_t *ct)
 
 int comm_rename(comm_t *ct, const char *name)
 {
-	return fprintf(ct->sockf, "RENAME %s", name) <= 0;
+	return TO_SERVER_F("RENAME %s", name) <= 0;
 }
 
 int comm_sendmessage(comm_t *ct, const char *msg, ...)
@@ -204,13 +240,21 @@ int comm_sendmessage(comm_t *ct, const char *msg, ...)
 	va_list l;
 	int ret;
 
+#ifdef _WIN32
+	if(sockprintf(ct->sock, "MESSAGE %s: ", ct->name) < 0)
+		return 1;
+
+	va_start(l, msg);
+	ret = sockprint_newline(ct->sock, msg, l);
+	va_end(l);
+#else
 	if(fprintf(ct->sockf, "MESSAGE %s: ", ct->name) <= 0)
 		return 1;
 
 	va_start(l, msg);
 	ret = toserver(ct->sockf, msg, l);
 	va_end(l);
-
+#endif
 	return ret <= 0 ? 1 : 0;
 }
 
@@ -221,35 +265,62 @@ int comm_recv(comm_t *ct, comm_callback callback)
 	 * i.e. not just one message per comm_recv() call
 	 */
 	for(;;){
-		int pret;
+		fd_set set;
+		struct timeval timeout;
 
-		errno = 0;
-		pret = poll(&ct->pollfds, 1, CLIENT_SOCK_WAIT);
+		char buffer[LINE_SIZE] = { 0 };
+		int ret;
 
-		if(pret == 0)
-			/* nothing to declare */
-			return 0; /* XXX here is the function's normal exit point */
-		else if(pret < 0){
-			if(errno == EINTR)
-				continue;
-			goto bail;
+		FD_ZERO(&set);
+		FD_SET(ct->sock, &set);
+
+		timeout.tv_sec = 0;
+		timeout.tv_usec = 1000 /* 1 ms */;
+		/*
+		 * if we wait too long, on shitty OSs, like Windows,
+		 * we get major GUI lag
+		 */
+
+		switch(select(FD_SETSIZE, &set, NULL, NULL, &timeout)){
+			case 0:
+				/* timeout */
+				return 0; /* normal function exit point here */
+			case -1:
+				comm_setlasterr(ct);
+				return 1;
 		}
 
-#define BIT(i, mask) (((i) & (mask)) == (mask))
+		/* got data */
+		ret = recv(ct->sock, buffer, LINE_SIZE, MSG_PEEK);
 
-		if(BIT(ct->pollfds.revents, POLLIN) && comm_read(ct, callback))
-			goto bail;
-	}
-	/* unreachable */
-
-bail:
-	{
-		int save = errno;
-		if(comm_state(ct) != COMM_DISCONNECTED)
+		if(ret == 0){
+			/* disco */
+#ifdef _WIN32
+closeconn:
+#endif
 			comm_close(ct);
-		errno = save;
-		if(errno)
-			ct->lasterr = strerror(errno);
-		return 1;
+			ct->lasterr = "server disconnect";
+			return 1;
+		}else if(ret < 0){
+#ifdef _WIN32
+			switch(errno){
+				case WSAECONNRESET:
+				case WSAECONNABORTED:
+				case WSAESHUTDOWN:
+					goto closeconn;
+				/*case WSAEWOULDBLOCK:*/
+			}
+#endif
+			comm_setlasterr(ct);
+			return 1;
+		}
+
+		if(recv_newline(buffer, ret, ct->sock))
+			/* not full */
+			return 0;
+		if(comm_process(ct, buffer, callback))
+			return 1;
+
+		/* continue, look for next message */
 	}
 }

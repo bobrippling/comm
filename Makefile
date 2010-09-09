@@ -4,6 +4,7 @@ MAKEFLAGS = --no-print-directory
 	server libcomm term glade fifo
 
 all: server libcomm term glade fifo
+windows: libcomm wincomm
 
 server:
 	$Qmake ${MAKEFLAGS} -C $@
@@ -16,6 +17,9 @@ term: libcomm
 
 glade: libcomm
 	$Qmake ${MAKEFLAGS} -C $@
+
+wincomm: libcomm
+	$Qmake ${MAKEFLAGS} -C glade $@
 
 fifo: libcomm
 	$Qmake ${MAKEFLAGS} -C $@

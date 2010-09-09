@@ -1,8 +1,16 @@
 #define _POSIX_SOURCE 1
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <arpa/inet.h>
+
+#ifdef _WIN32
+# include <winsock2.h>
+  /* getaddrinfo */
+# include <ws2tcpip.h>
+#else
+# include <sys/socket.h>
+# include <netdb.h>
+# include <arpa/inet.h>
+#endif
+
 #include <string.h>
 
 #include "resolv.h"
@@ -17,6 +25,8 @@ static int lookup_errno = 0;
 
 const char *lookup_strerror()
 {
+	if(!lookup_errno)
+		return NULL;
 	return gai_strerror(lookup_errno);
 }
 
@@ -57,6 +67,8 @@ int lookup(const char *host, int port, struct sockaddr_in *addr)
 	addr->sin_port = htons(port); /* initialise service */
 
 	freeaddrinfo(res);
+
+	lookup_errno = 0;
 	return 1;
 }
 

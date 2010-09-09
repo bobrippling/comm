@@ -1,10 +1,10 @@
 INCDIR    = ../libcomm
 
 CC        = gcc
-CFLAGS   += -g -Wextra -Wall -pedantic -pipe -std=c99 -fstack-protector -I${INCDIR}
+CFLAGS   += -g -Wextra -Wall -pedantic -pipe -std=c99 -I${INCDIR}
 
 LD        = gcc
-LDFLAGS  += -g -fstack-protector
+LDFLAGS  += -g
 
 Q        = @
 

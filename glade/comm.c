@@ -6,8 +6,11 @@
 #include <stdarg.h>
 
 /* comm includes */
-#include <poll.h>
-#include <arpa/inet.h>
+#ifdef _WIN32
+# include <winsock2.h>
+#else
+# include <arpa/inet.h>
+#endif
 
 #include "gtkutil.h"
 #include <comm.h>
@@ -74,8 +77,15 @@ G_MODULE_EXPORT void on_btnSend_clicked(GtkButton *button, gpointer data)
 	UNUSED(data);
 
 	if(comm_state(&commt) == COMM_ACCEPTED){
-		if(comm_sendmessage(&commt, gtk_entry_get_text(GTK_ENTRY(entryIn))))
+		const char *txt = gtk_entry_get_text(GTK_ENTRY(entryIn));
+		if(!strlen(txt)){
+			addtext("need text!\n");
+			return;
+		}
+
+		if(comm_sendmessage(&commt, txt))
 			addtextf("error sending message: %s\n", comm_lasterr(&commt));
+		gtk_entry_set_text(GTK_ENTRY(entryIn), "");
 	}else
 		addtext("not connected!\n");
 }
@@ -114,10 +124,11 @@ G_MODULE_EXPORT gboolean timeout(gpointer data)
 {
 	UNUSED(data);
 
-	if(comm_recv(&commt, &commcallback)){
-		addtextf("disconnected: %s\n", comm_lasterr(&commt));
-		on_btnDisconnect_clicked(NULL, NULL);
-	}
+	if(comm_state(&commt) != COMM_DISCONNECTED)
+		if(comm_recv(&commt, &commcallback)){
+			addtextf("disconnected: %s\n", comm_lasterr(&commt));
+			on_btnDisconnect_clicked(NULL, NULL);
+		}
 
 	return TRUE; /* must be ~0 */
 }
@@ -141,6 +152,18 @@ int main(int argc, char **argv)
 {
 	GError     *error = NULL;
 	GtkBuilder *builder;
+	int i, debug = 0;
+
+	for(i = 1; i < argc; i++)
+		if(!strcmp(argv[i], "-d"))
+			debug = 1;
+		else
+			goto usage;
+
+#ifdef _WIN32
+	if(!debug)
+		FreeConsole();
+#endif
 
 	comm_init(&commt);
 
@@ -179,4 +202,9 @@ int main(int argc, char **argv)
 	gtk_main();
 
 	return 0;
+usage:
+	fprintf(stderr, "Usage: %s [-d]\n"
+		"  -d: Debug (Keep console window open)\n",
+		*argv);
+	return 1;
 }

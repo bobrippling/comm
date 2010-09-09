@@ -5,8 +5,14 @@
 #include <errno.h>
 
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
+#if _WIN32
+# include <winsock.h>
+#else
+# include <sys/socket.h>
+# include <arpa/inet.h>
+#endif
+
+
 
 #include "socketwrapper.h"
 #include "resolv.h"

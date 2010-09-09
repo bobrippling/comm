@@ -14,8 +14,15 @@ typedef struct
 	char *name;
 
 	int sock;
+#ifndef _WIN32
 	FILE *sockf;
-	struct pollfd pollfds;
+	/*
+	 * otherwise,
+	 * crippled toy OSs, such as Windows, don't have
+	 * fdopen, hence I must code my own shitty
+	 * emulation for printf()'ing to a socket
+	 */
+#endif
 
 	const char *lasterr;
 } comm_t;
