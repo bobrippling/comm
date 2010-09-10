@@ -5,3 +5,4 @@ server/svrcomm
 fifo/fifocomm
 gui/guicomm
 gui/guicomm.exe
+gui/gladegen.c
