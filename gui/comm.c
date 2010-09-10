@@ -13,9 +13,9 @@
 #endif
 
 #include "gtkutil.h"
+#include "gladegen.h"
 #include "../libcomm/comm.h"
 
-#define COMM_GLADE "main.glade"
 #define WIN_MAIN   "winMain"
 #define TIMEOUT    250
 #define UNUSED(n) do (void)(n); while(0)
@@ -25,7 +25,7 @@
 static void updatewidgets(void);
 
 /* vars */
-GtkWidget *winmain;
+GtkWidget *winMain;
 GtkWidget *entryHost, *entryIn, *entryName; /* Gtk_Entry */
 GtkWidget *txtMain; /* GtkTextView */
 GtkWidget *btnConnect, *btnDisconnect, *btnSend;
@@ -176,8 +176,12 @@ static void updatewidgets(void)
 
 static int getobjects(GtkBuilder *b)
 {
-#define GET_WIDGET(x) if(!((x) = GTK_WIDGET(gtk_builder_get_object(b, #x)))) return 1
-	/*(GtkWidget *)g_object_get_data(G_OBJECT(winmain), "entryIn");*/
+#define GET_WIDGET(x) \
+	if(!((x) = GTK_WIDGET(gtk_builder_get_object(b, #x)))){ \
+		fputs("Error: Couldn't get Gtk Widget \"" #x "\", bailing\n", stderr); \
+		return 1; \
+	}
+	/*(GtkWidget *)g_object_get_data(G_OBJECT(winMain), "entryIn");*/
 	GET_WIDGET(entryHost);
 	GET_WIDGET(entryIn);
 	GET_WIDGET(entryName);
@@ -186,6 +190,8 @@ static int getobjects(GtkBuilder *b)
 	GET_WIDGET(btnConnect);
 	GET_WIDGET(btnDisconnect);
 	GET_WIDGET(btnSend);
+
+	GET_WIDGET(winMain);
 
 	return 0;
 #undef GET_WIDGET
@@ -210,10 +216,11 @@ int main(int argc, char **argv)
 
 	comm_init(&commt);
 
-	/* Init GTK+ */
+	if(gladegen_init())
+		return 1;
+
 	gtk_init(&argc, &argv);
 
-	/* Create new GtkBuilder object */
 	builder = gtk_builder_new();
 
 	if(!gtk_builder_add_from_file(builder, COMM_GLADE, &error)){
@@ -221,29 +228,22 @@ int main(int argc, char **argv)
 		/*g_free(error);*/
 		return 1;
 	}
+	gladegen_term();
 
-	/* Get main window pointer from UI */
-	winmain = GTK_WIDGET(gtk_builder_get_object(builder, WIN_MAIN));
+	if(getobjects(builder))
+		return 1;
 
-	/* Connect signals */
 	gtk_builder_connect_signals(builder, NULL);
 
-	if(getobjects(builder)){
-		perror("couldn't get gtk object(s)");
-		return 1;
-	}
-
-	/* Destroy builder, since we don't need it anymore */
+	/* don't need it anymore */
 	g_object_unref(G_OBJECT(builder));
 
 	g_timeout_add(TIMEOUT, timeout, NULL);
 
-	/* Show window - all other widgets are automatically shown by GtkBuilder */
-	gtk_widget_show(winmain);
+	gtk_widget_show(winMain);
 
 	updatewidgets();
 
-	/* Start main loop */
 	gtk_main();
 
 	return 0;
