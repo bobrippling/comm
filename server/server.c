@@ -105,7 +105,8 @@ int validname(const char *n)
 {
 	const char *p;
 	for(p = n; *p; p++)
-		if(!isgraph(*p))
+		/* allow negatives, since they're probably unicode/é, etc */
+		if(!isgraph(*p) && *p > 0)
 			return 0;
 	return 1;
 }
