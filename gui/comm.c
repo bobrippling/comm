@@ -8,13 +8,12 @@
 /* comm includes */
 #ifdef _WIN32
 # include <winsock2.h>
-# include "sapi.h"
 #else
 # include <arpa/inet.h>
 #endif
 
 #include "gtkutil.h"
-#include <comm.h>
+#include "../libcomm/comm.h"
 
 #define COMM_GLADE "main.glade"
 #define WIN_MAIN   "winMain"
@@ -205,9 +204,6 @@ int main(int argc, char **argv)
 			goto usage;
 
 #ifdef _WIN32
-	if(sapi_init())
-		return 1;
-
 	if(!debug)
 		FreeConsole();
 #endif
@@ -234,9 +230,6 @@ int main(int argc, char **argv)
 
 	if(getobjects(builder)){
 		perror("couldn't get gtk object(s)");
-#if _WIN32
-		sapi_term();
-#endif
 		return 1;
 	}
 
@@ -252,10 +245,6 @@ int main(int argc, char **argv)
 
 	/* Start main loop */
 	gtk_main();
-
-#if _WIN32
-		sapi_term();
-#endif
 
 	return 0;
 usage:

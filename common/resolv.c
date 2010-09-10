@@ -74,8 +74,14 @@ int lookup(const char *host, int port, struct sockaddr_in *addr)
 
 const char *addrtostr(struct sockaddr_in *ad)
 {
-#define BUFSIZE 32
-	static char buf[BUFSIZE];
-	return inet_ntop(AF_INET, &ad->sin_addr, buf, BUFSIZE);
-#undef BUFSIZE
+	static char buf[32];
+#ifdef _WIN32
+	return getnameinfo((struct sockaddr *)ad,
+			sizeof *ad,
+			buf, sizeof buf,
+			NULL, 0, /* no service */
+			0 /* flags */);
+#else
+	return inet_ntop(AF_INET, &ad->sin_addr, buf, sizeof buf);
+#endif
 }

@@ -1,12 +1,10 @@
-INCDIR    = ../libcomm
-
 CC        = gcc
-CFLAGS   += -g -Wextra -Wall -pedantic -pipe -std=c99 -I${INCDIR}
+CFLAGS   += -g -Wextra -Wall -pedantic -pipe -std=c99
 
 LD        = gcc
 LDFLAGS  += -g
 
-Q        = @
+Q         = @
 
 .c.o:
 	$Qecho CC $<

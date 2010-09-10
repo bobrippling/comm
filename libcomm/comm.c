@@ -173,14 +173,13 @@ int comm_connect(comm_t *ct, const char *host,
 {
 #ifdef _WIN32
 	if(!wsastartup_called){
-#define WINSOCK_VER (short)0x0202
-		WSADATA wsaData;
-		int ret = WSAStartup(WINSOCK_VER, &wsaData);
+		WSADATA wsaBullshitWhyTheHellWouldIWantThisEverQuestionMark;
+		int ret = WSAStartup(MAKE_WORD(2, 2), &wsaBullshitWhyTheHellWouldIWantThisEverQuestionMark);
 
 		wsastartup_called = 1;
 
-		if(ret != 0){
-			fprintf(stderr, "libcomm: WSAStartup: %d, WSALastError: %d\n",
+		if(ret){
+			fprintf(stderr, "libcomm: WSAStartup returned %d, WSALastError: %d\n",
 					ret, WSAGetLastError());
 			comm_setlasterr_WSA(ct);
 			return 1;

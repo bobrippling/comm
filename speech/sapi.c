@@ -18,7 +18,7 @@ int sapi_init()
 	return SUCCEEDED(hr);
 }
 
-void sapi_speak(const char *s)
+int sapi_speak(const char *s)
 {
 	const wchar_t *ws = malloc((strlen(s) + 1) * sizeof *ws);
 
@@ -29,10 +29,12 @@ void sapi_speak(const char *s)
 
 			/* Change pitch */
 			/*hr = pVoice->Speak(L"This sounds normal <pitch middle = '-10'/> but the pitch drops half way through", SPF_IS_XML, NULL);*/
+			return 0;
 		}else
 			perror("mbstowcs()");
 	}else
 		perror("malloc()");
+	return 1;
 }
 
 void sapi_term()
@@ -42,3 +44,11 @@ void sapi_term()
 	CoUninitialize();
 }
 
+int main(int argc, char **argv)
+{
+	int i, ret = 0;
+
+	for(i = 1; i < argc; i++)
+		ret += sapi_speak(argv[i]);
+	return ret;
+}
