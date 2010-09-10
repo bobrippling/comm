@@ -126,6 +126,7 @@
                     </child>
                   </object>
                   <packing>
+                    <property name="padding">1</property>
                     <property name="position">1</property>
                   </packing>
                 </child>
@@ -157,13 +158,14 @@
                 <property name="enable_grid_lines">horizontal</property>
               </object>
               <packing>
+                <property name="padding">2</property>
                 <property name="position">2</property>
               </packing>
             </child>
           </object>
           <packing>
             <property name="expand">False</property>
-            <property name="padding">1</property>
+            <property name="padding">2</property>
             <property name="position">0</property>
           </packing>
         </child>
@@ -189,6 +191,7 @@
                 <property name="wrap_mode">word</property>
               </object>
               <packing>
+                <property name="padding">2</property>
                 <property name="position">0</property>
               </packing>
             </child>
@@ -213,7 +216,6 @@
                     <property name="activates_default">True</property>
                   </object>
                   <packing>
-                    <property name="padding">2</property>
                     <property name="position">0</property>
                   </packing>
                 </child>
@@ -237,12 +239,13 @@
               </object>
               <packing>
                 <property name="expand">False</property>
+                <property name="padding">2</property>
                 <property name="position">2</property>
               </packing>
             </child>
           </object>
           <packing>
-            <property name="padding">1</property>
+            <property name="padding">2</property>
             <property name="position">2</property>
           </packing>
         </child>

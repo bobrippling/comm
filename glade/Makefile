@@ -9,7 +9,7 @@ guicomm: comm.o gtkutil.o ../libcomm/libcomm.a
 clean: mostlyclean
 	$Qrm -f comm
 
-wincomm: comm.o gtkutil.o \
+wincomm: comm.o gtkutil.o sapi.o \
 		../common/sockprintf.o ../libcomm/libcomm.a
 	@# the implimit {comm,gtkutil}.o make includes
 	@# the updated cflags/ldflags, hence why it compiles

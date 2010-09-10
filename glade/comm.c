@@ -8,6 +8,7 @@
 /* comm includes */
 #ifdef _WIN32
 # include <winsock2.h>
+# include "sapi.h"
 #else
 # include <arpa/inet.h>
 #endif
@@ -22,11 +23,13 @@
 
 /* prototypes */
 /* TODO */
+static void updatewidgets(void);
 
 /* vars */
-GtkWidget  *winmain;
-GtkWidget  *entryHost, *entryIn, *entryName; /* Gtk_Entry */
-GtkWidget  *txtMain; /* GtkTextView */
+GtkWidget *winmain;
+GtkWidget *entryHost, *entryIn, *entryName; /* Gtk_Entry */
+GtkWidget *txtMain; /* GtkTextView */
+GtkWidget *btnConnect, *btnDisconnect, *btnSend;
 
 comm_t commt;
 
@@ -36,6 +39,7 @@ G_MODULE_EXPORT void on_close(void)
 {
 	if(comm_state(&commt) != COMM_DISCONNECTED)
 		comm_close(&commt);
+	updatewidgets();
 	gtk_main_quit();
 }
 
@@ -46,6 +50,7 @@ G_MODULE_EXPORT void on_btnDisconnect_clicked(GtkButton *button, gpointer data)
 
 	if(comm_state(&commt) != COMM_DISCONNECTED)
 		comm_close(&commt);
+	updatewidgets();
 }
 
 G_MODULE_EXPORT void on_btnConnect_clicked(GtkButton *button, gpointer data)
@@ -55,7 +60,6 @@ G_MODULE_EXPORT void on_btnConnect_clicked(GtkButton *button, gpointer data)
 
 	UNUSED(button);
 	UNUSED(data);
-
 
 	if(!strlen(name) || !strlen(host)){
 		if(!strlen(name))
@@ -69,6 +73,7 @@ G_MODULE_EXPORT void on_btnConnect_clicked(GtkButton *button, gpointer data)
 		addtextf("Couldn't connect to %s: %s\n", host, comm_lasterr(&commt));
 	else
 		addtextf("Connected to %s\n", host);
+	updatewidgets();
 }
 
 G_MODULE_EXPORT void on_btnSend_clicked(GtkButton *button, gpointer data)
@@ -88,6 +93,7 @@ G_MODULE_EXPORT void on_btnSend_clicked(GtkButton *button, gpointer data)
 		gtk_entry_set_text(GTK_ENTRY(entryIn), "");
 	}else
 		addtext("not connected!\n");
+	updatewidgets();
 }
 
 static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
@@ -116,7 +122,6 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 	g_free(insertmel);
 
 	addtext(insertme);
-
 	g_free(insertme);
 }
 
@@ -130,19 +135,58 @@ G_MODULE_EXPORT gboolean timeout(gpointer data)
 			on_btnDisconnect_clicked(NULL, NULL);
 		}
 
+	updatewidgets();
 	return TRUE; /* must be ~0 */
 }
 
 /* end of new hotness, start of old+busted */
 
+static void updatewidgets(void)
+{
+	switch(comm_state(&commt)){
+		case COMM_DISCONNECTED:
+			gtk_widget_set_sensitive(entryHost,      TRUE);
+			gtk_widget_set_sensitive(entryName,      TRUE);
+			gtk_widget_set_sensitive(entryIn,        FALSE);
+			gtk_widget_set_sensitive(btnConnect,     TRUE);
+			gtk_widget_set_sensitive(btnDisconnect,  FALSE);
+			gtk_widget_set_sensitive(btnSend,        FALSE);
+			break;
+
+		case CONN_CONNECTING:
+			gtk_widget_set_sensitive(entryHost,      FALSE);
+			gtk_widget_set_sensitive(entryName,      FALSE);
+			gtk_widget_set_sensitive(entryIn,        FALSE);
+			gtk_widget_set_sensitive(btnConnect,     FALSE);
+			gtk_widget_set_sensitive(btnDisconnect,  TRUE);
+			gtk_widget_set_sensitive(btnSend,        FALSE);
+			break;
+
+		case COMM_VERSION_WAIT:
+		case COMM_NAME_WAIT:
+		case COMM_ACCEPTED:
+			gtk_widget_set_sensitive(entryHost,      FALSE);
+			gtk_widget_set_sensitive(entryName,      FALSE);
+			gtk_widget_set_sensitive(entryIn,        TRUE);
+			gtk_widget_set_sensitive(btnConnect,     FALSE);
+			gtk_widget_set_sensitive(btnDisconnect,  TRUE);
+			gtk_widget_set_sensitive(btnSend,        TRUE);
+			break;
+	}
+}
+
 static int getobjects(GtkBuilder *b)
 {
 #define GET_WIDGET(x) if(!((x) = GTK_WIDGET(gtk_builder_get_object(b, #x)))) return 1
+	/*(GtkWidget *)g_object_get_data(G_OBJECT(winmain), "entryIn");*/
 	GET_WIDGET(entryHost);
 	GET_WIDGET(entryIn);
 	GET_WIDGET(entryName);
 	GET_WIDGET(txtMain);
-	/*(GtkWidget *)g_object_get_data(G_OBJECT(winmain), "entryIn");*/
+
+	GET_WIDGET(btnConnect);
+	GET_WIDGET(btnDisconnect);
+	GET_WIDGET(btnSend);
 
 	return 0;
 #undef GET_WIDGET
@@ -161,6 +205,9 @@ int main(int argc, char **argv)
 			goto usage;
 
 #ifdef _WIN32
+	if(sapi_init())
+		return 1;
+
 	if(!debug)
 		FreeConsole();
 #endif
@@ -187,6 +234,9 @@ int main(int argc, char **argv)
 
 	if(getobjects(builder)){
 		perror("couldn't get gtk object(s)");
+#if _WIN32
+		sapi_term();
+#endif
 		return 1;
 	}
 
@@ -198,8 +248,14 @@ int main(int argc, char **argv)
 	/* Show window - all other widgets are automatically shown by GtkBuilder */
 	gtk_widget_show(winmain);
 
+	updatewidgets();
+
 	/* Start main loop */
 	gtk_main();
+
+#if _WIN32
+		sapi_term();
+#endif
 
 	return 0;
 usage:
