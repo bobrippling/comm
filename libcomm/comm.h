@@ -5,7 +5,7 @@ typedef struct
 {
 	enum commstate
 	{
-		COMM_DISCONNECTED,
+		COMM_DISCONNECTED, CONN_CONNECTING,
 		COMM_VERSION_WAIT, COMM_NAME_WAIT, COMM_ACCEPTED
 	} state;
 
@@ -21,6 +21,7 @@ typedef struct
 	 * crippled toy OSs, such as Windows, don't have
 	 * fdopen, hence I must code my own shitty
 	 * emulation for printf()'ing to a socket
+	 * (see sockprintf)
 	 */
 #endif
 

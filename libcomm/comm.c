@@ -65,6 +65,10 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 			fputs("libcomm: major logic error, you should never see this\n", stderr);
 			break;
 
+		case CONN_CONNECTING:
+			/* TODO */
+			break;
+
 		case COMM_ACCEPTED:
 			/* normal message */
 			if(!strncmp(buffer, "CLIENT_CONN ", 12))
