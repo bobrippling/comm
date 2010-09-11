@@ -13,7 +13,7 @@ gladegen.c: gladegen_pre.c comm.glade gladegen_post.c
 	@cat gladegen_pre.c > $@
 	@# awk script to paste comm.glade using multiple
 	@# fputs() calls (strings have a limit in C)
-	@sed 's/"/\\"/g; s/^/\t/' comm.glade | awk ' \
+	@sed 's/"/\\"/g' comm.glade | awk ' \
 BEGIN { \
 	ORS = ""; \
 	n = 0; \
@@ -39,3 +39,8 @@ wincomm: ${GUI_DEPS} ../common/sockprintf.o
 	${CC} ${CFLAGS} -o guicomm $^ ${LDFLAGS} -lws2_32
 
 include ../config.mk
+
+comm.o: comm.c gtkutil.h gladegen.h ../libcomm/comm.h
+gladegen_post.o: gladegen_post.c
+gladegen_pre.o: gladegen_pre.c gladegen.h
+gtkutil.o: gtkutil.c gtkutil.h

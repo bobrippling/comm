@@ -12,7 +12,7 @@
 #include <poll.h>
 
 #include "../config.h"
-#include <comm.h>
+#include "../libcomm/comm.h"
 
 void callback(enum comm_callbacktype, const char *fmt, ...);
 
@@ -45,28 +45,29 @@ int main(int argc, char **argv)
 {
 	comm_t ct;
 	char buffer[128], *host = NULL, *name = NULL;
+	const char *port = NULL;
 	struct pollfd fds;
-	int i, port = -1;
+	int i;
 
 	for(i = 1; i < argc; i++)
 		if(!name)
 			name = argv[i];
 		else if(!host)
 			host = argv[i];
-		else if(port == -1){
+		else if(!port){
 			char *p = argv[i];
 			while(*p && isdigit(*p))
 				p++;
 			if(*p)
 				goto usage;
-			port = atoi(argv[i]);
+			port = argv[i];
 		}else
 			goto usage;
 
 
-	if(!host || !name || !port) /* port set to zero on (atoi) error */
+	if(!host || !name)
 		goto usage;
-	if(port == -1)
+	if(!port)
 		port = DEFAULT_PORT;
 
 	comm_init(&ct);

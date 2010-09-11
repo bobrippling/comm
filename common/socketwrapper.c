@@ -19,7 +19,7 @@
 
 #include "../config.h"
 
-int connectedsock(const char *host, int port)
+int connectedsock(const char *host, const char *port)
 {
 	int fd = socket(PF_INET, SOCK_STREAM, 0);
 	struct sockaddr_in addr;

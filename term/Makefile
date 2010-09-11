@@ -8,3 +8,5 @@ clean: mostlyclean
 .PHONY: clean mostlyclean
 
 include ../config.mk
+
+term.o: term.c ../config.h ../libcomm/comm.h

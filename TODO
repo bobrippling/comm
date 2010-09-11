@@ -2,6 +2,9 @@ Functionality:
 	kick function
 	edit previous message (index - 1, ONLY) like Skype
 
+libcomm:
+	try AF_INET6 first, if failure, don't report error
+
 gtk:
 	disable certain buttons <=> state
 	spacing
