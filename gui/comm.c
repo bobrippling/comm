@@ -142,7 +142,9 @@ G_MODULE_EXPORT gboolean timeout(gpointer data)
 
 static void updatewidgets(void)
 {
-	switch(comm_state(&commt)){
+	register enum commstate cs = comm_state(&commt);
+
+	switch(cs){
 		case COMM_DISCONNECTED:
 			gtk_widget_set_sensitive(entryHost,      TRUE);
 			gtk_widget_set_sensitive(entryName,      TRUE);
@@ -153,24 +155,18 @@ static void updatewidgets(void)
 			break;
 
 		case CONN_CONNECTING:
-			gtk_widget_set_sensitive(entryHost,      FALSE);
-			gtk_widget_set_sensitive(entryName,      FALSE);
-			gtk_widget_set_sensitive(entryIn,        FALSE);
-			gtk_widget_set_sensitive(btnConnect,     FALSE);
-			gtk_widget_set_sensitive(btnDisconnect,  TRUE);
-			gtk_widget_set_sensitive(btnSend,        FALSE);
-			break;
-
 		case COMM_VERSION_WAIT:
 		case COMM_NAME_WAIT:
 		case COMM_ACCEPTED:
 			gtk_widget_set_sensitive(entryHost,      FALSE);
 			gtk_widget_set_sensitive(entryName,      FALSE);
-			gtk_widget_set_sensitive(entryIn,        TRUE);
 			gtk_widget_set_sensitive(btnConnect,     FALSE);
 			gtk_widget_set_sensitive(btnDisconnect,  TRUE);
-			gtk_widget_set_sensitive(btnSend,        TRUE);
+
+			gtk_widget_set_sensitive(entryIn,        cs == COMM_ACCEPTED);
+			gtk_widget_set_sensitive(btnSend,        cs == COMM_ACCEPTED);
 			break;
+
 	}
 }
 
