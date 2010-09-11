@@ -15,7 +15,7 @@
 #include <arpa/inet.h>
 
 #include "../config.h"
-#include <comm.h>
+#include "../libcomm/comm.h"
 
 #include "../common/util.h"
 

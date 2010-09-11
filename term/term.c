@@ -12,7 +12,7 @@
 #include <poll.h>
 
 #include "../config.h"
-#include <comm.h>
+#include "../libcomm/comm.h"
 
 void callback(enum comm_callbacktype, const char *fmt, ...);
 
