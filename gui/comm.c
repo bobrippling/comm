@@ -216,12 +216,12 @@ int main(int argc, char **argv)
 
 	comm_init(&commt);
 
-	if(gladegen_init())
-		return 1;
-
-	gtk_init(&argc, &argv);
+	gtk_init(&argc, &argv); /* bail here if !$DISPLAY */
 
 	builder = gtk_builder_new();
+
+	if(gladegen_init())
+		return 1;
 
 	if(!gtk_builder_add_from_file(builder, COMM_GLADE, &error)){
 		g_warning("%s", error->message);
