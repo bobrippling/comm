@@ -68,7 +68,7 @@ G_MODULE_EXPORT void on_btnConnect_clicked(GtkButton *button, gpointer data)
 		return;
 	}
 
-	if(comm_connect(&commt, host, -1, name))
+	if(comm_connect(&commt, host, NULL /* TODO: custom port */, name))
 		addtextf("Couldn't connect to %s: %s\n", host, comm_lasterr(&commt));
 	else
 		addtextf("Connected to %s\n", host);

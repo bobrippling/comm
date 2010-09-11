@@ -169,7 +169,7 @@ void comm_init(comm_t *ct)
 }
 
 int comm_connect(comm_t *ct, const char *host,
-		int port, const char *name)
+		const char *port, const char *name)
 {
 #ifdef _WIN32
 	if(!wsastartup_called){
@@ -193,7 +193,7 @@ int comm_connect(comm_t *ct, const char *host,
 	}
 	strcpy(ct->name, name);
 
-	if(port == -1)
+	if(!port)
 		port = DEFAULT_PORT;
 
 	/* TODO: async */

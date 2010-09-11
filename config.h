@@ -5,7 +5,7 @@
 #define VERSION_MINOR    1
 #define VERSION          "0.1"
 
-#define DEFAULT_PORT     2848
+#define DEFAULT_PORT     "2848"
 #define LINE_SIZE        2048
 #define MAX_NAME_LEN     64
 

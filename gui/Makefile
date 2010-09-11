@@ -39,3 +39,8 @@ wincomm: ${GUI_DEPS} ../common/sockprintf.o
 	${CC} ${CFLAGS} -o guicomm $^ ${LDFLAGS} -lws2_32
 
 include ../config.mk
+
+comm.o: comm.c gtkutil.h gladegen.h ../libcomm/comm.h
+gladegen_post.o: gladegen_post.c
+gladegen_pre.o: gladegen_pre.c gladegen.h
+gtkutil.o: gtkutil.c gtkutil.h

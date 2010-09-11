@@ -372,7 +372,8 @@ void sigh(int sig)
 int main(int argc, char **argv)
 {
 	struct sockaddr_in svr_addr;
-	int i, port = DEFAULT_PORT, log = 0;
+	int i, log = 0;
+	const char *port = DEFAULT_PORT;
 
 	if(setjmp(allocerr)){
 		perror("longjmp'd to allocerr");
@@ -394,7 +395,7 @@ int main(int argc, char **argv)
 	for(i = 1; i < argc; i++)
 		if(!strcmp(argv[i], "-p")){
 			if(++i < argc)
-				port = atoi(argv[i]);
+				port = argv[i];
 			else{
 				fputs("need port\n", stderr);
 				return 1;
@@ -473,7 +474,7 @@ int main(int argc, char **argv)
 
 	memset(&svr_addr, '\0', sizeof svr_addr);
 	svr_addr.sin_family = AF_INET;
-	svr_addr.sin_port   = htons(port);
+	svr_addr.sin_port   = atoi(port); /* TODO: use getaddrinfo? */
 
 	if(INADDR_ANY) /* usually optimised out of existence */
 		svr_addr.sin_addr.s_addr = htonl(INADDR_ANY);

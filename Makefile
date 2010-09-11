@@ -4,7 +4,7 @@ MAKEFLAGS = --no-print-directory
 	server libcomm term gui fifo
 
 all: server libcomm term gui fifo
-windows: libcomm wincomm
+windows: libcomm wingui
 
 server:
 	$Qmake ${MAKEFLAGS} -C $@
@@ -18,15 +18,18 @@ term: libcomm
 gui: libcomm
 	$Qmake ${MAKEFLAGS} -C $@
 
-wincomm: libcomm
+wingui: libcomm
 	$Qmake ${MAKEFLAGS} -C gui $@
 
 fifo: libcomm
 	$Qmake ${MAKEFLAGS} -C $@
 
 clean:
-	$Qrm -f server/svrcomm gui/guicomm \
-		term/termcomm fifo/fifocomm libcomm/libcomm.a
+	$Qmake ${MAKEFLAGS} -C server  clean
+	$Qmake ${MAKEFLAGS} -C libcomm clean
+	$Qmake ${MAKEFLAGS} -C term    clean
+	$Qmake ${MAKEFLAGS} -C gui     clean
+	$Qmake ${MAKEFLAGS} -C fifo    clean
 	$Qfind . -iname \*.o|xargs rm -f
 
 include config.mk

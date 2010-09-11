@@ -56,7 +56,7 @@ char file_output [PATH_LEN] = { 0 },
      file_input  [PATH_LEN] = { 0 };
 
 char *host = NULL;
-int port   = -1;
+const char *port = NULL;
 
 int fd_input = -1, fd_cmd = -1, finito = 0;
 
@@ -110,7 +110,7 @@ void term_files()
 
 int init_files()
 {
-	snprintf(dir, PATH_LEN, "%s:%d", host, port);
+	snprintf(dir, PATH_LEN, "%s:%s", host, port);
 	if(mkdir(dir, 0700)){
 		if(errno == EEXIST)
 			fprintf(stderr, "not overwriting %s\n", dir);
@@ -258,15 +258,15 @@ int main(int argc, char **argv)
 			name = argv[i];
 		else if(!host)
 			host = argv[i];
-		else if(port == -1)
-			port = atoi(argv[i]);
+		else if(!port)
+			port = argv[i];
 		else
 			goto usage;
 
 	if(!host || !name || !port)
 		goto usage;
 
-	if(port == -1)
+	if(!port)
 		port = DEFAULT_PORT;
 
 	if(setjmp(allocerr)){

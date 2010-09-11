@@ -44,7 +44,7 @@ typedef void (*comm_callback)(enum comm_callbacktype, const char *, ...);
 void comm_init(comm_t *);
 
 int comm_connect(comm_t *, const char *host,
-		int port, const char *name);
+		const char *port, const char *name);
 
 int comm_sendmessage(comm_t *, const char *msg, ...);
 int comm_rename(comm_t *, const char *);

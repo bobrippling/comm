@@ -30,22 +30,20 @@ const char *lookup_strerror()
 	return gai_strerror(lookup_errno);
 }
 
-int lookup(const char *host, int port, struct sockaddr_in *addr)
+int lookup(const char *host, const char *port, struct sockaddr_in *addr)
 {
 	struct addrinfo *res = NULL;
 	struct addrinfo hints;
 	int ret;
 
 	memset(&hints, '\0', sizeof hints);
-	/* prevent getaddrinfo returning an ipv6 address */
-	hints.ai_family   = AF_INET;
+	hints.ai_family   = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 
-	if((ret = getaddrinfo(host,
-				NULL /* service - uninitialised in ret */,
+	if((ret = getaddrinfo(host, port,
 				&hints, &res))){
 		lookup_errno = ret;
-		return 0;
+		return 1;
 	}
 
 	/*if(!inet_pton(AF_INET, host, &addr.sin_addr))
@@ -64,12 +62,11 @@ int lookup(const char *host, int port, struct sockaddr_in *addr)
 #endif
 
 	memcpy(addr, res->ai_addr, sizeof *addr);
-	addr->sin_port = htons(port); /* initialise service */
 
 	freeaddrinfo(res);
 
 	lookup_errno = 0;
-	return 1;
+	return 0;
 }
 
 const char *addrtostr(struct sockaddr_in *ad)
