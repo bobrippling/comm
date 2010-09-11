@@ -2,7 +2,7 @@ GTKINC   = gtk+-2.0 gmodule-2.0
 CFLAGS  += `pkg-config --cflags ${GTKINC}`
 LDFLAGS += `pkg-config --libs   ${GTKINC}`
 
-GUI_DEPS = comm.o gtkutil.o gladegen.o ../libcomm/libcomm.a
+GUI_DEPS = gui.o gtkutil.o gladegen.o ../libcomm/libcomm.a
 
 guicomm: ${GUI_DEPS}
 	$Qecho LD $@
@@ -33,14 +33,14 @@ BEGIN { \
 	@cat gladegen_post.c >> $@
 
 clean: mostlyclean
-	$Qrm -f comm gladegen.c
+	$Qrm -f guicomm comm.exe gladegen.c
 
-wincomm: ${GUI_DEPS} ../common/sockprintf.o
-	${CC} ${CFLAGS} -o guicomm $^ ${LDFLAGS} -lws2_32
+comm.exe: ${GUI_DEPS} ../common/sockprintf.o
+	${CC} ${CFLAGS} -o $@ $^ ${LDFLAGS} -lws2_32
 
 include ../config.mk
 
-comm.o: comm.c gtkutil.h gladegen.h ../libcomm/comm.h
+gui.o: gui.c gtkutil.h gladegen.h ../libcomm/comm.h
 gladegen_post.o: gladegen_post.c
 gladegen_pre.o: gladegen_pre.c gladegen.h
 gtkutil.o: gtkutil.c gtkutil.h

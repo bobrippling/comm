@@ -474,7 +474,7 @@ int main(int argc, char **argv)
 
 	memset(&svr_addr, '\0', sizeof svr_addr);
 	svr_addr.sin_family = AF_INET;
-	svr_addr.sin_port   = atoi(port); /* TODO: use getaddrinfo? */
+	svr_addr.sin_port   = htons(atoi(port)); /* TODO: use getaddrinfo? */
 
 	if(INADDR_ANY) /* usually optimised out of existence */
 		svr_addr.sin_addr.s_addr = htonl(INADDR_ANY);

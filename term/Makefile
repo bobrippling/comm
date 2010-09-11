@@ -3,7 +3,7 @@ termcomm: term.o ../libcomm/libcomm.a
 	$Q${CC} ${CFLAGS} -o $@ $^
 
 clean: mostlyclean
-	$Qrm -f term
+	$Qrm -f termcomm
 
 .PHONY: clean mostlyclean
 

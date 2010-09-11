@@ -4,7 +4,7 @@ MAKEFLAGS = --no-print-directory
 	server libcomm term gui fifo
 
 all: server libcomm term gui fifo
-windows: libcomm wingui
+windows: libcomm comm.exe
 
 server:
 	$Qmake ${MAKEFLAGS} -C $@
@@ -18,7 +18,7 @@ term: libcomm
 gui: libcomm
 	$Qmake ${MAKEFLAGS} -C $@
 
-wingui: libcomm
+comm.exe: libcomm
 	$Qmake ${MAKEFLAGS} -C gui $@
 
 fifo: libcomm

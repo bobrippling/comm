@@ -174,7 +174,7 @@ int comm_connect(comm_t *ct, const char *host,
 #ifdef _WIN32
 	if(!wsastartup_called){
 		WSADATA wsaBullshitWhyTheHellWouldIWantThisEverQuestionMark;
-		int ret = WSAStartup(MAKE_WORD(2, 2), &wsaBullshitWhyTheHellWouldIWantThisEverQuestionMark);
+		int ret = WSAStartup(MAKEWORD(2, 2), &wsaBullshitWhyTheHellWouldIWantThisEverQuestionMark);
 
 		wsastartup_called = 1;
 

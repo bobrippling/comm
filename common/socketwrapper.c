@@ -30,7 +30,7 @@ int connectedsock(const char *host, const char *port)
 	memset(&addr, '\0', sizeof addr);
 
 	addr.sin_family = AF_INET;
-	if(!lookup(host, port, &addr))
+	if(lookup(host, port, &addr))
 		goto bail;
 
 	if(connect(fd, (struct sockaddr *)&addr, sizeof addr) == -1)

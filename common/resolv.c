@@ -2,6 +2,7 @@
 #include <sys/types.h>
 
 #ifdef _WIN32
+# define _WIN32_WINNT 0x501
 # include <winsock2.h>
   /* getaddrinfo */
 # include <ws2tcpip.h>
@@ -73,11 +74,13 @@ const char *addrtostr(struct sockaddr_in *ad)
 {
 	static char buf[32];
 #ifdef _WIN32
-	return getnameinfo((struct sockaddr *)ad,
+	if(getnameinfo((struct sockaddr *)ad,
 			sizeof *ad,
 			buf, sizeof buf,
 			NULL, 0, /* no service */
-			0 /* flags */);
+			0 /* flags */))
+		return NULL;
+	return buf;
 #else
 	return inet_ntop(AF_INET, &ad->sin_addr, buf, sizeof buf);
 #endif
