@@ -10,15 +10,19 @@ extern GtkWidget *txtMain;
 void addtext(const char *text)
 {
 	GtkTextBuffer *buffa;
-	GtkTextIter iter;
+	GtkTextView   *view;
+	GtkTextIter    iter;
 
-	buffa = gtk_text_view_get_buffer(GTK_TEXT_VIEW(txtMain));
+	buffa = gtk_text_view_get_buffer(view = GTK_TEXT_VIEW(txtMain));
 	if(!buffa)
 		return;
 
 	memset(&iter, '\0', sizeof iter);
 	gtk_text_buffer_get_iter_at_offset(buffa, &iter, -1 /* end */);
 	gtk_text_buffer_insert(            buffa, &iter, text, -1 /* nul-term */ );
+
+	/* ..., ..., margin, use_align, xalign, yalign */
+	gtk_text_view_scroll_to_iter(view, &iter, 0.0, FALSE, 0, 0);
 }
 
 void addtextl(const char *fmt, va_list l)
