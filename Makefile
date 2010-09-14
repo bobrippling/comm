@@ -1,7 +1,7 @@
 MAKEFLAGS = --no-print-directory
 
 .PHONY : clean mostlyclean all \
-	server libcomm term gui fifo
+	server libcomm term gui fifo common
 
 all: server libcomm term gui fifo
 windows: libcomm comm.exe
@@ -9,7 +9,10 @@ windows: libcomm comm.exe
 server:
 	$Qmake ${MAKEFLAGS} -C $@
 
-libcomm:
+common:
+	$Qmake ${MAKEFLAGS} -C $@
+
+libcomm: common
 	$Qmake ${MAKEFLAGS} -C $@
 
 term: libcomm

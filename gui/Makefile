@@ -40,7 +40,8 @@ comm.exe: ${GUI_DEPS} ../common/sockprintf.o
 
 include ../config.mk
 
-gui.o: gui.c gtkutil.h gladegen.h ../libcomm/comm.h
+gladegen.o: gladegen.c gladegen.h
 gladegen_post.o: gladegen_post.c
 gladegen_pre.o: gladegen_pre.c gladegen.h
 gtkutil.o: gtkutil.c gtkutil.h
+gui.o: gui.c gtkutil.h gladegen.h ../libcomm/comm.h

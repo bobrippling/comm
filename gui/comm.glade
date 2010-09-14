@@ -14,7 +14,6 @@
     <property name="title" translatable="yes">Comm v2.0</property>
     <property name="default_width">500</property>
     <property name="default_height">300</property>
-    <signal name="destroy" handler="on_close"/>
     <child>
       <object class="GtkHBox" id="hboxMain">
         <property name="visible">True</property>
@@ -185,10 +184,18 @@
             <property name="visible">True</property>
             <property name="orientation">vertical</property>
             <child>
-              <object class="GtkTextView" id="txtMain">
+              <object class="GtkScrolledWindow" id="scrolledwindowText">
                 <property name="visible">True</property>
-                <property name="editable">False</property>
-                <property name="wrap_mode">word</property>
+                <property name="can_focus">True</property>
+                <property name="hscrollbar_policy">automatic</property>
+                <child>
+                  <object class="GtkTextView" id="txtMain">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="editable">False</property>
+                    <property name="wrap_mode">word</property>
+                  </object>
+                </child>
               </object>
               <packing>
                 <property name="padding">2</property>

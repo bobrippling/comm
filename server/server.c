@@ -19,7 +19,6 @@
 #include <arpa/inet.h>
 
 #include "../config.h"
-#include "../common/resolv.h"
 #include "../common/socketwrapper.h"
 #include "../common/util.h"
 
@@ -168,7 +167,8 @@ char svr_conn(int idx)
 		return 0;
 	}
 
-	DEBUG(DEBUG_CONN_DISCO, CLIENT_FMT" connected from %s\n", CLIENT_ARGS, addrtostr(&clients[idx].addr));
+	DEBUG(DEBUG_CONN_DISCO, CLIENT_FMT" connected from %s\n", CLIENT_ARGS,
+			addrtostr((struct sockaddr *)&clients[idx].addr));
 
 	return 1;
 }

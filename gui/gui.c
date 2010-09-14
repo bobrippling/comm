@@ -23,21 +23,22 @@
 /* prototypes */
 /* TODO */
 static void updatewidgets(void);
+G_MODULE_EXPORT void on_winMain_destroy(void);
 
 /* vars */
 GtkWidget *winMain;
 GtkWidget *entryHost, *entryIn, *entryName; /* Gtk_Entry */
 GtkWidget *txtMain; /* GtkTextView */
 GtkWidget *btnConnect, *btnDisconnect, *btnSend;
+int timeout_tag;
 
 comm_t commt;
 
 /* events */
-G_MODULE_EXPORT void on_close(void)
+G_MODULE_EXPORT void on_winMain_destroy(void)
 {
 	if(comm_state(&commt) != COMM_DISCONNECTED)
 		comm_close(&commt);
-	updatewidgets();
 	gtk_main_quit();
 }
 
@@ -128,17 +129,16 @@ G_MODULE_EXPORT gboolean timeout(gpointer data)
 {
 	UNUSED(data);
 
-	if(comm_state(&commt) != COMM_DISCONNECTED)
+	if(comm_state(&commt) != COMM_DISCONNECTED){
 		if(comm_recv(&commt, &commcallback)){
 			addtextf("disconnected: %s\n", comm_lasterr(&commt));
-			on_btnDisconnect_clicked(NULL, NULL);
+			comm_close(&commt);
 		}
+		updatewidgets();
+	}
 
-	updatewidgets();
 	return TRUE; /* must be ~0 */
 }
-
-/* end of new hotness, start of old+busted */
 
 static void updatewidgets(void)
 {
@@ -234,11 +234,13 @@ int main(int argc, char **argv)
 	/* don't need it anymore */
 	g_object_unref(G_OBJECT(builder));
 
-	g_timeout_add(TIMEOUT, timeout, NULL);
-
-	gtk_widget_show(winMain);
+	/* signal/timeout setup */
+	timeout_tag = g_timeout_add(TIMEOUT, timeout, NULL);
+	g_signal_connect(G_OBJECT(winMain), "destroy", G_CALLBACK(on_winMain_destroy), NULL);
 
 	updatewidgets();
+
+	gtk_widget_show(winMain);
 
 	gtk_main();
 

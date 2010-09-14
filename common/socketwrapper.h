@@ -2,6 +2,9 @@
 #define WRAPPER_H
 
 int connectedsock(const char *host, const char *port);
+const char *addrtostr(struct sockaddr *ad);
+const char *lastsockerr(void);
+
 int toserver(FILE *f, const char *fmt, va_list l);
 int toserverf(FILE *f, const char *, ...);
 

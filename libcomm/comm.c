@@ -36,7 +36,6 @@
 
 #include "comm.h"
 
-#include "../common/resolv.h"
 #include "../common/socketwrapper.h"
 #include "../config.h"
 
@@ -222,7 +221,7 @@ bail:
 	CLOSE(ct);
 #endif
 bail_noclose:
-	if(!(ct->lasterr = lookup_strerror()))
+	if(!(ct->lasterr = lastsockerr()))
 		comm_setlasterr(ct);
 	return 1;
 }
