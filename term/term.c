@@ -25,6 +25,7 @@ void callback(enum comm_callbacktype type, const char *fmt, ...)
 	switch(type){
 		TYPE(COMM_MSG,  "message");
 		TYPE(COMM_INFO, "info");
+		TYPE(COMM_SERVER_INFO, "server info");
 		TYPE(COMM_ERR,  "err");
 		TYPE(COMM_RENAME,  "rename");
 		TYPE(COMM_CLIENT_CONN,  "client_conn");
@@ -93,13 +94,20 @@ int main(int argc, char **argv)
 					char *nl;
 
 					if(*buffer == '/'){
-						if(!strncmp(buffer+1, "rename ", 7))
-							if(buffer[8])
-								comm_rename(&ct, buffer + 8);
-							else
-								fprintf(stderr, "%s: need name!\n", *argv);
+						char *in = strchr(buffer, '\n');
+						if(in)
+							*in = '\0';
+
+						in = buffer+1;
+
+						if(!strncmp(in, "rename ", 7))
+							comm_rename(&ct, in + 7);
+						else if(!strncmp(in, "kick ", 5))
+							comm_kick(&ct, in+5);
+						else if(!strncmp(in, "su ", 3))
+							comm_su(&ct, in+3);
 						else
-							fputs("Invalid command: use /rename\n", stderr);
+							fputs("Invalid command: use /rename or /kick\n", stderr);
 					}else{
 						if((nl = strchr(buffer, '\n')))
 							*nl = '\0';
@@ -108,6 +116,9 @@ int main(int argc, char **argv)
 				}else
 					goto bail;
 		}
+
+	/* comm_recv failed */
+	printf("disconnected: %s\n", comm_lasterr(&ct));
 
 bail:
 	comm_close(&ct);

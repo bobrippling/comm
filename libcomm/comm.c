@@ -71,14 +71,17 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 
 		case COMM_ACCEPTED:
 			/* normal message */
-			if(!strncmp(buffer, "CLIENT_CONN ", 12))
-				callback(COMM_CLIENT_CONN, "%s", buffer + 12);
+			if(!strncmp(buffer, "MESSAGE ", 8))
+				callback(COMM_MSG, "%s", buffer + 8);
+
+			else if(!strncmp(buffer, "INFO ", 5))
+				callback(COMM_SERVER_INFO, "%s", buffer + 5);
 
 			else if(!strncmp(buffer, "CLIENT_DISCO ", 13))
 				callback(COMM_CLIENT_DISCO, "%s", buffer + 13);
 
-			else if(!strncmp(buffer, "MESSAGE ", 8))
-				callback(COMM_MSG, "%s", buffer + 8);
+			else if(!strncmp(buffer, "CLIENT_CONN ", 12))
+				callback(COMM_CLIENT_CONN, "%s", buffer + 12);
 
 			else if(!strncmp(buffer, "RENAME ", 7))
 				callback(COMM_RENAME, "%s", buffer + 7);
@@ -87,6 +90,7 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 				if(strcmp(buffer + 11, "_START") && strcmp(buffer + 11, "_END"))
 					callback(COMM_CLIENT_LIST, "%s", buffer + 12);
 				/* _START/_END are ignored FIXME: maintain list of clients */
+
 			}else
 				UNKNOWN_MESSAGE(buffer);
 			break;
@@ -111,6 +115,7 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 					TO_SERVER_F("NAME %s", ct->name);
 				}else{
 					callback(COMM_ERR, "Server version mismatch: %d.%d", maj, min);
+					ct->lasterr = "Server version mismatch";
 					return 1;
 				}
 			}else{
@@ -233,16 +238,27 @@ void comm_close(comm_t *ct)
 	comm_init(ct);
 }
 
-int comm_rename(comm_t *ct, const char *name)
-{
-	return TO_SERVER_F("RENAME %s", name) <= 0;
-}
+#define COMM_SIMPLE(fname, proto) \
+	int fname(comm_t *ct, const char *str) \
+	{ \
+		return TO_SERVER_F(proto " %s", str); \
+	}
+
+COMM_SIMPLE(comm_rename, "RENAME")
+COMM_SIMPLE(comm_su,     "SU"    )
+COMM_SIMPLE(comm_kick,   "KICK"  )
+
+#undef COMM_SIMPLE
 
 int comm_sendmessage(comm_t *ct, const char *msg, ...)
 {
 	va_list l;
 	int ret;
 
+	/*
+	 * can't use TO_SERVER_F here because
+	 * we need to send "MESSAGE %s" and the va_list
+	 */
 #ifdef _WIN32
 	if(sockprintf(ct->sock, "MESSAGE %s: ", ct->name) < 0)
 		return 1;

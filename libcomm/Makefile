@@ -4,7 +4,7 @@ libcomm.a: comm.o ../common/resolv.o ../common/socketwrapper.o
 	$Qar rc $@ $^
 
 comm.o: comm.c comm.h ../common/resolv.h ../common/socketwrapper.h \
- ../config.h
+	../config.h
 
 comm.c: comm.h
 

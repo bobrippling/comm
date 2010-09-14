@@ -13,18 +13,25 @@ Message Types
 
 Client -> Server:
 	NAME %s
-		client name - send when client name is changed
+		client name - login request with name %s
 	MESSAGE %s
 		client sends a message to all
 	CLIENT_LIST
 		server replies like so:
-		CLIENT_LIST_START
-		CLIENT_LIST %s
-		CLIENT_LIST_END
-		for each client except the queryer
+			CLIENT_LIST_START
+			CLIENT_LIST %s
+			CLIENT_LIST_END
+			for each client except the queryer
 	RENAME %s
 		_request_ to change name
-		server sends OK or ERR
+			server replies with ERR if unsuccessful
+	SU %s
+		_request_ root-control of server with md5'd password
+			if unsuccessful, an ERR message is returned
+			otherwise, the server may optionally send an
+			informational message (INFO)
+	KICK %s
+		ROOT request to kick user
 
 Server -> Client:
 	CLIENT_CONN %s
@@ -37,6 +44,8 @@ Server -> Client:
 		see (client->server)::CLIENT_LIST
 	MESSAGE %s
 		message from server to all
+	INFO %s
+		server informational message
 	RENAME %s %s
 		client %s[0] renamed to %s[1]
 
@@ -55,3 +64,8 @@ the server then responds with ERR %s or OK
 if ERR, server then closes the connection
 
 otherwise the handshake is successful
+
+If user logs in with ROOT, they have access to extra
+functionality, such as KICK
+
+ vim: ft=help ts=4
