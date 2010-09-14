@@ -192,6 +192,8 @@ void proc_cmd(const char *buffer)
 		comm_su(&commt, buffer+3);
 	else if(!strncmp(buffer, "kick ", 5))
 		comm_kick(&commt, buffer+5);
+	else if(!strncmp(buffer, "rename ", 7))
+		comm_rename(&commt, buffer+7);
 	else
 		outputf(file_err, "unknown command: ``%s'' (use ls, su or exit)", buffer);
 }

@@ -37,7 +37,7 @@
 #define DEBUG_MAX        3
 
 #define DEBUG(level, MSG, ...) \
-	if(level >= verbose) \
+	if(verbose >= level) \
 		printf("debug%d: " MSG, level, __VA_ARGS__)
 
 #define CLIENT_FMT  "client %d (socket %d)"
