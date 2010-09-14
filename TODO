@@ -4,3 +4,4 @@ Functionality:
 gtk:
 	http://gtkforums.com/viewtopic.php?t=988 (tutorial)
 	su + kick functionality
+	fix addtext() gtk_editable bug - expands on more text

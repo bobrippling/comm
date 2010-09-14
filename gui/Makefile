@@ -29,7 +29,7 @@ BEGIN { \
 		n = 0; \
 		print ", f) == EOF) goto bail;\n"; \
 	} \
-}' | sed 's/^\([",]\)/\t\1/; s/^/\t/' >> $@
+}' | sed 's/^\([",]\)/  \1/; s/^/  /' >> $@
 	@cat gladegen_post.c >> $@
 
 clean: mostlyclean

@@ -4,5 +4,5 @@ term/termcomm
 server/svrcomm
 fifo/fifocomm
 gui/guicomm
-gui/guicomm.exe
+gui/comm.exe
 gui/gladegen.c
