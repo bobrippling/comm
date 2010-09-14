@@ -55,7 +55,7 @@ Initial Contact/Handshake
 ---------------
 
 Server sends
-Comm v$VERSION
+Comm v$VERSION Optional-Server-Desc
 where version is something like 1.2 (always in the form %d.%d)
 
 client either disconnects, or continues with the following

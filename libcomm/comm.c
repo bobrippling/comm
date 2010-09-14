@@ -107,9 +107,19 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 		case COMM_VERSION_WAIT:
 		{
 			int maj, min;
+			char *desc_space = NULL;
+
+			if(strlen(buffer) > 6){
+				desc_space = strchr(buffer + 6, ' ');
+				if(desc_space)
+					*desc_space = '\0';
+			}
+
 			if(sscanf(buffer, "Comm v%d.%d", &maj, &min) == 2){
 				if(maj == VERSION_MAJOR && min == VERSION_MINOR){
-					callback(COMM_INFO, "Server Version OK: %d.%d, checking name...", maj, min);
+					callback(COMM_INFO, "%s Version OK: %d.%d, checking name...",
+							desc_space ? desc_space + 1 : "Server",
+							maj, min);
 					ct->state = COMM_NAME_WAIT;
 					TO_SERVER_F("NAME %s", ct->name);
 				}else{

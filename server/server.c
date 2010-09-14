@@ -35,12 +35,17 @@
 #define DEBUG_ERRORS     3
 #define DEBUG_MAX        3
 
-#define DEBUG(level, MSG, ...) \
-	if(verbose >= level) \
-		printf("debug%d: " MSG, level, __VA_ARGS__)
-
 #define CLIENT_FMT  "client %d (socket %d)"
 #define CLIENT_ARGS idx, pollfds[idx].fd
+
+#define DEBUG(level, msg, ...) \
+	do{ \
+		if(verbose >= level){ \
+			printf(CLIENT_FMT " debug%d: " msg, CLIENT_ARGS, level, __VA_ARGS__); \
+			putchar('\n'); \
+		} \
+	}while(0)
+
 
 #define MD5_LEN 32
 
@@ -64,7 +69,7 @@ static struct client
 static struct pollfd *pollfds = NULL;
 
 static int server = -1, nclients = 0, background = 0, verbose = 0;
-static char *md5pass = NULL, *progname;
+static char *md5pass = NULL, *progname, *svrdesc = "";
 
 jmp_buf allocerr;
 
@@ -161,13 +166,14 @@ char svr_conn(int idx)
 		return 0;
 	}
 
-	if(TO_CLIENT(idx, "Comm v"VERSION_STR) == 0){
+	if(toclientf(idx, "Comm v%s%s%s", VERSION_STR,
+				*svrdesc ? " " : "", svrdesc) == 0){
 		fprintf(stderr, CLIENT_FMT" fwrite(): ", CLIENT_ARGS);
 		perror(NULL);
 		return 0;
 	}
 
-	DEBUG(DEBUG_CONN_DISCO, CLIENT_FMT" connected from %s\n", CLIENT_ARGS,
+	DEBUG(DEBUG_CONN_DISCO, "connected from %s",
 			addrtostr((struct sockaddr *)&clients[idx].addr));
 
 	return 1;
@@ -177,7 +183,7 @@ void svr_hup(int idx)
 {
 	int i;
 
-	DEBUG(DEBUG_CONN_DISCO, CLIENT_FMT" disconnected\n", CLIENT_ARGS);
+	DEBUG(DEBUG_CONN_DISCO, "%s", " disconnected"); /* need at least one arg */
 
 	if(clients[idx].state == ACCEPTED)
 		for(i = 0; i < nclients; i++)
@@ -240,7 +246,7 @@ char svr_recv(int idx)
 		/* not enough data */
 		return 0;
 
-	DEBUG(DEBUG_ERRORS, CLIENT_FMT" recv(): \"%s\"\n", CLIENT_ARGS, in);
+	DEBUG(DEBUG_ERRORS, "recv(): \"%s\"", in);
 
 	if(clients[idx].state == ACCEPTING){
 		if(!strncmp(in, "NAME ", 5)){
@@ -270,11 +276,11 @@ char svr_recv(int idx)
 				}
 
 			clients[idx].name   = cstrdup(name);
-			clients[idx].isroot = *in == 'R';
+			clients[idx].isroot = 0;
 
 			clients[idx].state = ACCEPTED;
 
-			DEBUG(DEBUG_STATUS, CLIENT_FMT" name accepted: %s\n", CLIENT_ARGS, name);
+			DEBUG(DEBUG_STATUS, "name accepted: %s", name);
 
 			TO_CLIENT(idx, "OK");
 
@@ -379,7 +385,7 @@ char svr_recv(int idx)
 							if(j != i)
 								toclientf(j, "INFO %s was kicked", name);
 						TO_CLIENT(i, "INFO you have been kicked");
-						DEBUG(DEBUG_STATUS, CLIENT_FMT" <- (%s) kicked %s\n", CLIENT_ARGS,
+						DEBUG(DEBUG_STATUS, "<- (%s) kicked %s",
 									clients[idx].name, name);
 						svr_hup(i);
 					}
@@ -396,11 +402,13 @@ char svr_recv(int idx)
 
 				if(!*pass)
 					TO_CLIENT(idx, "Need md5'd password");
-				else if(md5check(pass, md5pass))
+				else if(md5check(pass, md5pass)){
 					TO_CLIENT(idx, "ERR incorrect root passphrase");
-				else{
+					DEBUG(DEBUG_STATUS, "%s root logout", clients[idx].name);
+				}else{
 					clients[idx].isroot = 1;
 					TO_CLIENT(idx, "INFO root login successful");
+					DEBUG(DEBUG_STATUS, "root login: %s", clients[idx].name);
 				}
 			}
 
@@ -420,7 +428,7 @@ void sigh(int sig)
 		if(nclients){
 			puts("Index FD Name");
 			for(i = 0; i < nclients; i++)
-				printf("%3d %3d  %s\n", i, pollfds[i].fd, clients[i].name);
+				printf("%3d %3d  %s\n", i, pollfds[i].fd, clients[i].name ? clients[i].name : "(not logged in)");
 		}
 		fflush(stdout);
 		signal(SIGINT, &sigh);
@@ -523,6 +531,14 @@ int main(int argc, char **argv)
 				return 1;
 			}
 
+		}else if(!strcmp(argv[i], "-d")){
+			if(++i < argc)
+				svrdesc = argv[i];
+			else{
+				fputs("need description\n", stderr);
+				return 1;
+			}
+
 		}else if(!strncmp(argv[i], "-v", 2)){
 			char *p = argv[i] + 1;
 
@@ -567,7 +583,7 @@ int main(int argc, char **argv)
 	}
 
 	if(background){
-		DEBUG(DEBUG_CONN_DISCO, "%s: closing output and forking to background\n", *argv);
+		fprintf(stderr, "%s: closing output and forking to background", *argv);
 
 		signal(SIGCHLD, SIG_IGN);
 		switch(fork()){
@@ -724,8 +740,10 @@ usage:
 	fprintf(stderr, "Usage: %s [-p port] [-v*] [-b] [-l]\n"
 	                " -p: Port to listen on\n"
 	                " -P: 'root' password\n"
+	                " -d: Server description\n"
 	                " -v: Verbose\n"
 	                " -b: Fork to background\n"
-	                " -l: Redirect output to logs\n", *argv);
+	                " -l: Redirect output to logs\n"
+	                "[pPdv] take arguments\n", *argv);
 	return 1;
 }
