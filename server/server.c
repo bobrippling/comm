@@ -11,6 +11,10 @@
 #include <stdarg.h>
 #include <ctype.h>
 
+#include <time.h>
+
+#include <termios.h>
+
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
@@ -19,14 +23,27 @@
 #include "../common/socketwrapper.h"
 #include "../common/util.h"
 
+#include "md5.h"
+
 #define LOG_FILE       "svrcomm.log"
 #define LISTEN_BACKLOG 5
 #define SLEEP_MS       100
 #define TO_CLIENT(i, msg) fwrite(msg"\n", sizeof *msg, strlen(msg) + 1, clients[i].file)
 /*                                                     ^don't include the '\0', but the '\n' */
 
+#define DEBUG_CONN_DISCO 1
+#define DEBUG_STATUS     2
+#define DEBUG_ERRORS     3
+#define DEBUG_MAX        3
+
+#define DEBUG(level, MSG, ...) \
+	if(level >= verbose) \
+		printf("debug%d: " MSG, level, __VA_ARGS__)
+
 #define CLIENT_FMT  "client %d (socket %d)"
 #define CLIENT_ARGS idx, pollfds[idx].fd
+
+#define MD5_LEN 32
 
 static struct client
 {
@@ -35,6 +52,8 @@ static struct client
 	FILE *file;
 
 	char *name;
+
+	int isroot;
 
 	enum
 	{
@@ -45,11 +64,13 @@ static struct client
 
 static struct pollfd *pollfds = NULL;
 
-static int server = -1, nclients = 0, background = 0;
-static char verbose = 0;
+static int server = -1, nclients = 0, background = 0, verbose = 0;
+static char *md5pass = NULL, *progname;
 
 jmp_buf allocerr;
 
+
+int passfromstdin(void);
 
 int nonblock(int);
 void cleanup(void);
@@ -106,7 +127,7 @@ int validname(const char *n)
 	const char *p;
 	for(p = n; *p; p++)
 		/* allow negatives, since they're probably unicode/é, etc */
-		if(!isgraph(*p) && *p > 0)
+		if(*p != ' ' && !isgraph(*p) && *p > 0)
 			return 0;
 	return 1;
 }
@@ -141,14 +162,13 @@ char svr_conn(int idx)
 		return 0;
 	}
 
-	if(TO_CLIENT(idx, "Comm v"VERSION) == 0){
+	if(TO_CLIENT(idx, "Comm v"VERSION_STR) == 0){
 		fprintf(stderr, CLIENT_FMT" fwrite(): ", CLIENT_ARGS);
 		perror(NULL);
 		return 0;
 	}
 
-	if(verbose)
-		printf(CLIENT_FMT" connected from %s\n", CLIENT_ARGS, addrtostr(&clients[idx].addr));
+	DEBUG(DEBUG_CONN_DISCO, CLIENT_FMT" connected from %s\n", CLIENT_ARGS, addrtostr(&clients[idx].addr));
 
 	return 1;
 }
@@ -157,8 +177,7 @@ void svr_hup(int idx)
 {
 	int i;
 
-	if(verbose)
-		printf(CLIENT_FMT" disconnected\n", CLIENT_ARGS);
+	DEBUG(DEBUG_CONN_DISCO, CLIENT_FMT" disconnected\n", CLIENT_ARGS);
 
 	if(clients[idx].state == ACCEPTED)
 		for(i = 0; i < nclients; i++)
@@ -221,8 +240,7 @@ char svr_recv(int idx)
 		/* not enough data */
 		return 0;
 
-	if(verbose > 1)
-		fprintf(stderr, CLIENT_FMT" recv(): \"%s\"\n", CLIENT_ARGS, in);
+	DEBUG(DEBUG_ERRORS, CLIENT_FMT" recv(): \"%s\"\n", CLIENT_ARGS, in);
 
 	if(clients[idx].state == ACCEPTING){
 		if(!strncmp(in, "NAME ", 5)){
@@ -251,12 +269,12 @@ char svr_recv(int idx)
 					return 1;
 				}
 
-			clients[idx].name = cstrdup(name);
+			clients[idx].name   = cstrdup(name);
+			clients[idx].isroot = *in == 'R';
 
 			clients[idx].state = ACCEPTED;
 
-			if(verbose)
-				printf(CLIENT_FMT" name accepted: %s\n", CLIENT_ARGS, name);
+			DEBUG(DEBUG_STATUS, CLIENT_FMT" name accepted: %s\n", CLIENT_ARGS, name);
 
 			TO_CLIENT(idx, "OK");
 
@@ -271,15 +289,7 @@ char svr_recv(int idx)
 			return 1;
 		}
 	}else{
-		if(!strcmp(in, "CLIENT_LIST")){
-			int i;
-			TO_CLIENT(idx, "CLIENT_LIST_START");
-			for(i = 0; i < nclients; i++)
-				if(i != idx && clients[i].state == ACCEPTED)
-					toclientf(idx, "CLIENT_LIST %s", clients[i].name);
-			TO_CLIENT(idx, "CLIENT_LIST_END");
-
-		}else if(!strncmp(in, "MESSAGE ", 8)){
+		if(!strncmp(in, "MESSAGE ", 8)){
 			int i;
 
 			if(!strlen(in + 8)){
@@ -291,6 +301,14 @@ char svr_recv(int idx)
 				if(clients[i].state == ACCEPTED)
 					/* send back to idx */
 					toclientf(i, "%s", in);
+
+		}else if(!strcmp(in, "CLIENT_LIST")){
+			int i;
+			TO_CLIENT(idx, "CLIENT_LIST_START");
+			for(i = 0; i < nclients; i++)
+				if(i != idx && clients[i].state == ACCEPTED)
+					toclientf(idx, "CLIENT_LIST %s", clients[i].name);
+			TO_CLIENT(idx, "CLIENT_LIST_END");
 
 		}else if(!strncmp(in, "RENAME ", 7)){
 			char *name = in + 7, *last;
@@ -339,6 +357,53 @@ char svr_recv(int idx)
 						TO_CLIENT(idx, "ERR name already taken");
 				}
 			}
+		}else if(!strncmp(in, "KICK ", 5)){
+			if(clients[idx].isroot){
+				char *name = in + 5;
+				int i, found = 0;
+
+				if(!strlen(name))
+					TO_CLIENT(idx, "ERR need name to kick");
+				else{
+					for(i = 0; i < nclients; i++)
+						if(!strcmp(clients[i].name, name)){
+							found = 1;
+							break;
+						}
+
+					if(!found)
+						toclientf(idx, "ERR name \"%s\" not found", name);
+					else{
+						int j;
+						for(j = 0; j < nclients; j++)
+							if(j != i)
+								toclientf(j, "INFO %s was kicked", name);
+						TO_CLIENT(i, "INFO you have been kicked");
+						DEBUG(DEBUG_STATUS, CLIENT_FMT" <- (%s) kicked %s\n", CLIENT_ARGS,
+									clients[idx].name, name);
+						svr_hup(i);
+					}
+				}
+			}else
+				TO_CLIENT(idx, "ERR not root");
+
+		}else if(!strncmp(in, "SU ", 3)){
+			if(clients[idx].isroot){
+				TO_CLIENT(idx, "INFO dropping root");
+				clients[idx].isroot = 0;
+			}else{
+				char *pass = in + 3;
+
+				if(!*pass)
+					TO_CLIENT(idx, "Need md5'd password");
+				else if(md5check(pass, md5pass))
+					TO_CLIENT(idx, "ERR incorrect root passphrase");
+				else{
+					clients[idx].isroot = 1;
+					TO_CLIENT(idx, "INFO root login successful");
+				}
+			}
+
 		}else{
 			toclientf(idx, "ERR command \"%s\" unknown", in);
 		}
@@ -351,7 +416,7 @@ void sigh(int sig)
 {
 	if(sig == SIGINT && !background){
 		int i;
-		printf("\nComm v"VERSION" Server Status - %d clients (SIGQUIT ^\\ to quit)\n", nclients);
+		printf("\nComm v"VERSION_STR" Server Status - %d clients (SIGQUIT ^\\ to quit)\n", nclients);
 		if(nclients){
 			puts("Index FD Name");
 			for(i = 0; i < nclients; i++)
@@ -360,8 +425,7 @@ void sigh(int sig)
 		fflush(stdout);
 		signal(SIGINT, &sigh);
 	}else{
-		const char buffer[] = "We get signal\n";
-		write(STDERR_FILENO, buffer, sizeof buffer);
+		fprintf(stderr, "we get signal %d\n", sig);
 
 		cleanup();
 
@@ -369,11 +433,58 @@ void sigh(int sig)
 	}
 }
 
+int passfromstdin()
+{
+	struct termios tio;
+	char pass[16], *nl, *ret;
+	int echooff = 0;
+
+	if(isatty(STDIN_FILENO)){
+		if(!tcgetattr(STDIN_FILENO, &tio)){
+			tio.c_lflag = (tio.c_lflag & ~ECHO) | ECHONL;
+			if(!tcsetattr(STDIN_FILENO, TCSANOW, &tio))
+				echooff = 1;
+			else
+				perror("tcsetattr()");
+		}else
+			perror("tcgetattr()");
+
+		fputs("server 'root' password: ", stderr);
+	}
+
+	ret = fgets(pass, sizeof pass, stdin);
+
+	if(echooff){
+		tio.c_lflag = tio.c_lflag | ECHO;
+		if(tcsetattr(STDIN_FILENO, TCSANOW, &tio))
+			perror("tcsetattr()");
+	}
+
+	if(!ret){
+		fprintf(stderr, "\n%s: warning: root access disabled "
+				"(no password)\n", progname);
+		return 0;
+	}
+
+	if((nl = strchr(pass, '\n')))
+		*nl = '\0';
+	else
+		fputs("warning: too many chars, truncated to 15\n", stderr);
+
+	md5pass = md5(pass);
+
+	return !md5pass;
+}
+
 int main(int argc, char **argv)
 {
 	struct sockaddr_in svr_addr;
-	int i, log = 0;
+	int i, log = 0, gotpass = 0;
 	const char *port = DEFAULT_PORT;
+
+	srand(getpid() + geteuid() + time(NULL)); /* 'root' password */
+
+	progname = *argv;
 
 	if(setjmp(allocerr)){
 		perror("longjmp'd to allocerr");
@@ -400,6 +511,18 @@ int main(int argc, char **argv)
 				fputs("need port\n", stderr);
 				return 1;
 			}
+
+		}else if(!strncmp(argv[i], "-P", 2)){
+			if(++i < argc){
+				gotpass = 1;
+				if(!(md5pass = md5(argv[i])))
+					return 1;
+				memset(argv[i], '*', strlen(argv[i])); /* too late, but eh... */
+			}else{
+				fputs("need pass\n", stderr);
+				return 1;
+			}
+
 		}else if(!strncmp(argv[i], "-v", 2)){
 			char *p = argv[i] + 1;
 
@@ -417,8 +540,11 @@ int main(int argc, char **argv)
 		}else
 			goto usage;
 
+	if(!gotpass && passfromstdin())
+		return 1;
+
 	if(verbose > 1){
-		if(verbose > 2){
+		if(verbose > DEBUG_MAX){
 			fputs("max verbose level is 2\n", stderr);
 			return 1;
 		}else
@@ -441,8 +567,7 @@ int main(int argc, char **argv)
 	}
 
 	if(background){
-		if(verbose)
-			printf("%s: closing output and forking to background\n", *argv);
+		DEBUG(DEBUG_CONN_DISCO, "%s: closing output and forking to background\n", *argv);
 
 		signal(SIGCHLD, SIG_IGN);
 		switch(fork()){
@@ -464,7 +589,9 @@ int main(int argc, char **argv)
 				/* parent */
 				return 0;
 		}
-	}
+	}else
+		puts("Comm v"VERSION_STR" Server init");
+
 
 	server = socket(PF_INET, SOCK_STREAM, 0);
 	if(server == -1){
@@ -595,9 +722,10 @@ int main(int argc, char **argv)
 
 usage:
 	fprintf(stderr, "Usage: %s [-p port] [-v*] [-b] [-l]\n"
-									" -p: Port to listen on\n"
-									" -v: Verbose\n"
-									" -b: Fork to background\n"
-									" -l: Redirect output to logs\n", *argv);
+	                " -p: Port to listen on\n"
+	                " -P: 'root' password\n"
+	                " -v: Verbose\n"
+	                " -b: Fork to background\n"
+	                " -l: Redirect output to logs\n", *argv);
 	return 1;
 }
