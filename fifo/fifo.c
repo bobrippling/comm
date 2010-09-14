@@ -112,11 +112,14 @@ int init_files()
 {
 	snprintf(dir, PATH_LEN, "%s:%s", host, port);
 	if(mkdir(dir, 0700)){
-		if(errno == EEXIST)
+		if(errno == EEXIST){
 			fprintf(stderr, "not overwriting %s\n", dir);
-		else
+			return 2;
+		}else{
 			perror("mkdir()");
-		return 1;
+			return 1;
+		}
+		/* unreachable */
 	}
 
 	snprintf(file_input,   PATH_LEN, "%s/%s", dir, "in");
@@ -163,6 +166,7 @@ void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 #define TYPE(e, f) case e: output(f, fmt, l); break
 	switch(type){
 		TYPE(COMM_INFO,         file_info);
+		TYPE(COMM_SERVER_INFO,  file_info);
 		TYPE(COMM_CLIENT_CONN,  file_info);
 		TYPE(COMM_CLIENT_DISCO, file_info);
 		TYPE(COMM_RENAME,       file_info);
@@ -184,8 +188,12 @@ void proc_cmd(const char *buffer)
 		/* TODO comm_listclients(); */
 	else if(!strcmp(buffer, "exit"))
 		finito = 1;
+	else if(!strncmp(buffer, "su ", 3))
+		comm_su(&commt, buffer+3);
+	else if(!strncmp(buffer, "kick ", 5))
+		comm_kick(&commt, buffer+5);
 	else
-		outputf("unknown command: %s (use \"ls\" or \"exit\")", buffer);
+		outputf(file_err, "unknown command: ``%s'' (use ls, su or exit)", buffer);
 }
 
 int lewp()
@@ -200,7 +208,7 @@ int lewp()
 
 	while(!finito){
 		if(comm_recv(&commt, &commcallback)){
-			fprintf(stderr, "comm_recv() failed: %s\n", comm_lasterr(&commt));
+			outputf(file_err, "comm_recv() failed: %s\n", comm_lasterr(&commt));
 			return 1;
 		}
 
@@ -216,7 +224,6 @@ int lewp()
 #define READ(fd) \
 			nread = read(fd, buffer, LINE_SIZE); \
 			saverrno = errno; \
-			errno = saverrno; \
 	 \
 			switch(nread){ \
 				case -1: \
@@ -260,10 +267,12 @@ int main(int argc, char **argv)
 			host = argv[i];
 		else if(!port)
 			port = argv[i];
-		else
+		else{
+			fprintf(stderr, "Unknown option: ``%s''\n", argv[i]);
 			goto usage;
+		}
 
-	if(!host || !name || !port)
+	if(!host || !name)
 		goto usage;
 
 	if(!port)
@@ -274,8 +283,8 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	if(init_files())
-		return 1;
+	if((ret = init_files()))
+		return ret;
 
 	comm_init(&commt);
 
