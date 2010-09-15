@@ -45,7 +45,10 @@ enum comm_callbacktype
 	COMM_CLIENT_CONN,
 	COMM_CLIENT_DISCO,
 	COMM_CLIENT_LIST,
-	COMM_CAN_SEND
+
+	/* sockety statuses */
+	COMM_CAN_SEND,
+	COMM_CLOSED
 };
 
 typedef void (*comm_callback)(enum comm_callbacktype, const char *, ...);
