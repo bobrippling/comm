@@ -23,13 +23,12 @@
 # include <sys/socket.h>
 # include <arpa/inet.h>
 
-# define closesocket(s) close(s)
 # define TO_SERVER_F(...) toserverf(ct->sockf, __VA_ARGS__)
 # define CLOSE(ct) \
 	if(ct->sockf) \
 		fclose(ct->sockf); \
 	else \
-		closesocket(ct->sock);
+		close(ct->sock);
 
 #endif
 
@@ -39,11 +38,40 @@
 #include "../common/socketwrapper.h"
 #include "../config.h"
 
+static void comm_freenames(comm_t *ct);
+static int comm_addname(comm_t *ct, const char *name);
+
 static int comm_process(comm_t *ct, char *buffer, comm_callback callback);
 static void comm_setlasterr(comm_t *);
 #ifdef _WIN32
 static void comm_setlasterr_WSA(comm_t *);
 #endif
+
+static int comm_addname(comm_t *ct, const char *name)
+{
+	char *dup = malloc(strlen(name)+1);
+	struct list *l = malloc(sizeof(*l));
+
+	if(!dup || !l){
+		free(dup);
+		free(l);
+		return 1;
+	}
+
+	strcpy(dup, name);
+	l->name = dup;
+	l->next = ct->namelist;
+	ct->namelist = l;
+	return 0;
+}
+
+static void comm_freenames(comm_t *ct)
+{
+	struct list *l, *m;
+
+	for(l = ct->namelist; l; m = l, l = l->next, free(m->name), free(m));
+	ct->namelist = NULL;
+}
 
 /* expects a nul-terminated single line, with _no_ \n at the end */
 static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
@@ -86,9 +114,23 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 				callback(COMM_RENAME, "%s", buffer + 7);
 
 			else if(!strncmp(buffer, "CLIENT_LIST", 11)){
-				if(strcmp(buffer + 11, "_START") && strcmp(buffer + 11, "_END"))
-					callback(COMM_CLIENT_LIST, "%s", buffer + 12);
-				/* _START/_END are ignored FIXME: maintain list of clients */
+				if(!strcmp(buffer + 11, "_START")){
+					if(ct->namelist)
+						comm_freenames(ct);
+					ct->listing = 1;
+				}else if(!strcmp(buffer + 11, "_END")){
+					ct->listing = 0;
+					callback(COMM_CLIENT_LIST, "");
+				}else if(ct->listing){
+					if(comm_addname(ct, buffer + 12)){
+						int save = errno;
+						comm_close(ct);
+						errno = save;
+						return 1;
+					}
+				}else
+					/* shouldn't get them out-of-_START-_END */
+					UNKNOWN_MESSAGE(buffer);
 
 			}else
 				UNKNOWN_MESSAGE(buffer);
@@ -162,6 +204,14 @@ static void comm_setlasterr(comm_t *ct)
 }
 
 /* end of static */
+
+int comm_nclients(comm_t *ct)
+{
+	struct list *l;
+	int i;
+	for(i = 0, l = ct->namelist; l; l = l->next, i++);
+	return i; /* self excluded */
+}
 
 enum commstate comm_state(comm_t *ct)
 {
@@ -242,6 +292,7 @@ void comm_close(comm_t *ct)
 	shutdown(ct->sock, SHUT_RDWR);
 #endif
 	CLOSE(ct);
+	comm_freenames(ct);
 	free(ct->name);
 
 	comm_init(ct);
@@ -256,6 +307,17 @@ void comm_close(comm_t *ct)
 COMM_SIMPLE(comm_rename, "RENAME")
 COMM_SIMPLE(comm_su,     "SU"    )
 COMM_SIMPLE(comm_kick,   "KICK"  )
+
+int comm_rels(comm_t *ct)
+{
+	return TO_SERVER_F("CLIENT_LIST");
+}
+
+
+struct list *comm_clientlist(comm_t *ct)
+{
+	return ct->namelist;
+}
 
 #undef COMM_SIMPLE
 

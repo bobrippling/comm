@@ -13,6 +13,13 @@ typedef struct
 	int port;
 	char *name;
 
+	struct list
+	{
+		char *name;
+		struct list *next;
+	} *namelist;
+	int listing;
+
 	int sock;
 #ifndef _WIN32
 	FILE *sockf;
@@ -52,10 +59,13 @@ int comm_rename(comm_t *, const char *);
 int comm_recv(comm_t *, comm_callback);
 int comm_kick(comm_t *, const char *name);
 int comm_su(comm_t *, const char *pass);
+int comm_rels(comm_t *);
 
 void comm_close(comm_t *);
 
 enum commstate comm_state(comm_t *);
 const char    *comm_lasterr(comm_t *);
+struct list   *comm_clientlist(comm_t *);
+int            comm_nclients(comm_t *);
 
 #endif

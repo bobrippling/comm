@@ -14,6 +14,8 @@
 #include "../config.h"
 #include "../libcomm/comm.h"
 
+comm_t ct;
+
 void callback(enum comm_callbacktype, const char *fmt, ...);
 
 void callback(enum comm_callbacktype type, const char *fmt, ...)
@@ -30,7 +32,16 @@ void callback(enum comm_callbacktype type, const char *fmt, ...)
 		TYPE(COMM_RENAME,  "rename");
 		TYPE(COMM_CLIENT_CONN,  "client_conn");
 		TYPE(COMM_CLIENT_DISCO, "client_disco");
-		TYPE(COMM_CLIENT_LIST,  "client_list");
+
+		case COMM_CLIENT_LIST:
+		{
+			struct list *clients;
+
+			printf("got client list: %d other clients\n", comm_nclients(&ct));
+			for(clients = comm_clientlist(&ct); clients; clients = clients->next)
+				printf("client: %s\n", clients->name);
+			return;
+		}
 	}
 #undef TYPE
 
@@ -44,7 +55,6 @@ void callback(enum comm_callbacktype type, const char *fmt, ...)
 
 int main(int argc, char **argv)
 {
-	comm_t ct;
 	char buffer[128], *host = NULL, *name = NULL;
 	const char *port = NULL;
 	struct pollfd fds;
@@ -104,6 +114,8 @@ int main(int argc, char **argv)
 							comm_rename(&ct, in + 7);
 						else if(!strncmp(in, "kick ", 5))
 							comm_kick(&ct, in+5);
+						else if(!strcmp(in, "ls"))
+							comm_rels(&ct);
 						else if(!strncmp(in, "su ", 3))
 							comm_su(&ct, in+3);
 						else

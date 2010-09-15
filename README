@@ -25,6 +25,7 @@ Client -> Server:
 	RENAME %s
 		_request_ to change name
 			server replies with ERR if unsuccessful
+			(otherwise RENAME %s %s is sent)
 	SU %s
 		_request_ root-control of server with md5'd password
 			if unsuccessful, an ERR message is returned
@@ -64,8 +65,5 @@ the server then responds with ERR %s or OK
 if ERR, server then closes the connection
 
 otherwise the handshake is successful
-
-If user logs in with ROOT, they have access to extra
-functionality, such as KICK
 
  vim: ft=help ts=4
