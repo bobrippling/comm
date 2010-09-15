@@ -281,8 +281,13 @@ int main(int argc, char **argv)
 
 	return 0;
 usage:
-	fprintf(stderr, "Usage: %s [-d]\n"
-		"  -d: Debug (Keep console window open)\n",
-		*argv);
+	fprintf(stderr,
+#if _WIN32
+		"Usage: %s [-d]\n"
+		"  -d: Debug (Keep console window open)\n"
+#else
+		"Usage: %s\n"
+#endif
+		, *argv);
 	return 1;
 }
