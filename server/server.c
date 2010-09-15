@@ -84,7 +84,7 @@ static char *md5pass = NULL, *progname, *svrdesc = "";
 jmp_buf allocerr;
 
 
-int passfromstdin(void);
+/*int passfromstdin(void);*/
 
 int nonblock(int);
 void cleanup(void);
@@ -355,7 +355,7 @@ char svr_recv(int idx)
 					int i, good = 1;
 
 					for(i = 0; i < nclients; i++)
-						if(clients[idx].state == ACCEPTED && !strcmp(name, clients[idx].name)){
+						if(clients[i].state == ACCEPTED && !strcmp(name, clients[i].name)){
 							good = 0;
 							break;
 						}
@@ -454,6 +454,7 @@ void sigh(int sig)
 	}
 }
 
+#if 0
 int passfromstdin()
 {
 	struct termios tio;
@@ -496,6 +497,7 @@ int passfromstdin()
 
 	return !md5pass;
 }
+#endif
 
 int main(int argc, char **argv)
 {
@@ -536,9 +538,12 @@ int main(int argc, char **argv)
 		}else if(!strncmp(argv[i], "-P", 2)){
 			if(++i < argc){
 				gotpass = 1;
-				if(!(md5pass = md5(argv[i])))
-					return 1;
-				memset(argv[i], '*', strlen(argv[i])); /* too late, but eh... */
+				if(*argv[i]){
+					if(!(md5pass = md5(argv[i])))
+						return 1;
+					memset(argv[i], '*', strlen(argv[i])); /* too late, but eh... */
+				}else
+					md5pass = NULL; /* make sure */
 			}else{
 				fputs("need pass\n", stderr);
 				return 1;
@@ -569,8 +574,8 @@ int main(int argc, char **argv)
 		}else
 			goto usage;
 
-	if(!gotpass && passfromstdin())
-		return 1;
+	if(!md5pass)
+		fputs("'root' password disabled\n", stderr);
 
 	if(verbose > 1){
 		if(verbose > DEBUG_MAX){

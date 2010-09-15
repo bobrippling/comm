@@ -20,7 +20,7 @@ static char randsaltchar(void)
 int md5check(const char *pass, const char *md5)
 {
 	char *passmd5;
-	if(!md5)
+	if(!md5 || !pass)
 		return 1;
 
 	if(!(passmd5 = crypt(pass, md5)))
