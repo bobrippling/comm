@@ -13,7 +13,12 @@
 # include <winsock.h>
 # include "../common/sockprintf.h"
 
-# define TO_SERVER_F(...) sockprintf_newline(ct->sock, __VA_ARGS__)
+	/*
+	 * need to append the '\n', so that
+	 * sockprintf() follows printf()
+	 * and it can be called for MESSAGE
+	 */
+# define TO_SERVER_F(fmt, ...) sockprintf(ct->sock, fmt "\n", __VA_ARGS__)
 # define CLOSE(ct) closesocket(ct->sock)
 
 	static int wsastartup_called = 0;
@@ -23,7 +28,7 @@
 # include <sys/socket.h>
 # include <arpa/inet.h>
 
-# define TO_SERVER_F(...) toserverf(ct->sockf, __VA_ARGS__)
+# define TO_SERVER_F(fmt, ...) toserverf(ct->sockf, fmt, __VA_ARGS__)
 # define CLOSE(ct) \
 	if(ct->sockf) \
 		fclose(ct->sockf); \
@@ -388,7 +393,7 @@ COMM_SIMPLE(comm_kick,   "KICK"  )
 
 int comm_rels(comm_t *ct)
 {
-	return TO_SERVER_F("CLIENT_LIST");
+	return TO_SERVER_F("%s", "CLIENT_LIST");
 }
 
 const char *comm_getname(comm_t *ct)
@@ -417,8 +422,13 @@ int comm_sendmessage(comm_t *ct, const char *msg, ...)
 		return 1;
 
 	va_start(l, msg);
-	ret = sockprint_newline(ct->sock, msg, l);
+	ret = sockprint(ct->sock, msg, l);
 	va_end(l);
+
+	if(ret < 0)
+		return 1;
+
+	ret = sockprintf(ct->sock, "\n");
 #else
 	if(fprintf(ct->sockf, "MESSAGE %s: ", ct->name) <= 0)
 		return 1;
@@ -488,7 +498,7 @@ closeconn:
 			return 1;
 		}
 
-		if(recv_newline(buffer, ret, ct->sock))
+		if(recv_newline(buffer, ret, ct->sock, 250))
 			/* not full */
 			return 0;
 		if(comm_process(ct, buffer, callback))
