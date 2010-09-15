@@ -13,4 +13,6 @@
 #define CLIENT_SOCK_WAIT 100
 #define CLIENT_UI_WAIT   250
 
+#define LOG_DIR          "Logs"
+
 #endif

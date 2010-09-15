@@ -2,7 +2,7 @@ GTKINC   = gtk+-2.0 gmodule-2.0
 CFLAGS  += `pkg-config --cflags ${GTKINC}`
 LDFLAGS += `pkg-config --libs   ${GTKINC}`
 
-GUI_DEPS = gui.o gtkutil.o gladegen.o ../libcomm/libcomm.a
+GUI_DEPS = gui.o gtkutil.o gladegen.o ../log/log.o ../libcomm/libcomm.a
 
 guicomm: ${GUI_DEPS}
 	$Qecho LD $@

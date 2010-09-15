@@ -14,6 +14,7 @@
 
 #include "gtkutil.h"
 #include "gladegen.h"
+#include "../log/log.h"
 #include "../libcomm/comm.h"
 
 #define WIN_MAIN   "winMain"
@@ -141,10 +142,14 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 	va_end(l);
 
 	insertme = g_strconcat(type_str, ": ", insertmel, "\n", NULL);
-	g_free(insertmel);
 
 	addtext(insertme);
+
+	if(type == COMM_MSG)
+		log_add(insertmel);
+
 	g_free(insertme);
+	g_free(insertmel);
 }
 
 G_MODULE_EXPORT gboolean timeout(gpointer data)
@@ -233,6 +238,11 @@ int main(int argc, char **argv)
 
 	comm_init(&commt);
 
+	if(log_init()){
+		perror("log_init()");
+		return 1;
+	}
+
 	gtk_init(&argc, &argv); /* bail here if !$DISPLAY */
 
 	builder = gtk_builder_new();
@@ -266,6 +276,8 @@ int main(int argc, char **argv)
 	gtk_widget_show(winMain);
 
 	gtk_main();
+
+	log_term();
 
 	return 0;
 usage:
