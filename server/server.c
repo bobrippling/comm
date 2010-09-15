@@ -27,13 +27,23 @@
 #define LOG_FILE       "svrcomm.log"
 #define LISTEN_BACKLOG 5
 #define SLEEP_MS       100
-#define TO_CLIENT(i, msg) fwrite(msg"\n", sizeof *msg, strlen(msg) + 1, clients[i].file)
-/*                                                     ^don't include the '\0', but the '\n' */
 
+#define DEBUG_SEND_TEXT " debug%d: send(): "
+
+#define TO_CLIENT(i, msg) \
+	do{ \
+		fwrite(msg"\n", sizeof *msg, strlen(msg) + 1, clients[i].file); \
+		/*    don't include the '\0', but the '\n' ^ */ \
+		if(verbose >= DEBUG_SEND) \
+			fprintf(stderr, CLIENT_FMT DEBUG_SEND_TEXT "\"%s\"\n", CLIENT_ARGS, DEBUG_SEND, msg); \
+	}while(0)
+
+#define DEBUG_ERROR      0
 #define DEBUG_CONN_DISCO 1
 #define DEBUG_STATUS     2
-#define DEBUG_ERRORS     3
-#define DEBUG_MAX        3
+#define DEBUG_RECV       3
+#define DEBUG_SEND       4
+#define DEBUG_MAX        DEBUG_SEND
 
 #define CLIENT_FMT  "client %d (socket %d)"
 #define CLIENT_ARGS idx, pollfds[idx].fd
@@ -99,9 +109,19 @@ int toclientf(int idx, const char *fmt, ...)
 	va_list l;
 	int ret, fw;
 
+
 	va_start(l, fmt);
 	ret = vfprintf(clients[idx].file, fmt, l);
 	va_end(l);
+
+	if(verbose >= DEBUG_SEND){
+		fprintf(stderr, CLIENT_FMT DEBUG_SEND_TEXT, CLIENT_ARGS, DEBUG_SEND);
+		fputc('"', stderr);
+		va_start(l, fmt);
+		vfprintf(stderr, fmt, l);
+		va_end(l);
+		fputs("\"\n", stderr);
+	}
 
 	if(ret == -1)
 		return -1;
@@ -155,26 +175,23 @@ char svr_conn(int idx)
 	clients[idx].state = ACCEPTING;
 	clients[idx].name  = NULL;
 	if(!(clients[idx].file  = fdopen(pollfds[idx].fd, "r+"))){
-		fprintf(stderr, CLIENT_FMT" fdopen(): ", CLIENT_ARGS);
-		perror(NULL);
+		DEBUG(DEBUG_ERROR, "fdopen(): %s", strerror(errno));
 		return 0;
 	}
 
 	if(setvbuf(clients[idx].file, NULL, _IONBF, 0)){
-		fprintf(stderr, CLIENT_FMT" setvbuf(): ", CLIENT_ARGS);
-		perror(NULL);
-		return 0;
-	}
-
-	if(toclientf(idx, "Comm v%s%s%s", VERSION_STR,
-				*svrdesc ? " " : "", svrdesc) == 0){
-		fprintf(stderr, CLIENT_FMT" fwrite(): ", CLIENT_ARGS);
-		perror(NULL);
+		DEBUG(DEBUG_ERROR, "setvbuf(): %s", strerror(errno));
 		return 0;
 	}
 
 	DEBUG(DEBUG_CONN_DISCO, "connected from %s",
 			addrtostr((struct sockaddr *)&clients[idx].addr));
+
+	if(toclientf(idx, "Comm v%s%s%s", VERSION_STR,
+				*svrdesc ? " " : "", svrdesc) == 0){
+		DEBUG(DEBUG_ERROR, "fwrite(): %s", strerror(errno));
+		return 0;
+	}
 
 	return 1;
 }
@@ -183,7 +200,7 @@ void svr_hup(int idx)
 {
 	int i;
 
-	DEBUG(DEBUG_CONN_DISCO, "%s", " disconnected"); /* need at least one arg */
+	DEBUG(DEBUG_CONN_DISCO, "%s", "disconnected"); /* need at least one arg */
 
 	if(clients[idx].state == ACCEPTED)
 		for(i = 0; i < nclients; i++)
@@ -218,11 +235,7 @@ void freeclient(int idx)
 
 void svr_err(int idx)
 {
-	fprintf(stderr, CLIENT_FMT" error", CLIENT_ARGS);
-	if(errno)
-		perror(NULL);
-	else
-		fputc('\n', stderr);
+	DEBUG(DEBUG_ERROR, "client error %s", errno ? strerror(errno) : "unknown");
 	svr_hup(idx);
 }
 
@@ -246,7 +259,7 @@ char svr_recv(int idx)
 		/* not enough data */
 		return 0;
 
-	DEBUG(DEBUG_ERRORS, "recv(): \"%s\"", in);
+	DEBUG(DEBUG_RECV, "recv(): \"%s\"", in);
 
 	if(clients[idx].state == ACCEPTING){
 		if(!strncmp(in, "NAME ", 5)){
@@ -255,14 +268,14 @@ char svr_recv(int idx)
 
 			if(len == 0){
 				TO_CLIENT(idx, "ERR need non-zero length name");
-				fprintf(stderr, CLIENT_FMT" zero length name\n", CLIENT_ARGS);
+				DEBUG(DEBUG_STATUS, "%s", "zero length name");
 				svr_hup(idx);
 				return 1;
 			}
 
 			if(!validname(name)){
 				TO_CLIENT(idx, "ERR name contains invalid character(s)");
-				fprintf(stderr, CLIENT_FMT" invalid character(s) in name\n", CLIENT_ARGS);
+				DEBUG(DEBUG_STATUS, "%s", "invalid character(s) in name\n");
 				svr_hup(idx);
 				return 1;
 			}
@@ -270,7 +283,7 @@ char svr_recv(int idx)
 			for(i = 0; i < nclients; i++)
 				if(i != idx && clients[i].state == ACCEPTED && !strcmp(clients[i].name, name)){
 					TO_CLIENT(idx, "ERR name in use");
-					fprintf(stderr, CLIENT_FMT" name %s in use\n", CLIENT_ARGS, name);
+					DEBUG(DEBUG_STATUS, "name %s in use", name);
 					svr_hup(idx);
 					return 1;
 				}
@@ -290,7 +303,7 @@ char svr_recv(int idx)
 
 		}else{
 			TO_CLIENT(idx, "ERR need name");
-			fprintf(stderr, CLIENT_FMT" name not given\n", CLIENT_ARGS);
+			DEBUG(DEBUG_STATUS, "%s", "name not given");
 			svr_hup(idx);
 			return 1;
 		}
@@ -561,7 +574,7 @@ int main(int argc, char **argv)
 
 	if(verbose > 1){
 		if(verbose > DEBUG_MAX){
-			fputs("max verbose level is 2\n", stderr);
+			fprintf(stderr, "max verbose level is %d\n", DEBUG_MAX);
 			return 1;
 		}else
 			printf("verbose %d\n", verbose);
@@ -623,6 +636,7 @@ int main(int argc, char **argv)
 		svr_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
 
+	/* setsockopt ... SO_REUSE(ADDR|PORT) ? */
 	if(bind(server, (struct sockaddr *)&svr_addr, sizeof svr_addr) == -1){
 		perror("bind()");
 		close(server);
