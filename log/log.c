@@ -31,13 +31,13 @@ int log_init(void)
 			LOG_DIR "/%Y-%m-%d.txt", tm);
 
 
-	if(
 #ifdef _WIN32
-			!CreateDirectory(LOG_DIR, NULL) /* success = ~0 ... sigh */
+	if(!CreateDirectory(LOG_DIR, NULL) &&
+			/* success = ~0 ... sigh */
+			GetLastError() != ERROR_ALREADY_EXISTS)
 #else
-			mkdir(LOG_DIR, 0740) /* success = 0 */
+	if(mkdir(LOG_DIR, 0755) && errno != EEXIST)
 #endif
-			&& errno != EEXIST)
 		return 1;
 
 	log = fopen(fname, "a");
