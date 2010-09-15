@@ -34,7 +34,7 @@ const char *lastsockerr()
 int connectedsock(const char *host, const char *port)
 {
 	struct addrinfo hints, *ret = NULL, *dest = NULL;
-	int sock, lastconnerr = 0;
+	int sock = -1, lastconnerr = 0;
 
 	memset(&hints, '\0', sizeof hints);
 	hints.ai_family   = AF_UNSPEC;
@@ -58,11 +58,12 @@ int connectedsock(const char *host, const char *port)
 		if(errno)
 			lastconnerr = errno;
 		close(sock);
+		sock = -1;
 	}
 
 	freeaddrinfo(ret);
 
-	if(!dest /* ok testing invalid pointer */){
+	if(sock == -1){
 		errno = lastconnerr;
 		return -1;
 	}
