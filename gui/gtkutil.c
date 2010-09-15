@@ -5,7 +5,9 @@
 #include "gtkutil.h"
 
 /* funcs */
-extern GtkWidget *txtMain;
+extern GtkWidget    *txtMain;
+extern GtkWidget    *treeClients;
+static GtkListStore *treeStore;
 
 void addtext(const char *text)
 {
@@ -38,4 +40,43 @@ void addtextf(const char *fmt, ...)
 	va_start(l, fmt);
 	addtextl(fmt, l);
 	va_end(l);
+}
+
+/* list business */
+
+void clientlist_init()
+{
+	GtkTreeModel    *model;
+	GtkCellRenderer *renderer;
+
+	treeStore = gtk_list_store_new(1, G_TYPE_STRING);
+	model = GTK_TREE_MODEL(treeStore);
+
+	/* Name column */
+	renderer = gtk_cell_renderer_text_new();
+	gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(treeClients),
+			-1,
+			"Name",
+			renderer,
+			"text", 0 /* column index */,
+			NULL);
+
+	gtk_tree_view_set_model(GTK_TREE_VIEW(treeClients), model);
+
+	/*g_object_unref(treeModel);*/
+}
+
+void clientlist_add(const char *name)
+{
+	GtkTreeIter iter;
+
+	gtk_list_store_append(treeStore, &iter);
+
+	gtk_list_store_set(treeStore, &iter,
+			0, name, -1);
+}
+
+void clientlist_clear()
+{
+
 }
