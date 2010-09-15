@@ -44,7 +44,8 @@ enum comm_callbacktype
 	COMM_RENAME,
 	COMM_CLIENT_CONN,
 	COMM_CLIENT_DISCO,
-	COMM_CLIENT_LIST
+	COMM_CLIENT_LIST,
+	COMM_CAN_SEND
 };
 
 typedef void (*comm_callback)(enum comm_callbacktype, const char *, ...);

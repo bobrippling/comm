@@ -32,14 +32,17 @@
 
 #endif
 
+#define WARN(x, ...) fprintf(stderr, "libcomm: " x "\n", __VA_ARGS__)
 
 #include "comm.h"
 
 #include "../common/socketwrapper.h"
 #include "../config.h"
 
-static void comm_freenames(comm_t *ct);
-static int comm_addname(comm_t *ct, const char *name);
+static int comm_addname(    comm_t *ct, const char *name);
+static int comm_changename( comm_t *ct, const char *from, const char *to);
+static void comm_removename(comm_t *ct, const char *name);
+static void comm_freenames( comm_t *ct);
 
 static int comm_process(comm_t *ct, char *buffer, comm_callback callback);
 static void comm_setlasterr(comm_t *);
@@ -65,6 +68,41 @@ static int comm_addname(comm_t *ct, const char *name)
 	return 0;
 }
 
+static int comm_changename(comm_t *ct, const char *from, const char *to)
+{
+	struct list *l;
+
+	for(l = ct->namelist; l; l = l->next)
+		if(!strcmp(l->name, from)){
+			char *new = realloc(l->name, strlen(to)+1);
+			if(!new)
+				return 1;
+			strcpy(l->name = new, to);
+			return 0;
+		}
+
+	WARN("Rename from %s to %s - not found in local list", from, to);
+	return 0;
+}
+
+static void comm_removename(comm_t *ct, const char *name)
+{
+	struct list *l, *prev = NULL;
+
+	for(l = ct->namelist; l; prev = l, l = l->next)
+		if(!strcmp(l->name, name)){
+			free(l->name);
+			if(prev)
+				prev->next = l->next;
+			else
+				ct->namelist = l->next;
+			free(l);
+			return;
+		}
+
+	WARN("Couldn't remove %s from namelist: not found", name);
+}
+
 static void comm_freenames(comm_t *ct)
 {
 	struct list *l, *m;
@@ -78,7 +116,7 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 {
 #define UNKNOWN_MESSAGE(b) \
 	do{ \
-		fprintf(stderr, "libcomm: Unknown message from server: \"%s\"\n", b); \
+		WARN("Unknown message from server: \"%s\"", b); \
 		ct->lasterr = "Invalid message for Comm Protocol"; \
 	}while(0)
 
@@ -89,7 +127,7 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 
 	switch(ct->state){
 		case COMM_DISCONNECTED:
-			fputs("libcomm: major logic error, you should never see this\n", stderr);
+			WARN("%s", "major logic error, you should never see this");
 			break;
 
 		case CONN_CONNECTING:
@@ -104,23 +142,46 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 			else if(!strncmp(buffer, "INFO ", 5))
 				callback(COMM_SERVER_INFO, "%s", buffer + 5);
 
-			else if(!strncmp(buffer, "CLIENT_DISCO ", 13))
+			else if(!strncmp(buffer, "CLIENT_DISCO ", 13)){
 				callback(COMM_CLIENT_DISCO, "%s", buffer + 13);
+				comm_removename(ct, buffer+13);
+				callback(COMM_CLIENT_LIST, NULL);
 
-			else if(!strncmp(buffer, "CLIENT_CONN ", 12))
+			}else if(!strncmp(buffer, "CLIENT_CONN ", 12)){
 				callback(COMM_CLIENT_CONN, "%s", buffer + 12);
+				if(comm_addname(ct, buffer+12)){
+					int save = errno;
+					comm_close(ct);
+					errno = save;
+					return 1;
+				}
+				callback(COMM_CLIENT_LIST, NULL);
 
-			else if(!strncmp(buffer, "RENAME ", 7))
-				callback(COMM_RENAME, "%s", buffer + 7);
+			}else if(!strncmp(buffer, "RENAME ", 7)){
+				char *from, *to, *sep;
 
-			else if(!strncmp(buffer, "CLIENT_LIST", 11)){
+				sep = strchr(buffer + 7, RENAME_SEPARATOR);
+				if(sep){
+					*sep = '\0';
+
+					from = buffer + 7;
+					to   = sep + 1;
+
+					comm_changename(ct, from, to);
+					callback(COMM_RENAME, "%s to %s", from, to);
+					callback(COMM_CLIENT_LIST, NULL);
+				}else{
+					UNKNOWN_MESSAGE(buffer);
+				}
+
+			}else if(!strncmp(buffer, "CLIENT_LIST", 11)){
 				if(!strcmp(buffer + 11, "_START")){
 					if(ct->namelist)
 						comm_freenames(ct);
 					ct->listing = 1;
 				}else if(!strcmp(buffer + 11, "_END")){
 					ct->listing = 0;
-					callback(COMM_CLIENT_LIST, "");
+					callback(COMM_CLIENT_LIST, NULL);
 				}else if(ct->listing){
 					if(comm_addname(ct, buffer + 12)){
 						int save = errno;
@@ -140,6 +201,7 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 			if(!strcmp(buffer, "OK")){
 				ct->state = COMM_ACCEPTED;
 				callback(COMM_INFO, "%s", "Name accepted");
+				callback(COMM_CAN_SEND, NULL);
 			}else{
 				UNKNOWN_MESSAGE(buffer);
 				return 1;

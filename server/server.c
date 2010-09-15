@@ -24,9 +24,9 @@
 
 #include "md5.h"
 
-#define LOG_FILE       "svrcomm.log"
-#define LISTEN_BACKLOG 5
-#define SLEEP_MS       100
+#define LOG_FILE         "svrcomm.log"
+#define LISTEN_BACKLOG   5
+#define SLEEP_MS         100
 
 #define DEBUG_SEND_TEXT " debug%d: send(): "
 
@@ -345,7 +345,7 @@ char svr_recv(int idx)
 				*last = '\0';
 
 			if(!strlen(name) || strlen(name) > MAX_NAME_LEN)
-				TO_CLIENT(idx, "ERR need name");
+				TO_CLIENT(idx, "ERR need name/name too long");
 			else if(!validname(name))
 				TO_CLIENT(idx, "ERR invalid name");
 			else{
@@ -371,7 +371,7 @@ char svr_recv(int idx)
 						strcpy(clients[idx].name = new, name);
 						for(i = 0; i < nclients; i++)
 							/* send back to idx too, to confirm */
-							toclientf(i, "RENAME %s %s", oldname, new);
+							toclientf(i, "RENAME %s%c%s", oldname, RENAME_SEPARATOR ,new);
 					}else
 						TO_CLIENT(idx, "ERR name already taken");
 				}

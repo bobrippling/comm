@@ -47,8 +47,9 @@ Server -> Client:
 		message from server to all
 	INFO %s
 		server informational message
-	RENAME %s %s
+	RENAME %s^]%s
 		client %s[0] renamed to %s[1]
+			names separated by character 0x1d
 
 
 
@@ -66,4 +67,4 @@ if ERR, server then closes the connection
 
 otherwise the handshake is successful
 
- vim: ft=help ts=4
+ vim: ft=help ts=4 sw=4

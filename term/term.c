@@ -40,6 +40,7 @@ void callback(enum comm_callbacktype type, const char *fmt, ...)
 			printf("got client list: %d other clients\n", comm_nclients(&ct));
 			for(clients = comm_clientlist(&ct); clients; clients = clients->next)
 				printf("client: %s\n", clients->name);
+		case COMM_CAN_SEND:
 			return;
 		}
 	}

@@ -172,9 +172,14 @@ void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 		TYPE(COMM_RENAME,       file_info);
 
 		TYPE(COMM_ERR,          file_err);
-		TYPE(COMM_CLIENT_LIST,  file_clients);
 
 		TYPE(COMM_MSG,          file_output);
+
+		/* TODO */
+		case COMM_CAN_SEND:
+		case COMM_CLIENT_LIST:
+			/*file_clients;*/
+			break;
 	}
 #undef TYPE
 

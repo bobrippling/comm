@@ -30,7 +30,7 @@ GtkWidget *winMain;
 GtkWidget *entryHost, *entryIn, *entryName; /* Gtk_Entry */
 GtkWidget *txtMain; /* GtkTextView */
 GtkWidget *btnConnect, *btnDisconnect, *btnSend;
-int timeout_tag;
+GtkWidget *treeClients;
 
 comm_t commt;
 
@@ -110,7 +110,19 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 		TYPE(COMM_RENAME,  "rename");
 		TYPE(COMM_CLIENT_CONN,  "client_conn");
 		TYPE(COMM_CLIENT_DISCO, "client_disco");
-		TYPE(COMM_CLIENT_LIST,  "client_list");
+
+		case COMM_CLIENT_LIST:
+		{
+			struct list *l;
+			clientlist_clear();
+			for(l = comm_clientlist(&commt); l; l = l->next)
+				clientlist_add(l->name);
+			return;
+		}
+
+		case COMM_CAN_SEND:
+			comm_rels(&commt);
+			return;
 	}
 #undef TYPE
 
@@ -187,6 +199,8 @@ static int getobjects(GtkBuilder *b)
 	GET_WIDGET(btnDisconnect);
 	GET_WIDGET(btnSend);
 
+	GET_WIDGET(treeClients);
+
 	GET_WIDGET(winMain);
 
 	return 0;
@@ -231,11 +245,13 @@ int main(int argc, char **argv)
 
 	gtk_builder_connect_signals(builder, NULL);
 
+	clientlist_init();
+
 	/* don't need it anymore */
 	g_object_unref(G_OBJECT(builder));
 
 	/* signal/timeout setup */
-	timeout_tag = g_timeout_add(TIMEOUT, timeout, NULL);
+	g_timeout_add(TIMEOUT, timeout, NULL);
 	g_signal_connect(G_OBJECT(winMain), "destroy", G_CALLBACK(on_winMain_destroy), NULL);
 
 	updatewidgets();
