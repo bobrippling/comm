@@ -255,7 +255,7 @@ char svr_recv(int idx)
 			return 1;
 	}
 
-	if(recv_newline(in, ret, pollfds[idx].fd))
+	if(recv_newline(in, ret, pollfds[idx].fd, 500))
 		/* not enough data */
 		return 0;
 

@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE 500
 #define _POSIX_SOURCE
 #include <stdio.h>
 #include <string.h>
@@ -20,6 +21,8 @@
 #include "socketwrapper.h"
 
 #include "../config.h"
+
+#define DEBUG 0
 
 static int lookup_errno = 0;
 
@@ -108,11 +111,11 @@ int toserver(FILE *f, const char *fmt, va_list l)
 	return fwrite(&nl, sizeof nl, 1, f);
 }
 
-int recv_newline(char *in, int /*recv*/ret, int fd)
+int recv_newline(char *in, int /*recv*/ret, int fd, int sleepms)
 {
 	char *newl;
 
-	if((newl = strchr(in, '\n')) && newl < (in + ret)){
+	if((newl = memchr(in, '\n', ret)) && newl < (in + ret)){
 		/* recv just up to the '\n' */
 		int len = newl - in + 1;
 
@@ -125,9 +128,15 @@ int recv_newline(char *in, int /*recv*/ret, int fd)
 		if(ret == LINE_SIZE){
 			fputs("comm error: running with data: LINE_SIZE exceeded\n", stderr);
 			recv(fd, in, LINE_SIZE, 0);
-		}else
+		}else{
 			/* need more data */
+#if DEBUG
+			fprintf(stderr, "socketwrapper::recv_newline(fd = %d): "
+					"no newline, sleeping...\n", fd);
+#endif
+			usleep(sleepms * 1000);
 			return 1;
+		}
 	}
 	return 0;
 }
