@@ -97,6 +97,7 @@ char svr_conn(int);
 char svr_recv(int);
 void svr_hup( int);
 void svr_err( int);
+void svr_rm(  int);
 /*
  * svr_recv return 1 if the client disconnects/on error
  * i.e. the clients array has been altered
@@ -206,6 +207,13 @@ void svr_hup(int idx)
 		for(i = 0; i < nclients; i++)
 			if(i != idx && clients[i].state == ACCEPTED)
 				toclientf(i, "CLIENT_DISCO %s", clients[idx].name);
+
+	svr_rm(idx);
+}
+
+void svr_rm(int idx)
+{
+	int i;
 
 	freeclient(idx);
 
@@ -445,6 +453,15 @@ void sigh(int sig)
 		}
 		fflush(stdout);
 		signal(SIGINT, &sigh);
+	}else if(sig == SIGUSR1){
+		/* reset server - clear all connections */
+		int idx;
+		fputs("we get SIGUSR1 - server reset\n", stderr);
+		for(idx = 0; idx < nclients; idx++){
+			TO_CLIENT(idx, "INFO server reset");
+			svr_rm(idx);
+		}
+		signal(SIGUSR1, &sigh);
 	}else{
 		fprintf(stderr, "we get signal %d\n", sig);
 
@@ -516,6 +533,7 @@ int main(int argc, char **argv)
 
 	/* ignore sigpipe - sent when recv() called on a disconnected socket */
 	if( signal(SIGPIPE, SIG_IGN) == SIG_ERR ||
+			signal(SIGUSR1, &sigh)   == SIG_ERR ||
 			/* usual suspects... */
 			signal(SIGINT,  &sigh)   == SIG_ERR ||
 			signal(SIGQUIT, &sigh)   == SIG_ERR ||
