@@ -25,11 +25,15 @@
 static int  getobjects(GtkBuilder *);
 static void updatewidgets(void);
 static void commcallback(enum comm_callbacktype type, const char *fmt, ...);
-G_MODULE_EXPORT void on_btnConnect_clicked(   GtkButton *button, gpointer data);
-G_MODULE_EXPORT void on_btnDisconnect_clicked(GtkButton *button, gpointer data);
-G_MODULE_EXPORT void on_btnSend_clicked(      GtkButton *button, gpointer data);
-G_MODULE_EXPORT void on_winMain_destroy(void);
-G_MODULE_EXPORT gboolean timeout(gpointer data);
+
+G_MODULE_EXPORT gboolean on_btnConnect_clicked        (GtkButton *button, gpointer data);
+G_MODULE_EXPORT gboolean on_btnDisconnect_clicked     (GtkButton *button, gpointer data);
+G_MODULE_EXPORT gboolean on_btnSend_clicked           (GtkButton *button, gpointer data);
+G_MODULE_EXPORT gboolean on_entryName_activate        (GtkEntry *ent,     gpointer data);
+G_MODULE_EXPORT gboolean on_entryName_focus_out_event (GtkEntry *ent,     gpointer data);
+G_MODULE_EXPORT gboolean on_winMain_destroy           (void);
+G_MODULE_EXPORT gboolean timeout                      (gpointer data);
+
 
 /* vars */
 GtkWidget *winMain;
@@ -41,14 +45,19 @@ GtkWidget *treeClients;
 comm_t commt;
 
 /* events */
-G_MODULE_EXPORT void on_winMain_destroy(void)
+G_MODULE_EXPORT gboolean on_winMain_destroy(void)
 {
 	if(comm_state(&commt) != COMM_DISCONNECTED)
 		comm_close(&commt);
 	gtk_main_quit();
+	return FALSE;
 }
 
-G_MODULE_EXPORT void on_btnDisconnect_clicked(GtkButton *button, gpointer data)
+
+/* buttans ------------- */
+
+
+G_MODULE_EXPORT gboolean on_btnDisconnect_clicked(GtkButton *button, gpointer data)
 {
 	UNUSED(button);
 	UNUSED(data);
@@ -56,9 +65,10 @@ G_MODULE_EXPORT void on_btnDisconnect_clicked(GtkButton *button, gpointer data)
 	if(comm_state(&commt) != COMM_DISCONNECTED)
 		comm_close(&commt);
 	updatewidgets();
+	return FALSE;
 }
 
-G_MODULE_EXPORT void on_btnConnect_clicked(GtkButton *button, gpointer data)
+G_MODULE_EXPORT gboolean on_btnConnect_clicked(GtkButton *button, gpointer data)
 {
 	const char *host = gtk_entry_get_text(GTK_ENTRY(entryHost));
 	const char *name = gtk_entry_get_text(GTK_ENTRY(entryName));
@@ -66,12 +76,12 @@ G_MODULE_EXPORT void on_btnConnect_clicked(GtkButton *button, gpointer data)
 	UNUSED(button);
 	UNUSED(data);
 
-	if(!strlen(name) || !strlen(host)){
-		if(!strlen(name))
+	if(!*name || !*host){
+		if(!*name)
 			addtext("need name\n");
 		else
 			addtext("need host\n");
-		return;
+		return FALSE;
 	}
 
 	if(comm_connect(&commt, host, NULL /* TODO: custom port */, name))
@@ -79,18 +89,19 @@ G_MODULE_EXPORT void on_btnConnect_clicked(GtkButton *button, gpointer data)
 	else
 		addtextf("Connected to %s\n", host);
 	updatewidgets();
+	return FALSE;
 }
 
-G_MODULE_EXPORT void on_btnSend_clicked(GtkButton *button, gpointer data)
+G_MODULE_EXPORT gboolean on_btnSend_clicked(GtkButton *button, gpointer data)
 {
 	UNUSED(button);
 	UNUSED(data);
 
 	if(comm_state(&commt) == COMM_ACCEPTED){
 		const char *txt = gtk_entry_get_text(GTK_ENTRY(entryIn));
-		if(!strlen(txt)){
+		if(!*txt){
 			addtext("need text!\n");
-			return;
+			return FALSE;
 		}
 
 		if(comm_sendmessage(&commt, txt))
@@ -99,7 +110,51 @@ G_MODULE_EXPORT void on_btnSend_clicked(GtkButton *button, gpointer data)
 	}else
 		addtext("not connected!\n");
 	updatewidgets();
+
+	return FALSE;
 }
+
+
+/* textbox events ------------------- */
+
+
+G_MODULE_EXPORT gboolean on_entryName_activate(GtkEntry *ent, gpointer data)
+{
+	UNUSED(ent);
+	UNUSED(data);
+
+	if(comm_state(&commt) == COMM_ACCEPTED)
+		/* rename */
+		return on_entryName_focus_out_event(NULL, NULL);
+	else
+		return on_btnConnect_clicked(NULL, NULL);
+}
+
+G_MODULE_EXPORT gboolean on_entryName_focus_out_event(GtkEntry *ent, gpointer data)
+{
+	UNUSED(ent);
+	UNUSED(data);
+
+	if(comm_state(&commt) == COMM_ACCEPTED){
+		const char *newname = gtk_entry_get_text(GTK_ENTRY(entryName));
+
+		if(!*newname)
+			addtext("need name\n");
+		else if(strcmp(newname, comm_getname(&commt))){
+			comm_rename(&commt, newname);
+			addtextf("Attempting rename to \"%s\"...\n", newname);
+		}else
+			return FALSE; /* names are the same, just lost focus */
+
+		/* temp revert/reset */
+		gtk_entry_set_text(GTK_ENTRY(entryName), comm_getname(&commt));
+	}
+	return FALSE; /* pass signal on */
+}
+
+
+/* callbacks/non-events ------------- */
+
 
 static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 {
@@ -125,6 +180,12 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 				clientlist_add(l->name);
 			return;
 		}
+
+		case COMM_SELF_RENAME:
+			gtk_entry_set_text(GTK_ENTRY(entryName),
+					comm_getname(&commt));
+			addtextf("Renamed to %s\n", comm_getname(&commt));
+			return;
 
 		case COMM_CAN_SEND:
 			comm_rels(&commt);
@@ -186,10 +247,10 @@ static void updatewidgets(void)
 		case COMM_NAME_WAIT:
 		case COMM_ACCEPTED:
 			gtk_widget_set_sensitive(entryHost,      FALSE);
-			gtk_widget_set_sensitive(entryName,      FALSE);
 			gtk_widget_set_sensitive(btnConnect,     FALSE);
 			gtk_widget_set_sensitive(btnDisconnect,  TRUE);
 
+			gtk_widget_set_sensitive(entryName,      cs == COMM_ACCEPTED);
 			gtk_widget_set_sensitive(entryIn,        cs == COMM_ACCEPTED);
 			gtk_widget_set_sensitive(btnSend,        cs == COMM_ACCEPTED);
 			break;

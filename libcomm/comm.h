@@ -42,6 +42,7 @@ enum comm_callbacktype
 	COMM_SERVER_INFO,
 	COMM_ERR,
 	COMM_RENAME,
+	COMM_SELF_RENAME,
 	COMM_CLIENT_CONN,
 	COMM_CLIENT_DISCO,
 	COMM_CLIENT_LIST,
@@ -68,8 +69,9 @@ int comm_rels(comm_t *);
 void comm_close(comm_t *);
 
 enum commstate comm_state(comm_t *);
-const char    *comm_lasterr(comm_t *);
 struct list   *comm_clientlist(comm_t *);
+const char    *comm_lasterr(comm_t *);
+const char    *comm_getname(comm_t *);
 int            comm_nclients(comm_t *);
 
 #endif

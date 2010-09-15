@@ -179,6 +179,7 @@ void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 		case COMM_CAN_SEND:
 		case COMM_CLIENT_LIST:
 		case COMM_CLOSED:
+		case COMM_SELF_RENAME:
 			/*file_clients;*/
 			break;
 	}

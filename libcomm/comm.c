@@ -173,13 +173,18 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 				sep = strchr(buffer + 7, RENAME_SEPARATOR);
 				if(sep){
 					*sep = '\0';
-
 					from = buffer + 7;
 					to   = sep + 1;
 
 					comm_changename(ct, from, to);
-					callback(COMM_RENAME, "%s to %s", from, to);
-					callback(COMM_CLIENT_LIST, NULL);
+
+					if(!strcmp(to, ct->name))
+						callback(COMM_SELF_RENAME, NULL);
+					else{
+						/* updated list from comm_changename */
+						callback(COMM_CLIENT_LIST, NULL);
+						callback(COMM_RENAME, "%s to %s", from, to);
+					}
 				}else{
 					UNKNOWN_MESSAGE(buffer);
 				}
@@ -386,6 +391,10 @@ int comm_rels(comm_t *ct)
 	return TO_SERVER_F("CLIENT_LIST");
 }
 
+const char *comm_getname(comm_t *ct)
+{
+	return ct->name;
+}
 
 struct list *comm_clientlist(comm_t *ct)
 {

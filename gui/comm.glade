@@ -71,6 +71,8 @@
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="invisible_char">&#x25CF;</property>
+                            <signal name="focus_out_event" handler="on_entryName_focus_out_event"/>
+                            <signal name="activate" handler="on_entryName_activate"/>
                           </object>
                           <packing>
                             <property name="position">1</property>
