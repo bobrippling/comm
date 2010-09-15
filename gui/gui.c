@@ -288,14 +288,22 @@ int main(int argc, char **argv)
 	GError     *error = NULL;
 	GtkBuilder *builder;
 	int i;
+#ifdef _WIN32
+	int debug = 0;
+#endif
 
 	for(i = 1; i < argc; i++)
-#if _WIN32
+#ifdef _WIN32
 		if(!strcmp(argv[i], "-d"))
-			FreeConsole();
+			debug = 1;
 		else
 #endif
 			goto usage;
+
+#ifdef _WIN32
+	if(!debug)
+		FreeConsole();
+#endif
 
 	comm_init(&commt);
 
@@ -343,7 +351,7 @@ int main(int argc, char **argv)
 	return 0;
 usage:
 	fprintf(stderr,
-#if _WIN32
+#ifdef _WIN32
 		"Usage: %s [-d]\n"
 		"  -d: Debug (Keep console window open)\n"
 #else

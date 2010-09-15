@@ -4,8 +4,12 @@
 #include <errno.h>
 
 /* mkdir */
-#include <sys/stat.h>
-#include <sys/types.h>
+#ifdef _WIN32
+# include <windows.h>
+#else
+# include <sys/stat.h>
+# include <sys/types.h>
+#endif
 
 #include "log.h"
 #include "../config.h"
@@ -26,7 +30,14 @@ int log_init(void)
 	strftime(fname, sizeof fname,
 			LOG_DIR "/%Y-%m-%d.txt", tm);
 
-	if(mkdir(LOG_DIR, 0740) && errno != EEXIST)
+
+	if(
+#ifdef _WIN32
+			!CreateDirectory(LOG_DIR, NULL) /* success = ~0 ... sigh */
+#else
+			mkdir(LOG_DIR, 0740) /* success = 0 */
+#endif
+			&& errno != EEXIST)
 		return 1;
 
 	log = fopen(fname, "a");
