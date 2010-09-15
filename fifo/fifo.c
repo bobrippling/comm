@@ -178,6 +178,7 @@ void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 		/* TODO */
 		case COMM_CAN_SEND:
 		case COMM_CLIENT_LIST:
+		case COMM_CLOSED:
 			/*file_clients;*/
 			break;
 	}

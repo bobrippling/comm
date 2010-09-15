@@ -37,10 +37,11 @@ void callback(enum comm_callbacktype type, const char *fmt, ...)
 		{
 			struct list *clients;
 
-			printf("got client list: %d other clients\n", comm_nclients(&ct));
+			printf("got updated client list: %d other clients\n", comm_nclients(&ct));
 			for(clients = comm_clientlist(&ct); clients; clients = clients->next)
 				printf("client: %s\n", clients->name);
 		case COMM_CAN_SEND:
+		case COMM_CLOSED:
 			return;
 		}
 	}

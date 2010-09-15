@@ -21,9 +21,14 @@
 #define UNUSED(n) do (void)(n); while(0)
 
 /* prototypes */
-/* TODO */
+static int  getobjects(GtkBuilder *);
 static void updatewidgets(void);
+static void commcallback(enum comm_callbacktype type, const char *fmt, ...);
+G_MODULE_EXPORT void on_btnConnect_clicked(   GtkButton *button, gpointer data);
+G_MODULE_EXPORT void on_btnDisconnect_clicked(GtkButton *button, gpointer data);
+G_MODULE_EXPORT void on_btnSend_clicked(      GtkButton *button, gpointer data);
 G_MODULE_EXPORT void on_winMain_destroy(void);
+G_MODULE_EXPORT gboolean timeout(gpointer data);
 
 /* vars */
 GtkWidget *winMain;
@@ -123,6 +128,11 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 		case COMM_CAN_SEND:
 			comm_rels(&commt);
 			return;
+
+		case COMM_CLOSED:
+			updatewidgets();
+			clientlist_clear();
+			return;
 	}
 #undef TYPE
 
@@ -211,18 +221,15 @@ int main(int argc, char **argv)
 {
 	GError     *error = NULL;
 	GtkBuilder *builder;
-	int i, debug = 0;
+	int i;
 
 	for(i = 1; i < argc; i++)
+#if _WIN32
 		if(!strcmp(argv[i], "-d"))
-			debug = 1;
+			FreeConsole();
 		else
-			goto usage;
-
-#ifdef _WIN32
-	if(!debug)
-		FreeConsole();
 #endif
+			goto usage;
 
 	comm_init(&commt);
 

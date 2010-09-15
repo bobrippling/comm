@@ -42,7 +42,10 @@ void addtextf(const char *fmt, ...)
 	va_end(l);
 }
 
-/* list business */
+/*
+ * list business
+ * http://scentric.net/tutorial/sec-treemodel-rowref.html
+ */
 
 void clientlist_init()
 {
@@ -56,14 +59,14 @@ void clientlist_init()
 	renderer = gtk_cell_renderer_text_new();
 	gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(treeClients),
 			-1,
-			"Name",
-			renderer,
+			"Name", renderer,
 			"text", 0 /* column index */,
 			NULL);
 
 	gtk_tree_view_set_model(GTK_TREE_VIEW(treeClients), model);
 
-	/*g_object_unref(treeModel);*/
+	g_object_unref(model);
+	/* don't do this: g_object_unref(renderer);*/
 }
 
 void clientlist_add(const char *name)
@@ -78,5 +81,5 @@ void clientlist_add(const char *name)
 
 void clientlist_clear()
 {
-
+	gtk_list_store_clear(treeStore);
 }

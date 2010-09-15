@@ -72,6 +72,15 @@ static int comm_changename(comm_t *ct, const char *from, const char *to)
 {
 	struct list *l;
 
+	if(!strcmp(from, ct->name)){
+		/* we're renaming ourselves */
+		char *new = realloc(ct->name, strlen(from));
+		if(!new)
+			return 1;
+		strcpy(ct->name = new, to);
+		return 0;
+	}
+
 	for(l = ct->namelist; l; l = l->next)
 		if(!strcmp(l->name, from)){
 			char *new = realloc(l->name, strlen(to)+1);
@@ -153,6 +162,7 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 					int save = errno;
 					comm_close(ct);
 					errno = save;
+					callback(COMM_CLOSED, NULL);
 					return 1;
 				}
 				callback(COMM_CLIENT_LIST, NULL);
@@ -186,6 +196,7 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 					if(comm_addname(ct, buffer + 12)){
 						int save = errno;
 						comm_close(ct);
+						callback(COMM_CLOSED, NULL);
 						errno = save;
 						return 1;
 					}
@@ -451,6 +462,7 @@ int comm_recv(comm_t *ct, comm_callback callback)
 closeconn:
 #endif
 			comm_close(ct);
+			callback(COMM_CLOSED, NULL);
 			ct->lasterr = "server disconnect";
 			return 1;
 		}else if(ret < 0){
