@@ -6,6 +6,7 @@
     <property name="title" translatable="yes">Comm v2.0</property>
     <property name="default_width">600</property>
     <property name="default_height">300</property>
+    <signal name="focus_in_event" handler="on_winMain_focus_in_event"/>
     <child>
       <object class="GtkHBox" id="hboxMain">
         <property name="visible">True</property>

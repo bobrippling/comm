@@ -53,6 +53,14 @@ G_MODULE_EXPORT gboolean on_winMain_destroy(void)
 	return FALSE;
 }
 
+G_MODULE_EXPORT int on_winMain_focus_in_event(GtkWindow *win, gpointer data)
+{
+	UNUSED(win);
+	UNUSED(data);
+	gtk_window_set_urgency_hint(GTK_WINDOW(winMain), FALSE);
+	return FALSE;
+}
+
 
 /* buttans ------------- */
 
@@ -216,6 +224,24 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 
 	g_free(insertme);
 	g_free(insertmel);
+
+	switch(type){
+		case COMM_MSG:
+		case COMM_INFO:
+		case COMM_SERVER_INFO:
+		case COMM_ERR:
+		case COMM_RENAME:
+		case COMM_CLIENT_CONN:
+		case COMM_CLIENT_DISCO:
+			if(!gtk_window_is_active(GTK_WINDOW(winMain)))
+				gtk_window_set_urgency_hint(GTK_WINDOW(winMain), TRUE);
+
+		case COMM_SELF_RENAME:
+		case COMM_CLIENT_LIST:
+		case COMM_CAN_SEND:
+		case COMM_CLOSED:
+			break;
+	}
 }
 
 G_MODULE_EXPORT gboolean timeout(gpointer data)
