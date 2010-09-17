@@ -66,11 +66,8 @@
 static struct client
 {
 	struct sockaddr_in addr;
-
 	FILE *file;
-
 	char *name;
-
 	int isroot;
 
 	enum
@@ -102,6 +99,7 @@ jmp_buf allocerr;
 
 int  cfg_init(void);
 void sigh(int);
+int  setup(void);
 void cleanup(void);
 
 int  nonblock(int);
@@ -487,12 +485,31 @@ void sigh(int sig)
 		printf("we get SIGUSR2 - verbose set to %d\n", verbose);
 
 	}else if(sig == SIGHUP){
+		char oldport[MAX_PORT_LEN];
+		strcpy(oldport, glob_port);
+
+		puts("got SIGHUP, reloading serverrc...");
+
 		/* reload settans */
 		cfg_end();
 		if(cfg_init()){
 			fputs("Couldn't reload serverrc\n", stderr);
 			cleanup();
 			exit(1);
+		}
+
+		if(strcmp(oldport, glob_port)){
+			/*
+			 * need to rebind
+			 * gently does it - keep old connections,
+			 * just change the listen port
+			 */
+			puts("port changed, rebinding...");
+			close(server);
+			if(setup()){
+				cleanup();
+				exit(1);
+			}
 		}
 
 	}else{
@@ -587,9 +604,47 @@ int passfromstdin()
 }
 #endif
 
-int main(int argc, char **argv)
+int setup()
 {
 	struct sockaddr_in svr_addr;
+
+	server = socket(PF_INET, SOCK_STREAM, 0);
+	if(server == -1){
+		perror("socket()");
+		return 1;
+	}
+
+	memset(&svr_addr, '\0', sizeof svr_addr);
+	svr_addr.sin_family = AF_INET;
+	svr_addr.sin_port   = htons(atoi(glob_port)); /* TODO: use getaddrinfo? */
+
+	if(INADDR_ANY) /* usually optimised out of existence */
+		svr_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+	/* setsockopt ... SO_REUSE(ADDR|PORT) ? */
+	if(bind(server, (struct sockaddr *)&svr_addr, sizeof svr_addr) == -1){
+		fprintf(stderr, "bind on port %s: %s\n", glob_port, strerror(errno));
+		close(server);
+		return 1;
+	}
+
+	if(listen(server, LISTEN_BACKLOG) == -1){
+		perror("listen()");
+		close(server);
+		return 1;
+	}
+
+	if(nonblock(server)){
+		perror("nonblock()");
+		close(server);
+		return 1;
+	}
+
+	return 0;
+}
+
+int main(int argc, char **argv)
+{
 	int i, log = 0, gotpass = 0;
 
 	srand(getpid() + geteuid() + time(NULL)); /* 'root' password/md5 business */
@@ -719,39 +774,8 @@ int main(int argc, char **argv)
 
 	setvbuf(stdout, NULL, _IONBF, 0);
 
-	/* sock init */
-	server = socket(PF_INET, SOCK_STREAM, 0);
-	if(server == -1){
-		perror("socket()");
+	if(setup())
 		return 1;
-	}
-
-	memset(&svr_addr, '\0', sizeof svr_addr);
-	svr_addr.sin_family = AF_INET;
-	svr_addr.sin_port   = htons(atoi(glob_port)); /* TODO: use getaddrinfo? */
-
-	if(INADDR_ANY) /* usually optimised out of existence */
-		svr_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-
-	/* setsockopt ... SO_REUSE(ADDR|PORT) ? */
-	if(bind(server, (struct sockaddr *)&svr_addr, sizeof svr_addr) == -1){
-		fprintf(stderr, "bind on port %s: %s\n", glob_port, strerror(errno));
-		close(server);
-		return 1;
-	}
-
-	if(listen(server, LISTEN_BACKLOG) == -1){
-		perror("listen()");
-		close(server);
-		return 1;
-	}
-
-	if(nonblock(server)){
-		perror("nonblock()");
-		close(server);
-		return 1;
-	}
 
 #define INTERRUPT_WRAP(funcall, failcode) \
 	while(!(funcall)) \
