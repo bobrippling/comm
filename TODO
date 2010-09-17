@@ -3,4 +3,17 @@ Functionality:
 
 gtk:
 	http://gtkforums.com/viewtopic.php?t=988 (tutorial)
-	su + kick functionality
+	su + kick + port functionality
+
+icon:
+	http://duckduckgo.com/?q=windows+c+compile+program+icon+resource
+	http://forums.codeblocks.org/index.php?topic=11128.0;wap2
+
+libcomm:
+	remove comm_rels() - do automatically
+
+protocol:
+	colour
+	file transfer
+	drawing
+	"Tim is typing"
