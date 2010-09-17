@@ -158,13 +158,12 @@ G_MODULE_EXPORT gboolean on_entryName_focus_out_event(GtkEntry *ent, gpointer da
 
 static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 {
-	const char *type_str = "unknown";
+	const char *type_str = NULL;
 	char *insertme, *insertmel;
 	va_list l;
 
 #define TYPE(e, s) case e: type_str = s; break
 	switch(type){
-		TYPE(COMM_MSG,  "message");
 		TYPE(COMM_INFO, "info");
 		TYPE(COMM_SERVER_INFO, "server info");
 		TYPE(COMM_ERR,  "err");
@@ -195,6 +194,9 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 			updatewidgets();
 			clientlist_clear();
 			return;
+
+		case COMM_MSG:
+			break;
 	}
 #undef TYPE
 
@@ -202,7 +204,10 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 	insertmel = g_strdup_vprintf(fmt, l);
 	va_end(l);
 
-	insertme = g_strconcat(type_str, ": ", insertmel, "\n", NULL);
+	if(type_str)
+		insertme = g_strconcat(type_str, ": ", insertmel, "\n", NULL);
+	else
+		insertme = g_strconcat(insertmel, "\n", NULL);
 
 	addtext(insertme);
 
