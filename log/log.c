@@ -14,14 +14,13 @@
 #include "log.h"
 #include "../config.h"
 
-static FILE *log = NULL;
+static char fname[32 + sizeof LOG_DIR];
 
 int log_init(void)
 {
 	/* 2010-09-23.txt */
 	struct tm *tm;
 	time_t t;
-	char fname[sizeof(LOG_DIR) + 32];
 
 	t = time(NULL);
 	if(!(tm = localtime(&t)))
@@ -40,29 +39,22 @@ int log_init(void)
 #endif
 		return 1;
 
-	log = fopen(fname, "a");
-	if(!log)
-		return 1;
+	{
+		char buf[16];
+		strftime(buf, sizeof buf,
+				"New Log %H:%M", tm);
 
-	memset(fname, '\0', sizeof fname);
-	strftime(fname, sizeof fname,
-			"New Log %H:%M\n", tm);
-
-	fputs(fname, log);
+		log_add(buf);
+	}
 
 	return 0;
 }
 
 void log_add(const char *msg)
 {
-	if(log)
-		fprintf(log, "%s\n", msg);
-}
-
-void log_term(void)
-{
-	if(log){
-		fclose(log);
-		log = NULL;
+	FILE *f = fopen(fname, "a");
+	if(f){
+		fprintf(f, "%s\n", msg);
+		fclose(f);
 	}
 }

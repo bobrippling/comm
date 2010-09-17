@@ -346,8 +346,6 @@ int main(int argc, char **argv)
 
 	gtk_main();
 
-	log_term();
-
 	return 0;
 usage:
 	fprintf(stderr,
