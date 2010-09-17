@@ -30,7 +30,8 @@
 #define LOG_FILE         "svrcomm.log"
 #define CFG_FILE         "/.svrcommrc"
 #define LISTEN_BACKLOG   5
-#define SLEEP_MS         100
+#define POLL_SLEEP_MS    350
+#define RECV_SLEEP_MS    100
 
 #define DEBUG_SEND_TEXT " debug%d: send(): "
 
@@ -276,7 +277,7 @@ char svr_recv(int idx)
 			return 1;
 	}
 
-	if(recv_newline(in, ret, pollfds[idx].fd, 500))
+	if(recv_newline(in, ret, pollfds[idx].fd, RECV_SLEEP_MS))
 		/* not enough data */
 		return 0;
 
@@ -846,7 +847,7 @@ int main(int argc, char **argv)
 		for(i = 0; i < nclients; i++)
 			pollfds[i].events = POLLIN | POLLERR | POLLHUP;
 
-		ret = poll(pollfds, nclients, SLEEP_MS);
+		ret = poll(pollfds, nclients, POLL_SLEEP_MS);
 		/* need to timeout, since we're also accept()ing above */
 
 		/*
