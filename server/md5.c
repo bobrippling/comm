@@ -4,8 +4,12 @@
 #include <crypt.h>
 
 #include "md5.h"
+#include "cfg.h"
+#include "../config.h"
 
 static char randsaltchar(void);
+
+extern char glob_pass[MAX_PASS_LEN];
 
 static char randsaltchar(void)
 {
@@ -17,33 +21,40 @@ static char randsaltchar(void)
 	return saltchars[rand() % sizeof saltchars];
 }
 
-int md5check(const char *pass, const char *md5)
+int md5check(const char *pass)
 {
 	char *passmd5;
-	if(!md5 || !pass)
+	int ret;
+
+	if(!pass)
 		return 1;
 
-	if(!(passmd5 = crypt(pass, md5)))
+	if(!(passmd5 = crypt(glob_pass, pass)))
 		return 1;
 
-	return strcmp(md5, passmd5);
+	ret = strcmp(passmd5, glob_pass);
+	return ret;
 }
 
-char *md5(const char *pass)
+int md5(const char *pass)
 {
-	static char last[22 + 16 + 4];
 	char salt[] = "$1$.........", *sp;
 	char *ret;
 
 	for(sp = salt + 3; *sp; sp++)
 		*sp = randsaltchar();
 
+	/*
+	 * do _not_ free ret:
+	 * it's allocated by crypt()
+	 * but kept a hold of by libcrypt
+	 * for other crypt() calls
+	 */
 	if(!(ret = crypt(pass, salt))){
 		perror("crypt()");
-		return NULL;
+		return 1;
 	}
 
-	strcpy(last, ret);
-
-	return last;
+	strncpy(glob_pass, ret, sizeof glob_pass);
+	return 0;
 }

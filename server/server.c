@@ -10,6 +10,7 @@
 #include <setjmp.h>
 #include <stdarg.h>
 #include <ctype.h>
+#include <alloca.h>
 
 #include <time.h>
 
@@ -23,8 +24,11 @@
 #include "../common/util.h"
 
 #include "md5.h"
+#include "cfg.h"
+#include "restrict.h"
 
 #define LOG_FILE         "svrcomm.log"
+#define CFG_FILE         "/.svrcommrc"
 #define LISTEN_BACKLOG   5
 #define SLEEP_MS         100
 
@@ -78,20 +82,32 @@ static struct client
 
 static struct pollfd *pollfds = NULL;
 
+static struct
+{
+	int blocked, allowed,
+			accepted;
+} stats = { 0, 0, 0 };
+
 static int server = -1, nclients = 0, background = 0, verbose = 0;
-static char *md5pass = NULL, *progname, *svrdesc = "";
+
+/* extern'd - cfg */
+char glob_desc[MAX_DESC_LEN] = { 0 },
+     glob_port[MAX_PORT_LEN] = { 0 },
+     glob_pass[MAX_PASS_LEN] = { 0 };
 
 jmp_buf allocerr;
 
 
 /*int passfromstdin(void);*/
 
-int nonblock(int);
-void cleanup(void);
+int  cfg_init(void);
 void sigh(int);
+void cleanup(void);
+
+int  nonblock(int);
+int  validname(const char *);
+int  toclientf(int, const char *, ...);
 void freeclient(int);
-int toclientf(int, const char *, ...);
-int validname(const char *);
 
 char svr_conn(int);
 char svr_recv(int);
@@ -188,8 +204,7 @@ char svr_conn(int idx)
 	DEBUG(DEBUG_CONN_DISCO, "connected from %s",
 			addrtostr((struct sockaddr *)&clients[idx].addr));
 
-	if(toclientf(idx, "Comm v%s%s%s", VERSION_STR,
-				*svrdesc ? " " : "", svrdesc) == 0){
+	if(toclientf(idx, "Comm v" VERSION_STR " %s", glob_desc) == 0){
 		DEBUG(DEBUG_ERROR, "fwrite(): %s", strerror(errno));
 		return 0;
 	}
@@ -304,6 +319,7 @@ char svr_recv(int idx)
 			DEBUG(DEBUG_STATUS, "name accepted: %s", name);
 
 			TO_CLIENT(idx, "OK");
+			stats.accepted++;
 
 			for(i = 0; i < nclients; i++)
 				if(i != idx && clients[i].state == ACCEPTED)
@@ -419,11 +435,11 @@ char svr_recv(int idx)
 				TO_CLIENT(idx, "INFO dropping root");
 				clients[idx].isroot = 0;
 			}else{
-				char *pass = in + 3;
+				char *reqpass = in + 3;
 
-				if(!*pass)
+				if(!*reqpass)
 					TO_CLIENT(idx, "Need md5'd password");
-				else if(md5check(pass, md5pass)){
+				else if(md5check(reqpass)){
 					TO_CLIENT(idx, "ERR incorrect root passphrase");
 					DEBUG(DEBUG_STATUS, "%s root logout", clients[idx].name);
 				}else{
@@ -445,14 +461,17 @@ void sigh(int sig)
 {
 	if(sig == SIGINT && !background){
 		int i;
-		printf("\nComm v"VERSION_STR" Server Status - %d clients (SIGQUIT ^\\ to quit)\n", nclients);
+		printf(
+				"\nComm v"VERSION_STR" %d Server Status (SIGQUIT ^\\ to quit)\n"
+				"Stats: %d allowed, %d refused, %d named login, %d current clients\n"
+				, getpid(), stats.allowed, stats.blocked, stats.accepted, nclients);
+
 		if(nclients){
 			puts("Index FD Name");
 			for(i = 0; i < nclients; i++)
 				printf("%3d %3d  %s\n", i, pollfds[i].fd, clients[i].name ? clients[i].name : "(not logged in)");
 		}
-		fflush(stdout);
-		signal(SIGINT, &sigh);
+
 	}else if(sig == SIGUSR1){
 		/* reset server - clear all connections */
 		int idx;
@@ -461,14 +480,66 @@ void sigh(int sig)
 			TO_CLIENT(idx, "INFO server reset");
 			svr_rm(idx);
 		}
-		signal(SIGUSR1, &sigh);
+
+	}else if(sig == SIGUSR2){
+		if(++verbose > DEBUG_MAX)
+			verbose = 0;
+		printf("we get SIGUSR2 - verbose set to %d\n", verbose);
+
+	}else if(sig == SIGHUP){
+		/* reload settans */
+		cfg_end();
+		if(cfg_init()){
+			fputs("Couldn't reload serverrc\n", stderr);
+			cleanup();
+			exit(1);
+		}
+
 	}else{
 		fprintf(stderr, "we get signal %d\n", sig);
 
 		cleanup();
+		cfg_end();
 
+		/* program normal exit point here */
 		exit(sig);
 	}
+
+	/* restore */
+	signal(sig, &sigh);
+}
+
+int cfg_init()
+{
+	char *home, *fname;
+	FILE *cfg;
+
+	home = getenv("HOME");
+	if(!home){
+		fputs("Couldn't get $HOME\n", stderr);
+		return 1;
+	}
+
+	fname = alloca(1 + strlen(home) + strlen(CFG_FILE));
+	strcpy(fname, home);
+	strcat(fname, /* has a / */CFG_FILE);
+
+	cfg = fopen(fname, "r");
+	if(!cfg){
+		if(errno == ENOENT)
+			return 0;
+
+		perror(fname);
+		return 1;
+	}
+
+	if(cfg_read(cfg)){
+		fclose(cfg);
+		return 1;
+	}
+	fclose(cfg);
+
+	return 0;
 }
 
 #if 0
@@ -520,11 +591,10 @@ int main(int argc, char **argv)
 {
 	struct sockaddr_in svr_addr;
 	int i, log = 0, gotpass = 0;
-	const char *port = DEFAULT_PORT;
 
-	srand(getpid() + geteuid() + time(NULL)); /* 'root' password */
+	srand(getpid() + geteuid() + time(NULL)); /* 'root' password/md5 business */
 
-	progname = *argv;
+	strcpy(glob_port, DEFAULT_PORT);
 
 	if(setjmp(allocerr)){
 		perror("longjmp'd to allocerr");
@@ -534,20 +604,24 @@ int main(int argc, char **argv)
 	/* ignore sigpipe - sent when recv() called on a disconnected socket */
 	if( signal(SIGPIPE, SIG_IGN) == SIG_ERR ||
 			signal(SIGUSR1, &sigh)   == SIG_ERR ||
+			signal(SIGUSR2, &sigh)   == SIG_ERR ||
+			signal(SIGHUP,  &sigh)   == SIG_ERR ||
 			/* usual suspects... */
 			signal(SIGINT,  &sigh)   == SIG_ERR ||
 			signal(SIGQUIT, &sigh)   == SIG_ERR ||
 			signal(SIGTERM, &sigh)   == SIG_ERR ||
-			signal(SIGSEGV, &sigh)   == SIG_ERR ||
-			signal(SIGHUP,  &sigh)   == SIG_ERR){
+			signal(SIGSEGV, &sigh)   == SIG_ERR){
 		perror("signal()");
 		return 1;
 	}
 
+	if(cfg_init())
+		return 1;
+
 	for(i = 1; i < argc; i++)
 		if(!strcmp(argv[i], "-p")){
 			if(++i < argc)
-				port = argv[i];
+				strncpy(glob_port, argv[i], sizeof glob_port);
 			else{
 				fputs("need port\n", stderr);
 				return 1;
@@ -556,12 +630,9 @@ int main(int argc, char **argv)
 		}else if(!strncmp(argv[i], "-P", 2)){
 			if(++i < argc){
 				gotpass = 1;
-				if(*argv[i]){
-					if(!(md5pass = md5(argv[i])))
-						return 1;
-					memset(argv[i], '*', strlen(argv[i])); /* too late, but eh... */
-				}else
-					md5pass = NULL; /* make sure */
+				if(md5(argv[i]))
+					return 1;
+				memset(argv[i], '*', strlen(argv[i])); /* too late, but eh... */
 			}else{
 				fputs("need pass\n", stderr);
 				return 1;
@@ -569,7 +640,7 @@ int main(int argc, char **argv)
 
 		}else if(!strcmp(argv[i], "-d")){
 			if(++i < argc)
-				svrdesc = argv[i];
+				strncpy(glob_desc, argv[i], sizeof glob_desc);
 			else{
 				fputs("need description\n", stderr);
 				return 1;
@@ -592,8 +663,10 @@ int main(int argc, char **argv)
 		}else
 			goto usage;
 
-	if(!md5pass)
+	if(!*glob_pass)
 		fputs("'root' password disabled\n", stderr);
+	if(!*glob_desc)
+		strcpy(glob_desc, "Server");
 
 	if(verbose > 1){
 		if(verbose > DEBUG_MAX){
@@ -642,9 +715,11 @@ int main(int argc, char **argv)
 				return 0;
 		}
 	}else
-		puts("Comm v"VERSION_STR" Server init");
+		printf("Comm v"VERSION_STR" %d Server init\n", getpid());
 
+	setvbuf(stdout, NULL, _IONBF, 0);
 
+	/* sock init */
 	server = socket(PF_INET, SOCK_STREAM, 0);
 	if(server == -1){
 		perror("socket()");
@@ -653,7 +728,7 @@ int main(int argc, char **argv)
 
 	memset(&svr_addr, '\0', sizeof svr_addr);
 	svr_addr.sin_family = AF_INET;
-	svr_addr.sin_port   = htons(atoi(port)); /* TODO: use getaddrinfo? */
+	svr_addr.sin_port   = htons(atoi(glob_port)); /* TODO: use getaddrinfo? */
 
 	if(INADDR_ANY) /* usually optimised out of existence */
 		svr_addr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -661,7 +736,7 @@ int main(int argc, char **argv)
 
 	/* setsockopt ... SO_REUSE(ADDR|PORT) ? */
 	if(bind(server, (struct sockaddr *)&svr_addr, sizeof svr_addr) == -1){
-		perror("bind()");
+		fprintf(stderr, "bind on port %s: %s\n", glob_port, strerror(errno));
 		close(server);
 		return 1;
 	}
@@ -683,6 +758,7 @@ int main(int argc, char **argv)
 		if(errno != EINTR) \
 			failcode
 
+	/* main */
 	for(;;){
 		struct sockaddr_in addr;
 		socklen_t len = sizeof addr;
@@ -691,7 +767,21 @@ int main(int argc, char **argv)
 		if(cfd != -1){
 			struct client *new;
 			struct pollfd *newpfds;
-			int idx = ++nclients - 1;
+			struct addrinfo ai;
+			int idx;
+
+			ai.ai_addr = (struct sockaddr *)&addr;
+			ai.ai_addrlen = len; /* lol ipv6 */
+			if(!restrict_hostallowed(&ai)){
+				fprintf(stderr, "connection from %s dropped, not in allow list\n",
+						addrtostr((struct sockaddr *)&addr));
+				close(cfd);
+				stats.blocked++;
+				continue;
+			}
+			stats.allowed++;
+
+			idx = ++nclients - 1;
 
 			INTERRUPT_WRAP(
 					new = realloc(clients, nclients * sizeof(*clients)),
@@ -781,6 +871,13 @@ usage:
 	                " -v: Verbose\n"
 	                " -b: Fork to background\n"
 	                " -l: Redirect output to logs\n"
-	                "[pPdv] take arguments\n", *argv);
+	                "[pPdv] take arguments\n"
+	                "\n"
+	                "Verbosity levels:\n"
+	                "1: Show connections\n"
+	                "2: Show status changes\n"
+	                "3: Show recv() data\n"
+	                "4: Show send() data\n"
+	                , *argv);
 	return 1;
 }
