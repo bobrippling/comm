@@ -27,6 +27,7 @@
 	}while(0)
 
 #define PATH_LEN 128
+#define FIFO_POLL_WAIT 100
 
 /* prototypes */
 int init_files(void);
@@ -39,6 +40,7 @@ void commcallback(enum comm_callbacktype type, const char *fmt, ...);
 void proc_cmd(const char *buffer);
 
 int lewp(void);
+int daemonise(void);
 int main(int argc, char **argv);
 
 
@@ -80,8 +82,9 @@ void output(const char *fname, const char *msg, va_list l)
 		f = fopen(fname, "a");
 		if(!f){
 			/* attempt to create dir again */
-			init_files();
-			f = fopen(fname, "a");
+			if(init_files() == 0)
+				f = fopen(fname, "a");
+			/*else p the error */
 		}
 		clos = 1;
 	}else
@@ -89,7 +92,6 @@ void output(const char *fname, const char *msg, va_list l)
 
 	if(f){
 		vfprintf(f, msg, l);
-		fputc('\n', f);
 		if(clos)
 			fclose(f);
 	}else
@@ -160,40 +162,62 @@ bail:
 void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 {
 	va_list l;
+	const char *pre = NULL, *fname = NULL;
 
-	va_start(l, fmt);
-
-#define TYPE(e, f) case e: output(f, fmt, l); break
+#define TYPE(e, f, p) case e: fname = f; pre = p; break
 	switch(type){
-		TYPE(COMM_INFO,         file_info);
-		TYPE(COMM_SERVER_INFO,  file_info);
-		TYPE(COMM_CLIENT_CONN,  file_info);
-		TYPE(COMM_CLIENT_DISCO, file_info);
-		TYPE(COMM_RENAME,       file_info);
+		TYPE(COMM_INFO,         file_info, "info");
+		TYPE(COMM_SERVER_INFO,  file_info, "server info");
+		TYPE(COMM_CLIENT_CONN,  file_info, "client connected");
+		TYPE(COMM_CLIENT_DISCO, file_info, "client disconnected");
+		TYPE(COMM_RENAME,       file_info, "client renamed");
 
-		TYPE(COMM_ERR,          file_err);
+		TYPE(COMM_ERR,          file_err,  "error");
 
-		TYPE(COMM_MSG,          file_output);
-
-		/* TODO */
-		case COMM_CAN_SEND:
-		case COMM_CLIENT_LIST:
-		case COMM_CLOSED:
-		case COMM_SELF_RENAME:
-			/*file_clients;*/
+		case COMM_MSG:
+			fname = file_output;
 			break;
+
+		case COMM_CLIENT_LIST:
+		case COMM_SELF_RENAME:
+		{
+			FILE *f = fopen(file_clients, "w"); /* truncate */
+			struct list *l;
+
+			if(!f && init_files() == 0)
+				f = fopen(file_clients, "w");
+
+			if(!f){
+				perrorf("fopen(): %s", file_clients);
+			}else{
+				fprintf(f, "me: %s\n", comm_getname(&commt));
+				for(l = comm_clientlist(&commt); l; l = l->next)
+					fprintf(f, "client: %s\n", l->name);
+				fclose(f);
+			}
+			return;
+		}
+
+		case COMM_CLOSED:
+			outputf(file_info, "Connection closed: %s\n", comm_lasterr(&commt));
+			finito = 1;
+			return;
 	}
 #undef TYPE
 
+	if(pre)
+		outputf(fname, "%s: ", pre);
+
+	va_start(l, fmt);
+	output(fname, fmt, l);
 	va_end(l);
+
+	outputf(fname, "\n");
 }
 
 void proc_cmd(const char *buffer)
 {
-	if(!strcmp(buffer, "ls"))
-		outputf(file_err, "ls: TODO");
-		/* TODO comm_listclients(); */
-	else if(!strcmp(buffer, "exit"))
+	if(!strcmp(buffer, "exit"))
 		finito = 1;
 	else if(!strncmp(buffer, "su ", 3))
 		comm_su(&commt, buffer+3);
@@ -202,7 +226,7 @@ void proc_cmd(const char *buffer)
 	else if(!strncmp(buffer, "rename ", 7))
 		comm_rename(&commt, buffer+7);
 	else
-		outputf(file_err, "unknown command: ``%s'' (use ls, su or exit)", buffer);
+		outputf(file_err, "unknown command: ``%s'' (use rename, su, kick or exit)\n", buffer);
 }
 
 int lewp()
@@ -221,12 +245,12 @@ int lewp()
 			return 1;
 		}
 
-		switch(poll(pfd, 2, CLIENT_UI_WAIT)){
+		switch(poll(pfd, 2, FIFO_POLL_WAIT)){
 			case 0:
 				/* notan happan */
 				continue;
 			case -1:
-				perror("poll()");
+				perrorf("%s", "poll()");
 				return 1;
 		}
 
@@ -236,7 +260,7 @@ int lewp()
 	 \
 			switch(nread){ \
 				case -1: \
-					perror("read()"); \
+					perrorf("%s", "read()"); \
 					return 1; \
 				case 0: \
 					break; \
@@ -263,13 +287,31 @@ int lewp()
 	return 0;
 }
 
+int daemonise()
+{
+	switch(fork()){
+		case -1:
+			perror("fork()");
+			return 1;
+		case 0:
+			return 0;
+		default:
+			puts("forked to background");
+			exit(0);
+	}
+}
 
 int main(int argc, char **argv)
 {
 	char *name = NULL;
-	int i, ret = 0;
+	int i = 1, ret = 0, daemon = 0;
 
-	for(i = 1; i < argc; i++)
+	if(argc > 1 && !strcmp(argv[1], "-d")){
+		i++;
+		daemon = 1;
+	}
+
+	for(; i < argc; i++)
 		if(!name)
 			name = argv[i];
 		else if(!host)
@@ -295,10 +337,16 @@ int main(int argc, char **argv)
 	if((ret = init_files()))
 		return ret;
 
+	if(daemon && daemonise()){
+		term_files();
+		return 1;
+	}
+
 	comm_init(&commt);
 
 	if(comm_connect(&commt, host, port, name)){
-		fprintf(stderr, "%s: couldn't connect: %s\n", *argv, comm_lasterr(&commt));
+		outputf(file_err, "%s: couldn't connect: %s\n", *argv, comm_lasterr(&commt));
+		term_files();
 		return 1;
 	}
 
@@ -309,6 +357,8 @@ int main(int argc, char **argv)
 
 	return ret;
 usage:
-	printf("Usage: %s name host [port]\n", *argv);
+	printf("Usage: %s [-d] name host [port]\n"
+	       "  -d: daemonise\n"
+	       , *argv);
 	return 1;
 }
