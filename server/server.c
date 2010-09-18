@@ -86,7 +86,7 @@ static struct
 			accepted;
 } stats = { 0, 0, 0 };
 
-static int server = -1, nclients = 0, background = 0, verbose = 0;
+static int server = -1, nclients = 0, verbose = 0, background = 0;
 
 /* extern'd - cfg */
 char glob_desc[MAX_DESC_LEN] = { 0 },
@@ -167,7 +167,7 @@ int validname(const char *n)
 	const char *p;
 	for(p = n; *p; p++)
 		/* allow negatives, since they're probably unicode/é, etc */
-		if(*p != ' ' && !isgraph(*p) && *p > 0)
+		if(!((isgraph(*p) || *p == ' ') || *p < 0))
 			return 0;
 	return 1;
 }
@@ -363,11 +363,9 @@ char svr_recv(int idx)
 				last++;
 			last--;
 			while(isspace(*last) && last > name)
-				last--;
-			if(isspace(*last))
-				*last = '\0';
+				*last-- = '\0';
 
-			if(!strlen(name) || strlen(name) > MAX_NAME_LEN)
+			if(!*name || strlen(name) > MAX_NAME_LEN)
 				TO_CLIENT(idx, "ERR need name/name too long");
 			else if(!validname(name))
 				TO_CLIENT(idx, "ERR invalid name");
@@ -458,12 +456,13 @@ char svr_recv(int idx)
 
 void sigh(int sig)
 {
-	if(sig == SIGINT && !background){
+	if(sig == SIGINT){
 		int i;
 		printf(
-				"\nComm v"VERSION_STR" %d Server Status (SIGQUIT ^\\ to quit)\n"
-				"Stats: %d allowed, %d refused, %d named login, %d current clients\n"
-				, getpid(), stats.allowed, stats.blocked, stats.accepted, nclients);
+				"%sComm v"VERSION_STR" %d Server Status (SIGQUIT ^\\ to quit)\n"
+				"Stats: %d allowed, %d refused, %d named login (%d invalid), %d current clients\n"
+				, background ? "" : "\n", getpid(), stats.allowed, stats.blocked, stats.accepted,
+				stats.allowed - stats.accepted, nclients);
 
 		if(nclients){
 			puts("Index FD Name");
@@ -748,7 +747,7 @@ int main(int argc, char **argv)
 	}
 
 	if(background){
-		fprintf(stderr, "%s: closing output and forking to background", *argv);
+		fprintf(stderr, "%s: %sforking to background\n", *argv, log ? "" : "closing output and ");
 
 		signal(SIGCHLD, SIG_IGN);
 		switch(fork()){
