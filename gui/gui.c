@@ -80,12 +80,15 @@ G_MODULE_EXPORT gboolean on_btnConnect_clicked(GtkButton *button, gpointer data)
 {
 	const char *host = gtk_entry_get_text(GTK_ENTRY(entryHost));
 	const char *name = gtk_entry_get_text(GTK_ENTRY(entryName));
-	const char *port = NULL;
+	char *hostdup = alloca(strlen(host)+1);
+	char *port = NULL;
 
 	UNUSED(button);
 	UNUSED(data);
 
-	if(!*name || !*host){
+	strcpy(hostdup, host);
+
+	if(!*name || !*hostdup){
 		if(!*name)
 			addtext("need name\n");
 		else
@@ -93,13 +96,13 @@ G_MODULE_EXPORT gboolean on_btnConnect_clicked(GtkButton *button, gpointer data)
 		return FALSE;
 	}
 
-	if((port = strchr(host, ':')))
+	if((port = strchr(hostdup, ':')))
 		*port++ = '\0';
 
-	if(comm_connect(&commt, host, port, name))
-		addtextf("Couldn't connect to %s: %s\n", host, comm_lasterr(&commt));
+	if(comm_connect(&commt, hostdup, port, name))
+		addtextf("Couldn't connect to %s: %s\n", hostdup, comm_lasterr(&commt));
 	else
-		addtextf("Connected to %s\n", host);
+		addtextf("Connected to %s\n", hostdup);
 	updatewidgets();
 	return FALSE;
 }
