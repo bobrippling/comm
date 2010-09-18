@@ -82,11 +82,11 @@ static struct pollfd *pollfds = NULL;
 
 static struct
 {
-	int blocked, allowed,
-			accepted;
+	int blocked, allowed, accepted;
 } stats = { 0, 0, 0 };
 
 static int server = -1, nclients = 0, verbose = 0, background = 0;
+static time_t starttime;
 
 /* extern'd - cfg */
 char glob_desc[MAX_DESC_LEN] = { 0 },
@@ -97,6 +97,7 @@ jmp_buf allocerr;
 
 
 /*int passfromstdin(void);*/
+const char *getuptime(void);
 
 int  cfg_init(void);
 void sigh(int);
@@ -203,7 +204,8 @@ char svr_conn(int idx)
 	DEBUG(DEBUG_CONN_DISCO, "connected from %s",
 			addrtostr((struct sockaddr *)&clients[idx].addr));
 
-	if(toclientf(idx, "Comm v" VERSION_STR " %s", glob_desc) == 0){
+	if(toclientf(idx, "Comm v" VERSION_STR " %s, uptime %s",
+				glob_desc, getuptime()) == 0){
 		DEBUG(DEBUG_ERROR, "fwrite(): %s", strerror(errno));
 		return 0;
 	}
@@ -454,17 +456,48 @@ char svr_recv(int idx)
 	return 0;
 }
 
+const char *getuptime(void)
+{
+	static char t[64];
+	time_t diff = time(NULL) - starttime;
+	int sec, min, hr;
+
+#define PLURAL_PAIR(i) i, (i == 1 ? "" : "s")
+
+	sec = diff % 60;
+	min = diff / 60;
+
+	if(min){
+		hr   = min / 60;
+		min %= 60;
+		if(hr)
+			snprintf(t, sizeof t, "%d hour%s, %d minute%s, %d second%s",
+					PLURAL_PAIR(hr), PLURAL_PAIR(min), PLURAL_PAIR(sec));
+		else
+			snprintf(t, sizeof t, "%d minute%s, %d second%s",
+					PLURAL_PAIR(min), PLURAL_PAIR(sec));
+	}else
+		snprintf(t, sizeof t, "%d second%s",
+				PLURAL_PAIR(sec));
+
+#undef PLURAL_PAIR
+
+	return t;
+}
+
 void sigh(int sig)
 {
 	if(sig == SIGINT){
-		int i;
 		printf(
-				"%sComm v"VERSION_STR" %d Server Status (SIGQUIT ^\\ to quit)\n"
-				"Stats: %d allowed, %d refused, %d named login (%d invalid), %d current clients\n"
-				, background ? "" : "\n", getpid(), stats.allowed, stats.blocked, stats.accepted,
-				stats.allowed - stats.accepted, nclients);
+	      "%sComm v"VERSION_STR" %d Server Status (SIGQUIT ^\\ to quit)\n"
+	      "Stats: %d allowed, %d refused, %d named login (%d invalid), %d still open\n"
+	      "Uptime: %s\n"
+	      , background ? "" : "\n", getpid(), stats.allowed, stats.blocked, stats.accepted,
+	      stats.allowed - stats.accepted, nclients, getuptime());
 
 		if(nclients){
+			int i;
+
 			puts("Index FD Name");
 			for(i = 0; i < nclients; i++)
 				printf("%3d %3d  %s\n", i, pollfds[i].fd, clients[i].name ? clients[i].name : "(not logged in)");
@@ -559,51 +592,6 @@ int cfg_init()
 	return 0;
 }
 
-#if 0
-int passfromstdin()
-{
-	struct termios tio;
-	char pass[16], *nl, *ret;
-	int echooff = 0;
-
-	if(isatty(STDIN_FILENO)){
-		if(!tcgetattr(STDIN_FILENO, &tio)){
-			tio.c_lflag = (tio.c_lflag & ~ECHO) | ECHONL;
-			if(!tcsetattr(STDIN_FILENO, TCSANOW, &tio))
-				echooff = 1;
-			else
-				perror("tcsetattr()");
-		}else
-			perror("tcgetattr()");
-
-		fputs("server 'root' password: ", stderr);
-	}
-
-	ret = fgets(pass, sizeof pass, stdin);
-
-	if(echooff){
-		tio.c_lflag = tio.c_lflag | ECHO;
-		if(tcsetattr(STDIN_FILENO, TCSANOW, &tio))
-			perror("tcsetattr()");
-	}
-
-	if(!ret){
-		fprintf(stderr, "\n%s: warning: root access disabled "
-				"(no password)\n", progname);
-		return 0;
-	}
-
-	if((nl = strchr(pass, '\n')))
-		*nl = '\0';
-	else
-		fputs("warning: too many chars, truncated to 15\n", stderr);
-
-	md5pass = md5(pass);
-
-	return !md5pass;
-}
-#endif
-
 int setup()
 {
 	struct sockaddr_in svr_addr;
@@ -647,7 +635,7 @@ int main(int argc, char **argv)
 {
 	int i, log = 0, gotpass = 0;
 
-	srand(getpid() + geteuid() + time(NULL)); /* 'root' password/md5 business */
+	srand(getpid() + geteuid() + (starttime = time(NULL))); /* 'root' password/md5 business */
 
 	strcpy(glob_port, DEFAULT_PORT);
 
@@ -799,6 +787,9 @@ int main(int argc, char **argv)
 			if(!restrict_hostallowed(&ai)){
 				fprintf(stderr, "connection from %s dropped, not in allow list\n",
 						addrtostr((struct sockaddr *)&addr));
+#define WRITE(sock, str) write(sock, str, strlen(str))
+				WRITE(cfd, "loldenied\n");
+#undef WRITE
 				close(cfd);
 				stats.blocked++;
 				continue;
