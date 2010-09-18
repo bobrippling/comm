@@ -80,6 +80,7 @@ G_MODULE_EXPORT gboolean on_btnConnect_clicked(GtkButton *button, gpointer data)
 {
 	const char *host = gtk_entry_get_text(GTK_ENTRY(entryHost));
 	const char *name = gtk_entry_get_text(GTK_ENTRY(entryName));
+	const char *port = NULL;
 
 	UNUSED(button);
 	UNUSED(data);
@@ -92,7 +93,10 @@ G_MODULE_EXPORT gboolean on_btnConnect_clicked(GtkButton *button, gpointer data)
 		return FALSE;
 	}
 
-	if(comm_connect(&commt, host, NULL /* TODO: custom port */, name))
+	if((port = strchr(host, ':')))
+		*port++ = '\0';
+
+	if(comm_connect(&commt, host, port, name))
 		addtextf("Couldn't connect to %s: %s\n", host, comm_lasterr(&commt));
 	else
 		addtextf("Connected to %s\n", host);
