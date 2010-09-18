@@ -40,7 +40,6 @@ void callback(enum comm_callbacktype type, const char *fmt, ...)
 			printf("got updated client list: %d other clients\n", comm_nclients(&ct));
 			for(clients = comm_clientlist(&ct); clients; clients = clients->next)
 				printf("client: %s\n", clients->name);
-		case COMM_CAN_SEND:
 		case COMM_CLOSED:
 		case COMM_SELF_RENAME:
 			/* TODO */
@@ -118,8 +117,6 @@ int main(int argc, char **argv)
 							comm_rename(&ct, in + 7);
 						else if(!strncmp(in, "kick ", 5))
 							comm_kick(&ct, in+5);
-						else if(!strcmp(in, "ls"))
-							comm_rels(&ct);
 						else if(!strncmp(in, "su ", 3))
 							comm_su(&ct, in+3);
 						else

@@ -196,8 +196,7 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 
 			}else if(!strncmp(buffer, "CLIENT_LIST", 11)){
 				if(!strcmp(buffer + 11, "_START")){
-					if(ct->namelist)
-						comm_freenames(ct);
+					comm_freenames(ct);
 					ct->listing = 1;
 				}else if(!strcmp(buffer + 11, "_END")){
 					ct->listing = 0;
@@ -206,8 +205,9 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 					if(comm_addname(ct, buffer + 12)){
 						int save = errno;
 						comm_close(ct);
-						callback(COMM_CLOSED, NULL);
 						errno = save;
+						comm_setlasterr(ct);
+						callback(COMM_CLOSED, NULL);
 						return 1;
 					}
 				}else
@@ -222,7 +222,7 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 			if(!strcmp(buffer, "OK")){
 				ct->state = COMM_ACCEPTED;
 				callback(COMM_INFO, "%s", "Name accepted");
-				callback(COMM_CAN_SEND, NULL);
+				return !TO_SERVER_F("%s", "CLIENT_LIST");
 			}else{
 				UNKNOWN_MESSAGE(buffer);
 				return 1;
@@ -391,11 +391,6 @@ COMM_SIMPLE(comm_rename, "RENAME")
 COMM_SIMPLE(comm_su,     "SU"    )
 COMM_SIMPLE(comm_kick,   "KICK"  )
 
-int comm_rels(comm_t *ct)
-{
-	return TO_SERVER_F("%s", "CLIENT_LIST");
-}
-
 const char *comm_getname(comm_t *ct)
 {
 	return ct->name;
@@ -498,7 +493,7 @@ closeconn:
 			return 1;
 		}
 
-		if(recv_newline(buffer, ret, ct->sock, 250))
+		if(recv_newline(buffer, ret, ct->sock, LIBCOMM_RECV_TIMEOUT))
 			/* not full */
 			return 0;
 		if(comm_process(ct, buffer, callback))

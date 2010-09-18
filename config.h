@@ -11,8 +11,7 @@
 #define DEFAULT_PORT     "2848"
 #define RENAME_SEPARATOR 0x1d /* ^] aka ``group separator'' */
 
-#define CLIENT_SOCK_WAIT 100
-#define CLIENT_UI_WAIT   250
+#define LIBCOMM_RECV_TIMEOUT 100
 
 #define LOG_DIR          "Logs"
 

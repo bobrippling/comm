@@ -194,10 +194,6 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 			addtextf("Renamed to %s\n", comm_getname(&commt));
 			return;
 
-		case COMM_CAN_SEND:
-			comm_rels(&commt);
-			return;
-
 		case COMM_CLOSED:
 			updatewidgets();
 			clientlist_clear();
@@ -238,7 +234,6 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 
 		case COMM_SELF_RENAME:
 		case COMM_CLIENT_LIST:
-		case COMM_CAN_SEND:
 		case COMM_CLOSED:
 			break;
 	}
