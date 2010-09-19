@@ -6,7 +6,10 @@
 #define VERSION_MINOR    ((VERSION_STR)[2] - '0')
 
 #define MAX_NAME_LEN     64
-#define LINE_SIZE        2048
+#define MAX_PORT_LEN     16
+#define MAX_PASS_LEN     32
+#define MAX_DESC_LEN     64
+#define MAX_LINE_LEN     2048
 
 #define DEFAULT_PORT     "2848"
 #define RENAME_SEPARATOR 0x1d /* ^] aka ``group separator'' */

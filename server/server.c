@@ -265,10 +265,10 @@ void svr_err(int idx)
 
 char svr_recv(int idx)
 {
-	char in[LINE_SIZE] = { 0 };
+	char in[MAX_LINE_LEN] = { 0 };
 	int ret;
 
-	switch(ret = recv(pollfds[idx].fd, in, LINE_SIZE, MSG_PEEK)){
+	switch(ret = recv(pollfds[idx].fd, in, MAX_LINE_LEN, MSG_PEEK)){
 		case -1:
 			fputs("recv() ", stderr);
 			svr_err(idx);

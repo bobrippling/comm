@@ -15,6 +15,7 @@
 #include "gtkutil.h"
 #include "gladegen.h"
 #include "../log/log.h"
+#include "../cfg/cfg.h"
 #include "../libcomm/comm.h"
 
 #define WIN_MAIN   "winMain"
@@ -25,6 +26,7 @@
 static int  getobjects(GtkBuilder *);
 static void updatewidgets(void);
 static void commcallback(enum comm_callbacktype type, const char *fmt, ...);
+static void cfg2txt(void), txt2cfg(void);
 
 G_MODULE_EXPORT gboolean on_btnConnect_clicked        (GtkButton *button, gpointer data);
 G_MODULE_EXPORT gboolean on_btnDisconnect_clicked     (GtkButton *button, gpointer data);
@@ -49,6 +51,10 @@ G_MODULE_EXPORT gboolean on_winMain_destroy(void)
 {
 	if(comm_state(&commt) != COMM_DISCONNECTED)
 		comm_close(&commt);
+
+	txt2cfg();
+	config_write();
+
 	gtk_main_quit();
 	return FALSE;
 }
@@ -316,6 +322,46 @@ static int getobjects(GtkBuilder *b)
 #undef GET_WIDGET
 }
 
+static void cfg2txt()
+{
+	const char *host = config_lasthost();
+
+	gtk_entry_set_text(GTK_ENTRY(entryName), config_name());
+
+	if(*host){
+		const char *port = config_port();
+
+		if(*port){
+			char *hp;
+
+			hp = g_strconcat(host, ":", port, NULL);
+			gtk_entry_set_text(GTK_ENTRY(entryHost), hp);
+			g_free(hp);
+		}else
+			gtk_entry_set_text(GTK_ENTRY(entryHost), host);
+	}
+}
+
+static void txt2cfg()
+{
+	char *host, *port;
+
+	config_setname(gtk_entry_get_text(GTK_ENTRY(entryName)));
+
+	host = g_strdup(gtk_entry_get_text(GTK_ENTRY(entryHost)));
+	if(host){
+		port = strchr(host, ':');
+		if(port){
+			*port++ = '\0';
+			config_setport(port);
+		}else
+			config_setport("");
+
+		config_setlasthost(host);
+		g_free(host);
+	}
+}
+
 int main(int argc, char **argv)
 {
 	GError     *error = NULL;
@@ -333,17 +379,20 @@ int main(int argc, char **argv)
 #endif
 			goto usage;
 
+	if(config_read())
+		return 1;
+
+	if(log_init()){
+		perror("log_init()");
+		return 1;
+	}
+
 #ifdef _WIN32
 	if(!debug)
 		FreeConsole();
 #endif
 
 	comm_init(&commt);
-
-	if(log_init()){
-		perror("log_init()");
-		return 1;
-	}
 
 	gtk_init(&argc, &argv); /* bail here if !$DISPLAY */
 
@@ -374,6 +423,8 @@ int main(int argc, char **argv)
 	g_signal_connect(G_OBJECT(winMain), "destroy", G_CALLBACK(on_winMain_destroy), NULL);
 
 	updatewidgets();
+
+	cfg2txt();
 
 	gtk_widget_show(winMain);
 

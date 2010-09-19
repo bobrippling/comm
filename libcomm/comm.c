@@ -445,7 +445,7 @@ int comm_recv(comm_t *ct, comm_callback callback)
 		fd_set set;
 		struct timeval timeout;
 
-		char buffer[LINE_SIZE] = { 0 };
+		char buffer[MAX_LINE_LEN] = { 0 };
 		int ret;
 
 		FD_ZERO(&set);
@@ -468,7 +468,7 @@ int comm_recv(comm_t *ct, comm_callback callback)
 		}
 
 		/* got data */
-		ret = recv(ct->sock, buffer, LINE_SIZE, MSG_PEEK);
+		ret = recv(ct->sock, buffer, MAX_LINE_LEN, MSG_PEEK);
 
 		if(ret == 0){
 			/* disco */

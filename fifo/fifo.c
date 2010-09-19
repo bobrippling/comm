@@ -232,7 +232,7 @@ void proc_cmd(const char *buffer)
 int lewp()
 {
 	struct pollfd pfd[2];
-	static char buffer[LINE_SIZE], *nl;
+	static char buffer[MAX_LINE_LEN], *nl;
 	int nread, saverrno;
 
 	pfd[0].fd     = fd_input;
@@ -255,7 +255,7 @@ int lewp()
 		}
 
 #define READ(fd) \
-			nread = read(fd, buffer, LINE_SIZE); \
+			nread = read(fd, buffer, MAX_LINE_LEN); \
 			saverrno = errno; \
 	 \
 			switch(nread){ \
