@@ -21,14 +21,6 @@ gui: libcomm
 comm.exe: libcomm
 	$Qmake ${MAKEFLAGS} -C gui $@
 
-winzip:
-	$Qmkdir Comm\ v2.0
-	$Qcp gui/comm.exe Comm\ v2.0
-	$Qcp -R gui/dlls/*  Comm\ v2.0
-	$Qrm -f Comm\ v2.0.zip
-	$Qzip -r Comm\ v2.0.zip Comm\ v2.0
-	$Qrm -r Comm\ v2.0
-
 fifo: libcomm
 	$Qmake ${MAKEFLAGS} -C $@
 
