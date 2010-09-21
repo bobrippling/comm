@@ -27,6 +27,8 @@
 #include "cfg.h"
 #include "restrict.h"
 
+#define LONELY_MSG       "CommServer: In cyberspace, no one can hear you on Comm"
+
 #define LOG_FILE         "svrcomm.log"
 #define CFG_FILE         "/.svrcommrc"
 #define LISTEN_BACKLOG   5
@@ -40,7 +42,7 @@
 		fwrite(msg"\n", sizeof *msg, strlen(msg) + 1, clients[i].file); \
 		/*    don't include the '\0', but the '\n' ^ */ \
 		if(verbose >= DEBUG_SEND) \
-			fprintf(stderr, CLIENT_FMT DEBUG_SEND_TEXT "\"%s\"\n", CLIENT_ARGS, DEBUG_SEND, msg); \
+			fprintf(stderr, CLIENT_FMT DEBUG_SEND_TEXT "\"%s\"\n", CLIENT_ARGS(idx), DEBUG_SEND, msg); \
 	}while(0)
 
 #define DEBUG_ERROR      0
@@ -50,13 +52,13 @@
 #define DEBUG_SEND       4
 #define DEBUG_MAX        DEBUG_SEND
 
-#define CLIENT_FMT  "client %d (socket %d)"
-#define CLIENT_ARGS idx, pollfds[idx].fd
+#define CLIENT_FMT       "client %d (socket %d)"
+#define CLIENT_ARGS(idx) idx, pollfds[idx].fd
 
-#define DEBUG(level, msg, ...) \
+#define DEBUG(idx, level, msg, ...) \
 	do{ \
 		if(verbose >= level){ \
-			printf(CLIENT_FMT " debug%d: " msg, CLIENT_ARGS, level, __VA_ARGS__); \
+			printf(CLIENT_FMT " debug%d: " msg, CLIENT_ARGS(idx), level, __VA_ARGS__); \
 			putchar('\n'); \
 		} \
 	}while(0)
@@ -132,7 +134,7 @@ int toclientf(int idx, const char *fmt, ...)
 	va_end(l);
 
 	if(verbose >= DEBUG_SEND){
-		fprintf(stderr, CLIENT_FMT DEBUG_SEND_TEXT, CLIENT_ARGS, DEBUG_SEND);
+		fprintf(stderr, CLIENT_FMT DEBUG_SEND_TEXT, CLIENT_ARGS(idx), DEBUG_SEND);
 		fputc('"', stderr);
 		va_start(l, fmt);
 		vfprintf(stderr, fmt, l);
@@ -192,21 +194,21 @@ char svr_conn(int idx)
 	clients[idx].state = ACCEPTING;
 	clients[idx].name  = NULL;
 	if(!(clients[idx].file  = fdopen(pollfds[idx].fd, "r+"))){
-		DEBUG(DEBUG_ERROR, "fdopen(): %s", strerror(errno));
+		DEBUG(idx, DEBUG_ERROR, "fdopen(): %s", strerror(errno));
 		return 0;
 	}
 
 	if(setvbuf(clients[idx].file, NULL, _IONBF, 0)){
-		DEBUG(DEBUG_ERROR, "setvbuf(): %s", strerror(errno));
+		DEBUG(idx, DEBUG_ERROR, "setvbuf(): %s", strerror(errno));
 		return 0;
 	}
 
-	DEBUG(DEBUG_CONN_DISCO, "connected from %s",
+	DEBUG(idx, DEBUG_CONN_DISCO, "connected from %s",
 			addrtostr((struct sockaddr *)&clients[idx].addr));
 
 	if(toclientf(idx, "Comm v" VERSION_STR " %s, uptime %s",
 				glob_desc, getuptime()) == 0){
-		DEBUG(DEBUG_ERROR, "fwrite(): %s", strerror(errno));
+		DEBUG(idx, DEBUG_ERROR, "fwrite(): %s", strerror(errno));
 		return 0;
 	}
 
@@ -217,7 +219,7 @@ void svr_hup(int idx)
 {
 	int i;
 
-	DEBUG(DEBUG_CONN_DISCO, "%s", "disconnected"); /* need at least one arg */
+	DEBUG(idx, DEBUG_CONN_DISCO, "%s", "disconnected"); /* need at least one arg */
 
 	if(clients[idx].state == ACCEPTED)
 		for(i = 0; i < nclients; i++)
@@ -259,7 +261,7 @@ void freeclient(int idx)
 
 void svr_err(int idx)
 {
-	DEBUG(DEBUG_ERROR, "client error %s", errno ? strerror(errno) : "unknown");
+	DEBUG(idx, DEBUG_ERROR, "client error %s", errno ? strerror(errno) : "unknown");
 	svr_hup(idx);
 }
 
@@ -283,7 +285,7 @@ char svr_recv(int idx)
 		/* not enough data */
 		return 0;
 
-	DEBUG(DEBUG_RECV, "recv(): \"%s\"", in);
+	DEBUG(idx, DEBUG_RECV, "recv(): \"%s\"", in);
 
 	if(clients[idx].state == ACCEPTING){
 		if(!strncmp(in, "NAME ", 5)){
@@ -292,14 +294,14 @@ char svr_recv(int idx)
 
 			if(len == 0){
 				TO_CLIENT(idx, "ERR need non-zero length name");
-				DEBUG(DEBUG_STATUS, "%s", "zero length name");
+				DEBUG(idx, DEBUG_STATUS, "%s", "zero length name");
 				svr_hup(idx);
 				return 1;
 			}
 
 			if(!validname(name)){
 				TO_CLIENT(idx, "ERR name contains invalid character(s)");
-				DEBUG(DEBUG_STATUS, "%s", "invalid character(s) in name\n");
+				DEBUG(idx, DEBUG_STATUS, "%s", "invalid character(s) in name\n");
 				svr_hup(idx);
 				return 1;
 			}
@@ -307,7 +309,7 @@ char svr_recv(int idx)
 			for(i = 0; i < nclients; i++)
 				if(i != idx && clients[i].state == ACCEPTED && !strcmp(clients[i].name, name)){
 					TO_CLIENT(idx, "ERR name in use");
-					DEBUG(DEBUG_STATUS, "name %s in use", name);
+					DEBUG(idx, DEBUG_STATUS, "name %s in use", name);
 					svr_hup(idx);
 					return 1;
 				}
@@ -317,7 +319,7 @@ char svr_recv(int idx)
 
 			clients[idx].state = ACCEPTED;
 
-			DEBUG(DEBUG_STATUS, "name accepted: %s", name);
+			DEBUG(idx, DEBUG_STATUS, "name accepted: %s", name);
 
 			TO_CLIENT(idx, "OK");
 			stats.accepted++;
@@ -328,7 +330,7 @@ char svr_recv(int idx)
 
 		}else{
 			TO_CLIENT(idx, "ERR need name");
-			DEBUG(DEBUG_STATUS, "%s", "name not given");
+			DEBUG(idx, DEBUG_STATUS, "%s", "name not given");
 			svr_hup(idx);
 			return 1;
 		}
@@ -345,6 +347,9 @@ char svr_recv(int idx)
 				if(clients[i].state == ACCEPTED)
 					/* send back to idx */
 					toclientf(i, "%s", in);
+
+			if(nclients == 1)
+				TO_CLIENT(idx, "MESSAGE " LONELY_MSG);
 
 		}else if(!strcmp(in, "CLIENT_LIST")){
 			int i;
@@ -421,7 +426,7 @@ char svr_recv(int idx)
 							if(j != i)
 								toclientf(j, "INFO %s was kicked", name);
 						TO_CLIENT(i, "INFO you have been kicked");
-						DEBUG(DEBUG_STATUS, "<- (%s) kicked %s",
+						DEBUG(idx, DEBUG_STATUS, "<- (%s) kicked %s",
 									clients[idx].name, name);
 						svr_hup(i);
 					}
@@ -440,11 +445,11 @@ char svr_recv(int idx)
 					TO_CLIENT(idx, "Need md5'd password");
 				else if(md5check(reqpass)){
 					TO_CLIENT(idx, "ERR incorrect root passphrase");
-					DEBUG(DEBUG_STATUS, "%s root logout", clients[idx].name);
+					DEBUG(idx, DEBUG_STATUS, "%s root logout", clients[idx].name);
 				}else{
 					clients[idx].isroot = 1;
 					TO_CLIENT(idx, "INFO root login successful");
-					DEBUG(DEBUG_STATUS, "root login: %s", clients[idx].name);
+					DEBUG(idx, DEBUG_STATUS, "root login: %s", clients[idx].name);
 				}
 			}
 
