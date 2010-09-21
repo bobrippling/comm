@@ -14,17 +14,28 @@ void addtext(const char *text)
 	GtkTextBuffer *buffa;
 	GtkTextView   *view;
 	GtkTextIter    iter;
+	GtkTextMark   *insert_mark;
 
 	buffa = gtk_text_view_get_buffer(view = GTK_TEXT_VIEW(txtMain));
 	if(!buffa)
 		return;
 
 	memset(&iter, '\0', sizeof iter);
-	gtk_text_buffer_get_iter_at_offset(buffa, &iter, -1 /* end */);
-	gtk_text_buffer_insert(            buffa, &iter, text, -1 /* nul-term */ );
+	gtk_text_buffer_get_end_iter(buffa, &iter);
+	gtk_text_buffer_insert(buffa, &iter, text, -1 /* nul-term */ );
 
+	/* again */
+	gtk_text_buffer_get_end_iter(buffa, &iter);
+
+	/* get the current (cursor) mark name */
+	insert_mark = gtk_text_buffer_get_insert(buffa);
+
+	/* move mark and selection bound to the end */
+	gtk_text_buffer_place_cursor(buffa, &iter);
+
+	gtk_text_view_scroll_to_mark(view, insert_mark,
+			0.0, TRUE, 0.0, 1.0);
 	/* ..., ..., margin, use_align, xalign, yalign */
-	gtk_text_view_scroll_to_iter(view, &iter, 0.0, FALSE, 0, 0);
 }
 
 void addtextl(const char *fmt, va_list l)
