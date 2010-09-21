@@ -637,6 +637,7 @@ int main(int argc, char **argv)
 {
 	int i, log = 0, gotpass = 0;
 
+	starttime = time(NULL);
 	strcpy(glob_port, DEFAULT_PORT);
 
 	if(setjmp(allocerr)){
@@ -897,7 +898,7 @@ usage:
 	                "SIGINT: status\n"
 	                "SIGUSR1: server reset\n"
 	                "SIGUSR2: verbosity level change\n"
-	                "SIGHUP: reload "CFG_FILE"\n"
+	                "SIGHUP: reload config\n"
 	                "SIG*: quit\n"
 	                , *argv);
 	return 1;
