@@ -79,7 +79,7 @@ static int comm_changename(comm_t *ct, const char *from, const char *to)
 
 	if(!strcmp(from, ct->name)){
 		/* we're renaming ourselves */
-		char *new = realloc(ct->name, strlen(from));
+		char *new = realloc(ct->name, strlen(to) + 1);
 		if(!new)
 			return 1;
 		strcpy(ct->name = new, to);
@@ -88,7 +88,7 @@ static int comm_changename(comm_t *ct, const char *from, const char *to)
 
 	for(l = ct->namelist; l; l = l->next)
 		if(!strcmp(l->name, from)){
-			char *new = realloc(l->name, strlen(to)+1);
+			char *new = realloc(l->name, strlen(to) + 1);
 			if(!new)
 				return 1;
 			strcpy(l->name = new, to);
