@@ -119,15 +119,15 @@ int recv_newline(char *in, int /*recv*/ret, int fd, int sleepms)
 		/* recv just up to the '\n' */
 		int len = newl - in + 1;
 
-		if(len > LINE_SIZE)
-			len = LINE_SIZE;
+		if(len > MAX_LINE_LEN)
+			len = MAX_LINE_LEN;
 
 		ret = recv(fd, in, len, 0);
 		*newl = '\0';
 	}else{
-		if(ret == LINE_SIZE){
-			fputs("comm error: running with data: LINE_SIZE exceeded\n", stderr);
-			recv(fd, in, LINE_SIZE, 0);
+		if(ret == MAX_LINE_LEN){
+			fputs("comm error: running with data: MAX_LINE_LEN exceeded\n", stderr);
+			recv(fd, in, MAX_LINE_LEN, 0);
 		}else{
 			/* need more data */
 #if DEBUG
