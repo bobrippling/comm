@@ -1,75 +1,102 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <alloca.h>
 #include <string.h>
 #include <errno.h>
+
+#ifdef _WIN32
+/* alloca bs */
+# include <malloc.h>
+#else
+# include <alloca.h>
+#endif
 
 #include "../config.h"
 
 #include "cfg.h"
 
-#define CFG_NAME "/.commrc"
+#ifdef _WIN32
+# define CFG_NAME "comm.cfg"
+#else
+# define CFG_NAME "/.commrc"
+#endif
+
+static const char *config_path(void);
 
 /* TODO: name, etc... in one place */
 static char name[MAX_NAME_LEN];
 static char port[MAX_PORT_LEN];
 static char lasthost[MAX_LINE_LEN];
 
+#ifndef _WIN32
 static int write = 0;
+#endif
 
-/* TODO: config_write() */
+static const char *config_path()
+{
+#ifdef _WIN32
+	return CFG_NAME;
+#else
+	static char path[1024];
+	char *home;
+
+	home = getenv("HOME");
+	if(!home){
+		fputs("couldn't get $HOME\n", stderr);
+		return NULL;
+	}
+	strncpy(path, home,     sizeof path);
+	strncat(path, CFG_NAME, sizeof path);
+
+	return path;
+#endif
+}
 
 int config_read()
 {
-#ifndef _WIN32
-	char *home = getenv("HOME");
+	const char *fname = config_path();
+	FILE *f;
 
 	*name = *port = '\0';
 
-	if(home){
-		char *fname = alloca(strlen(home) + strlen(CFG_NAME) + 1);
-		FILE *f;
+	f = fopen(fname, "r");
 
-		strcpy(fname, home);
-		strcat(fname, CFG_NAME);
+	if(f){
+		char line[MAX_NAME_LEN + 8];
+		int n = 1;
 
-		f = fopen(fname, "r");
+#ifndef _WIN32
+		write = 1;
+#endif
 
-		if(f){
-			char line[MAX_NAME_LEN + 8];
-			int n = 1;
+		while(fgets(line, sizeof line, f)){
+			char *p = strchr(line, '#');
+			if(p)
+				*p = '\0';
+			p = strchr(line, '\n');
+			if(p)
+				*p = '\0';
+			if(!*line)
+				continue;
 
-			write = 1;
-
-			while(fgets(line, sizeof line, f)){
-				char *p = strchr(line, '#');
-				if(p)
-					*p = '\0';
-				p = strchr(line, '\n');
-				if(p)
-					*p = '\0';
-				if(!*line)
-					continue;
-
-				if(!strncmp(line, "NAME ", 5))
-					strncpy(name, line + 5, sizeof name);
-				else if(!strncmp(line, "PORT ", 5))
-					strncpy(port, line + 5, sizeof port);
-				else if(!strncmp(line, "LASTHOST ", 9))
-					strncpy(lasthost, line + 9, sizeof lasthost);
-				else{
-					fprintf(stderr, "Invalid config line: %d\n", n);
-					goto bail;
-				}
-				n++;
-			}
-
-			if(ferror(f))
-				perror("fgets()");
+			if(!strncmp(line, "NAME ", 5))
+				strncpy(name, line + 5, sizeof name);
+			else if(!strncmp(line, "PORT ", 5))
+				strncpy(port, line + 5, sizeof port);
+			else if(!strncmp(line, "LASTHOST ", 9))
+				strncpy(lasthost, line + 9, sizeof lasthost);
 			else{
-				fclose(f);
-				return 0;
+				fprintf(stderr, "Invalid config line: %d\n", n);
+				goto bail;
 			}
+			n++;
+		}
+
+		if(ferror(f))
+			perror("fgets()");
+		else{
+			fclose(f);
+			return 0;
+		}
 
 bail:
 			fclose(f);
@@ -77,39 +104,32 @@ bail:
 			return 0;
 		else
 			perror(CFG_NAME);
-
-	}else{
-		fputs("couldn't get $HOME\n", stderr);
-	}
-#else
-	TODO
-#endif
 	return 1;
 }
 
 int config_write()
 {
-	char *home = getenv("HOME");
+	const char *fname = config_path();
+	FILE *f;
 
-	if(home){
-		char *fname = alloca(strlen(home) + strlen(CFG_NAME) + 1);
-		FILE *f;
+#ifndef _WIN32
+	if(!write){
+		puts("not writing new config");
+		return 0;
+	}
+#endif
 
-		strcpy(fname, home);
-		strcat(fname, CFG_NAME);
-
-		f = fopen(fname, "w");
-		if(f){
+	f = fopen(fname, "w");
+	if(f){
 #define OUT(cfg, s) \
-			if(*s) fprintf(f, cfg " %s\n", s)
+		if(*s) fprintf(f, cfg " %s\n", s)
 
-			OUT("NAME",     name);
-			OUT("PORT",     port);
-			OUT("LASTHOST", lasthost);
+		OUT("NAME",     name);
+		OUT("PORT",     port);
+		OUT("LASTHOST", lasthost);
 
-			fclose(f);
-			return 0;
-		}
+		fclose(f);
+		return 0;
 	}
 	return 1;
 }
