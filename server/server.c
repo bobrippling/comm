@@ -23,7 +23,6 @@
 #include "../common/socketwrapper.h"
 #include "../common/util.h"
 
-#include "md5.h"
 #include "cfg.h"
 #include "restrict.h"
 
@@ -63,8 +62,6 @@
 		} \
 	}while(0)
 
-
-#define MD5_LEN 32
 
 static struct client
 {
@@ -442,8 +439,8 @@ char svr_recv(int idx)
 				char *reqpass = in + 3;
 
 				if(!*reqpass)
-					TO_CLIENT(idx, "Need md5'd password");
-				else if(md5check(reqpass)){
+					TO_CLIENT(idx, "Need password");
+				else if(strcmp(reqpass, glob_pass)){
 					TO_CLIENT(idx, "ERR incorrect root passphrase");
 					DEBUG(idx, DEBUG_STATUS, "%s root logout", clients[idx].name);
 				}else{
@@ -640,8 +637,6 @@ int main(int argc, char **argv)
 {
 	int i, log = 0, gotpass = 0;
 
-	srand(getpid() + geteuid() + (starttime = time(NULL))); /* 'root' password/md5 business */
-
 	strcpy(glob_port, DEFAULT_PORT);
 
 	if(setjmp(allocerr)){
@@ -678,8 +673,7 @@ int main(int argc, char **argv)
 		}else if(!strncmp(argv[i], "-P", 2)){
 			if(++i < argc){
 				gotpass = 1;
-				if(md5(argv[i]))
-					return 1;
+				strncpy(glob_pass, argv[i], sizeof glob_pass);
 				memset(argv[i], '*', strlen(argv[i])); /* too late, but eh... */
 			}else{
 				fputs("need pass\n", stderr);
@@ -898,6 +892,13 @@ usage:
 	                "2: Show status changes\n"
 	                "3: Show recv() data\n"
 	                "4: Show send() data\n"
+	                "\n"
+	                "Signals:\n"
+	                "SIGINT: status\n"
+	                "SIGUSR1: server reset\n"
+	                "SIGUSR2: verbosity level change\n"
+	                "SIGHUP: reload "CFG_FILE"\n"
+	                "SIG*: quit\n"
 	                , *argv);
 	return 1;
 }

@@ -3,7 +3,6 @@
 #include <string.h>
 
 #include "cfg.h"
-#include "md5.h"
 #include "restrict.h"
 #include "../config.h"
 
@@ -49,8 +48,7 @@ int cfg_read(FILE *f)
 			strncpy(glob_port, line+5, MAX_PORT_LEN);
 
 		}else if(!strncmp(line, "PASS ", 5)){
-			if(md5(line+5))
-				return 1;
+			strncpy(glob_pass, line+5, MAX_PASS_LEN);
 
 		}else if(!strncmp(line, "DESC ", 5)){
 			strncpy(glob_desc, line+5, MAX_DESC_LEN);
