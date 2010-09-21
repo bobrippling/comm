@@ -4,10 +4,17 @@ Functionality:
 gtk:
 	http://gtkforums.com/viewtopic.php?t=988 (tutorial)
 	su + kick functionality
+	links appear as links
+	windows:
+		incorrect scroll on multiple-lines
+		unknown publisher - run don't run UAC
+		separate window for connect-host
 
 icon:
 	http://duckduckgo.com/?q=windows+c+compile+program+icon+resource
 	http://forums.codeblocks.org/index.php?topic=11128.0;wap2
+	windows:
+		manifest (commctl)
 
 protocol:
 	colour
