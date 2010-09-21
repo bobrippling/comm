@@ -10,6 +10,9 @@ gtk:
 		unknown publisher - run don't run UAC
 		separate window for connect-host
 
+log:
+	add conn/disco and renames
+
 icon:
 	http://duckduckgo.com/?q=windows+c+compile+program+icon+resource
 	http://forums.codeblocks.org/index.php?topic=11128.0;wap2
