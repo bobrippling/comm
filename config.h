@@ -12,7 +12,7 @@
 #define MAX_LINE_LEN     2048
 
 #define DEFAULT_PORT     "2848"
-#define RENAME_SEPARATOR 0x1d /* ^] aka ``group separator'' */
+#define GROUP_SEPARATOR  0x1d /* ^] aka ``group separator'' */
 
 #define LIBCOMM_RECV_TIMEOUT 100
 

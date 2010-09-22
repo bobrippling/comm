@@ -44,8 +44,11 @@
 #include "../common/socketwrapper.h"
 #include "../config.h"
 
-static int comm_addname(    comm_t *ct, const char *name);
-static int comm_changename( comm_t *ct, const char *from, const char *to);
+static struct list *comm_findname(comm_t *ct, const char *name);
+
+static int  comm_addname(   comm_t *ct, const char *name);
+static int  comm_changename(comm_t *ct, const char *from, const char *to);
+static int  comm_setcolour( comm_t *ct, const char *name, const char *col);
 static void comm_removename(comm_t *ct, const char *name);
 static void comm_freenames( comm_t *ct);
 
@@ -68,9 +71,18 @@ static int comm_addname(comm_t *ct, const char *name)
 
 	strcpy(dup, name);
 	l->name = dup;
-	l->next = ct->namelist;
-	ct->namelist = l;
+	l->next = ct->clientlist;
+	ct->clientlist = l;
 	return 0;
+}
+
+static struct list *comm_findname(comm_t *ct, const char *name)
+{
+	struct list *l;
+	for(l = ct->clientlist; l; l = l->next)
+		if(!strcmp(l->name, name))
+			return l;
+	return NULL;
 }
 
 static int comm_changename(comm_t *ct, const char *from, const char *to)
@@ -86,16 +98,29 @@ static int comm_changename(comm_t *ct, const char *from, const char *to)
 		return 0;
 	}
 
-	for(l = ct->namelist; l; l = l->next)
-		if(!strcmp(l->name, from)){
-			char *new = realloc(l->name, strlen(to) + 1);
-			if(!new)
-				return 1;
-			strcpy(l->name = new, to);
-			return 0;
-		}
+	l = comm_findname(ct, from);
+	if(l){
+		char *new = realloc(l->name, strlen(to) + 1);
+		if(!new)
+			return 1;
+		strcpy(l->name = new, to);
+		return 0;
+	}
 
 	WARN("Rename from %s to %s - not found in local list", from, to);
+	return 0;
+}
+
+static int comm_setcolour(comm_t *ct, const char *name, const char *col)
+{
+	struct list *l = comm_findname(ct, name);
+	if(l){
+		char *new = realloc(l->col, strlen(col)+1);
+		if(!new)
+			return 1;
+		strcpy(l->col = new, col);
+	}else
+		WARN("Set colour for %s (to %s) - not found in list", name, col);
 	return 0;
 }
 
@@ -103,26 +128,26 @@ static void comm_removename(comm_t *ct, const char *name)
 {
 	struct list *l, *prev = NULL;
 
-	for(l = ct->namelist; l; prev = l, l = l->next)
+	for(l = ct->clientlist; l; prev = l, l = l->next)
 		if(!strcmp(l->name, name)){
 			free(l->name);
 			if(prev)
 				prev->next = l->next;
 			else
-				ct->namelist = l->next;
+				ct->clientlist = l->next;
 			free(l);
 			return;
 		}
 
-	WARN("Couldn't remove %s from namelist: not found", name);
+	WARN("Couldn't remove %s from clientlist: not found", name);
 }
 
 static void comm_freenames(comm_t *ct)
 {
 	struct list *l, *m;
 
-	for(l = ct->namelist; l; m = l, l = l->next, free(m->name), free(m));
-	ct->namelist = NULL;
+	for(l = ct->clientlist; l; m = l, l = l->next, free(m->name), free(m));
+	ct->clientlist = NULL;
 }
 
 /* expects a nul-terminated single line, with _no_ \n at the end */
@@ -153,29 +178,10 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 			if(!strncmp(buffer, "MESSAGE ", 8))
 				callback(COMM_MSG, "%s", buffer + 8);
 
-			else if(!strncmp(buffer, "INFO ", 5))
-				callback(COMM_SERVER_INFO, "%s", buffer + 5);
-
-			else if(!strncmp(buffer, "CLIENT_DISCO ", 13)){
-				callback(COMM_CLIENT_DISCO, "%s", buffer + 13);
-				comm_removename(ct, buffer+13);
-				callback(COMM_CLIENT_LIST, NULL);
-
-			}else if(!strncmp(buffer, "CLIENT_CONN ", 12)){
-				callback(COMM_CLIENT_CONN, "%s", buffer + 12);
-				if(comm_addname(ct, buffer+12)){
-					int save = errno;
-					comm_close(ct);
-					errno = save;
-					callback(COMM_CLOSED, NULL);
-					return 1;
-				}
-				callback(COMM_CLIENT_LIST, NULL);
-
-			}else if(!strncmp(buffer, "RENAME ", 7)){
+			else if(!strncmp(buffer, "RENAME ", 7)){
 				char *from, *to, *sep;
 
-				sep = strchr(buffer + 7, RENAME_SEPARATOR);
+				sep = strchr(buffer + 7, GROUP_SEPARATOR);
 				if(sep){
 					*sep = '\0';
 					from = buffer + 7;
@@ -213,6 +219,36 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 				}else
 					/* shouldn't get them out-of-_START-_END */
 					UNKNOWN_MESSAGE(buffer);
+
+			}else if(!strncmp(buffer, "INFO ", 5))
+				callback(COMM_SERVER_INFO, "%s", buffer + 5);
+
+			else if(!strncmp(buffer, "COLOUR ", 7)){
+				char *sep = strchr(buffer, GROUP_SEPARATOR);
+
+				if(sep){
+					char *const name = buffer+7, *col = sep+1;
+					*sep = '\0';
+
+					comm_setcolour(ct, name, col);
+				}else
+					UNKNOWN_MESSAGE(buffer);
+
+			}else if(!strncmp(buffer, "CLIENT_DISCO ", 13)){
+				callback(COMM_CLIENT_DISCO, "%s", buffer + 13);
+				comm_removename(ct, buffer+13);
+				callback(COMM_CLIENT_LIST, NULL);
+
+			}else if(!strncmp(buffer, "CLIENT_CONN ", 12)){
+				callback(COMM_CLIENT_CONN, "%s", buffer + 12);
+				if(comm_addname(ct, buffer+12)){
+					int save = errno;
+					comm_close(ct);
+					errno = save;
+					callback(COMM_CLOSED, NULL);
+					return 1;
+				}
+				callback(COMM_CLIENT_LIST, NULL);
 
 			}else
 				UNKNOWN_MESSAGE(buffer);
@@ -292,7 +328,7 @@ int comm_nclients(comm_t *ct)
 {
 	struct list *l;
 	int i;
-	for(i = 0, l = ct->namelist; l; l = l->next, i++);
+	for(i = 0, l = ct->clientlist; l; l = l->next, i++);
 	return i; /* self excluded */
 }
 
@@ -391,6 +427,8 @@ COMM_SIMPLE(comm_rename, "RENAME")
 COMM_SIMPLE(comm_su,     "SU"    )
 COMM_SIMPLE(comm_kick,   "KICK"  )
 
+#undef COMM_SIMPLE
+
 const char *comm_getname(comm_t *ct)
 {
 	return ct->name;
@@ -398,10 +436,16 @@ const char *comm_getname(comm_t *ct)
 
 struct list *comm_clientlist(comm_t *ct)
 {
-	return ct->namelist;
+	return ct->clientlist;
 }
 
-#undef COMM_SIMPLE
+const char *comm_getcolour(comm_t *ct, const char *name)
+{
+	struct list *l = comm_findname(ct, name);
+	if(!l)
+		return NULL;
+	return l->col;
+}
 
 int comm_sendmessage(comm_t *ct, const char *msg)
 {

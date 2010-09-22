@@ -22,6 +22,11 @@
 #define TIMEOUT    250
 #define UNUSED(n) do (void)(n); while(0)
 
+/* On the TODO */
+#define COLOUR_INFO "green"
+#define COLOUR_ERR  "red"
+#define COLOUR_MSG  "blue"
+
 /* prototypes */
 static int  getobjects(GtkBuilder *);
 static void updatewidgets(void);
@@ -96,9 +101,9 @@ G_MODULE_EXPORT gboolean on_btnConnect_clicked(GtkButton *button, gpointer data)
 
 	if(!*name || !*hostdup){
 		if(!*name)
-			addtext("need name\n");
+			addtext(COLOUR_ERR, "Need name\n");
 		else
-			addtext("need host\n");
+			addtext(COLOUR_ERR, "Need host\n");
 		return FALSE;
 	}
 
@@ -106,9 +111,9 @@ G_MODULE_EXPORT gboolean on_btnConnect_clicked(GtkButton *button, gpointer data)
 		*port++ = '\0';
 
 	if(comm_connect(&commt, hostdup, port, name))
-		addtextf("Couldn't connect to %s: %s\n", hostdup, comm_lasterr(&commt));
+		addtextf(COLOUR_ERR, "Couldn't connect to %s: %s\n", hostdup, comm_lasterr(&commt));
 	else
-		addtextf("Connected to %s\n", hostdup);
+		addtextf(COLOUR_INFO, "Connected to %s\n", hostdup);
 	updatewidgets();
 	return FALSE;
 }
@@ -121,15 +126,15 @@ G_MODULE_EXPORT gboolean on_btnSend_clicked(GtkButton *button, gpointer data)
 	if(comm_state(&commt) == COMM_ACCEPTED){
 		const char *txt = gtk_entry_get_text(GTK_ENTRY(entryIn));
 		if(!*txt){
-			addtext("need text!\n");
+			addtext(COLOUR_ERR, "Need text!\n");
 			return FALSE;
 		}
 
-		if(comm_sendmessage(&commt, txt))
-			addtextf("error sending message: %s\n", comm_lasterr(&commt));
+		if(comm_sendmessage(&commt, txt) <= 0)
+			addtextf(COLOUR_ERR, "Error sending message: %s\n", comm_lasterr(&commt));
 		gtk_entry_set_text(GTK_ENTRY(entryIn), "");
 	}else
-		addtext("not connected!\n");
+		addtext(COLOUR_ERR, "Not connected!\n");
 	updatewidgets();
 
 	return FALSE;
@@ -160,10 +165,10 @@ G_MODULE_EXPORT gboolean on_entryName_focus_out_event(GtkEntry *ent, gpointer da
 		const char *newname = gtk_entry_get_text(GTK_ENTRY(entryName));
 
 		if(!*newname)
-			addtext("need name\n");
+			addtext(COLOUR_ERR, "Need name\n");
 		else if(strcmp(newname, comm_getname(&commt))){
 			comm_rename(&commt, newname);
-			addtextf("Attempting rename to \"%s\"...\n", newname);
+			addtextf(COLOUR_INFO, "Attempting rename to \"%s\"...\n", newname);
 		}else
 			return FALSE; /* names are the same, just lost focus */
 
@@ -185,12 +190,12 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 
 #define TYPE(e, s) case e: type_str = s; break
 	switch(type){
-		TYPE(COMM_INFO, "info");
-		TYPE(COMM_SERVER_INFO, "server info");
-		TYPE(COMM_ERR,  "err");
-		TYPE(COMM_RENAME,  "rename");
-		TYPE(COMM_CLIENT_CONN,  "client_conn");
-		TYPE(COMM_CLIENT_DISCO, "client_disco");
+		TYPE(COMM_INFO, "Info");
+		TYPE(COMM_SERVER_INFO, "Server Info");
+		TYPE(COMM_ERR,  "Error");
+		TYPE(COMM_RENAME,  "Rename");
+		TYPE(COMM_CLIENT_CONN,  "Client Comm");
+		TYPE(COMM_CLIENT_DISCO, "Client Disco");
 
 		case COMM_CLIENT_LIST:
 		{
@@ -204,7 +209,7 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 		case COMM_SELF_RENAME:
 			gtk_entry_set_text(GTK_ENTRY(entryName),
 					comm_getname(&commt));
-			addtextf("Renamed to %s\n", comm_getname(&commt));
+			addtextf(COLOUR_INFO, "Renamed to %s\n", comm_getname(&commt));
 			return;
 
 		case COMM_CLOSED:
@@ -226,7 +231,10 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 	else
 		insertme = g_strconcat(insertmel, "\n", NULL);
 
-	addtext(insertme);
+	{
+		const char *col = comm_getcolour(
+
+	addtext(COLOUR_MSG, insertme);
 
 	if(type == COMM_MSG)
 		log_add(insertmel);
@@ -258,7 +266,7 @@ G_MODULE_EXPORT gboolean timeout(gpointer data)
 
 	if(comm_state(&commt) != COMM_DISCONNECTED){
 		if(comm_recv(&commt, &commcallback)){
-			addtextf("disconnected: %s\n", comm_lasterr(&commt));
+			addtextf(COLOUR_INFO, "Disconnected: %s\n", comm_lasterr(&commt));
 			comm_close(&commt);
 		}
 		updatewidgets();

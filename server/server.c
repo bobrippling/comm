@@ -26,12 +26,12 @@
 #include "cfg.h"
 #include "restrict.h"
 
-#define LONELY_MSG       "CommServer: In cyberspace, no one can hear you on Comm"
+#define LONELY_MSG       "CommServer: In cyberspace, no one can hear you Comm"
 
 #define LOG_FILE         "svrcomm.log"
 #define CFG_FILE         "/.svrcommrc"
 #define LISTEN_BACKLOG   5
-#define POLL_SLEEP_MS    350
+#define POLL_SLEEP_MS    750
 #define RECV_SLEEP_MS    100
 
 #define DEBUG_SEND_TEXT " debug%d: send(): "
@@ -68,6 +68,7 @@ static struct client
 	struct sockaddr_in addr;
 	FILE *file;
 	char *name;
+	char *colour;
 	int isroot;
 
 	enum
@@ -172,6 +173,23 @@ int validname(const char *n)
 	return 1;
 }
 
+char *trim(char *s)
+{
+	char *last;
+
+	while(isspace(*s))
+		s++;
+
+	last = s;
+	while(*last)
+		last++;
+	last--;
+	while(isspace(*last) && last > s)
+		*last-- = '\0';
+
+	return s;
+}
+
 void cleanup()
 {
 	int i;
@@ -189,7 +207,8 @@ void cleanup()
 char svr_conn(int idx)
 {
 	clients[idx].state = ACCEPTING;
-	clients[idx].name  = NULL;
+	clients[idx].name = clients[idx].colour = NULL;
+
 	if(!(clients[idx].file  = fdopen(pollfds[idx].fd, "r+"))){
 		DEBUG(idx, DEBUG_ERROR, "fdopen(): %s", strerror(errno));
 		return 0;
@@ -357,17 +376,7 @@ char svr_recv(int idx)
 			TO_CLIENT(idx, "CLIENT_LIST_END");
 
 		}else if(!strncmp(in, "RENAME ", 7)){
-			char *name = in + 7, *last;
-
-			while(isspace(*name))
-				name++;
-
-			last = name;
-			while(*last)
-				last++;
-			last--;
-			while(isspace(*last) && last > name)
-				*last-- = '\0';
+			char *name = trim(in + 7);
 
 			if(!*name || strlen(name) > MAX_NAME_LEN)
 				TO_CLIENT(idx, "ERR need name/name too long");
@@ -395,12 +404,32 @@ char svr_recv(int idx)
 							longjmp(allocerr, 1);
 						strcpy(clients[idx].name = new, name);
 						for(i = 0; i < nclients; i++)
-							/* send back to idx too, to confirm */
-							toclientf(i, "RENAME %s%c%s", oldname, RENAME_SEPARATOR ,new);
+							if(clients[i].state == ACCEPTED)
+								/* send back to idx too, to confirm */
+								toclientf(i, "RENAME %s%c%s", oldname, GROUP_SEPARATOR, new);
 					}else
 						TO_CLIENT(idx, "ERR name already taken");
 				}
 			}
+		}else if(!strncmp(in, "COLOUR ", 7)){
+			char *col = trim(in + 7);
+
+			if(!*col)
+				TO_CLIENT(idx, "ERR need colour");
+			else{
+				char *new = realloc(clients[idx].colour, strlen(col)+1);
+				int i;
+
+				if(!new)
+					longjmp(allocerr, 1);
+
+				strcpy(clients[idx].colour = new, col);
+				for(i = 0; i < nclients; i++)
+					if(i != idx && clients[i].state == ACCEPTED)
+						toclientf(i, "COLOUR %s%c%s",
+								clients[idx].name, GROUP_SEPARATOR, clients[idx].colour);
+			}
+
 		}else if(!strncmp(in, "KICK ", 5)){
 			if(clients[idx].isroot){
 				char *name = in + 5;
@@ -410,7 +439,8 @@ char svr_recv(int idx)
 					TO_CLIENT(idx, "ERR need name to kick");
 				else{
 					for(i = 0; i < nclients; i++)
-						if(!strcmp(clients[i].name, name)){
+						if(clients[i].state == ACCEPTED &&
+								!strcmp(clients[i].name, name)){
 							found = 1;
 							break;
 						}

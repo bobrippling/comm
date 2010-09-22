@@ -9,6 +9,7 @@ gtk:
 		incorrect scroll on multiple-lines
 		unknown publisher - run don't run UAC
 		separate window for connect-host
+	memleaks
 
 log:
 	add conn/disco and renames

@@ -15,9 +15,9 @@ typedef struct
 
 	struct list
 	{
-		char *name;
+		char *name, *col;
 		struct list *next;
-	} *namelist;
+	} *clientlist;
 	int listing;
 
 	int sock;
@@ -69,9 +69,11 @@ int comm_rels(comm_t *);
 void comm_close(comm_t *);
 
 enum commstate comm_state(comm_t *);
-struct list   *comm_clientlist(comm_t *);
 const char    *comm_lasterr(comm_t *);
-const char    *comm_getname(comm_t *);
 int            comm_nclients(comm_t *);
+
+struct list   *comm_clientlist(comm_t *);
+const char    *comm_getname(   comm_t *);
+const char    *comm_getcolour( comm_t *, const char *name);
 
 #endif

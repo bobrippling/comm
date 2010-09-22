@@ -7,6 +7,9 @@ Protocol
 
 See poorman\'s\ tcomm.sh for a netcat example
 
+Seperators in messages are the character 0x1d
+"group seperator" aka ^]
+
 
 Message Types
 -------------
@@ -16,6 +19,9 @@ Client -> Server:
 		client name - login request with name %s
 	MESSAGE %s
 		client sends a message to all
+	COLOUR %s
+		client sets its message colour
+		this message is not sent back to a client
 	CLIENT_LIST
 		server replies like so:
 			CLIENT_LIST_START
@@ -45,11 +51,12 @@ Server -> Client:
 		see (client->server)::CLIENT_LIST
 	MESSAGE %s
 		message from server to all
+	COLOUR %s^]%s
+		client %s[0] sets its message colour to %s[1]
 	INFO %s
 		server informational message
 	RENAME %s^]%s
 		client %s[0] renamed to %s[1]
-			names separated by character 0x1d
 
 
 
