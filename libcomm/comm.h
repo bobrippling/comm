@@ -58,7 +58,8 @@ void comm_init(comm_t *);
 int comm_connect(comm_t *, const char *host,
 		const char *port, const char *name);
 
-int comm_sendmessage(comm_t *, const char *msg, ...);
+int comm_sendmessagef(comm_t *, const char *msg, ...);
+int comm_sendmessage( comm_t *, const char *msg);
 int comm_rename(comm_t *, const char *);
 int comm_recv(comm_t *, comm_callback);
 int comm_kick(comm_t *, const char *name);

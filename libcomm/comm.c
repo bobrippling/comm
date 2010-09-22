@@ -403,7 +403,16 @@ struct list *comm_clientlist(comm_t *ct)
 
 #undef COMM_SIMPLE
 
-int comm_sendmessage(comm_t *ct, const char *msg, ...)
+int comm_sendmessage(comm_t *ct, const char *msg)
+{
+#ifdef _WIN32
+	return sockprintf(ct->sock, "MESSAGE %s: %s\n", ct->name, msg);
+#else
+	return fprintf(  ct->sockf, "MESSAGE %s: %s\n", ct->name, msg);
+#endif
+}
+
+int comm_sendmessagef(comm_t *ct, const char *msg, ...)
 {
 	va_list l;
 	int ret;
