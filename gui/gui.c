@@ -17,15 +17,17 @@
 #include "../log/log.h"
 #include "../cfg/cfg.h"
 #include "../libcomm/comm.h"
+#include "../config.h"
 
 #define WIN_MAIN   "winMain"
 #define TIMEOUT    250
 #define UNUSED(n) do (void)(n); while(0)
 
 /* On the TODO */
-#define COLOUR_INFO "green"
-#define COLOUR_ERR  "red"
-#define COLOUR_MSG  "blue"
+#define COLOUR_UNKNOWN "#000000"
+#define COLOUR_ERR     "#FF0000"
+#define COLOUR_INFO    "#00DD00"
+#define COLOUR_MSG     "#0000FF"
 
 /* prototypes */
 static int  getobjects(GtkBuilder *);
@@ -111,7 +113,8 @@ G_MODULE_EXPORT gboolean on_btnConnect_clicked(GtkButton *button, gpointer data)
 		*port++ = '\0';
 
 	if(comm_connect(&commt, hostdup, port, name))
-		addtextf(COLOUR_ERR, "Couldn't connect to %s: %s\n", hostdup, comm_lasterr(&commt));
+		addtextf(COLOUR_ERR, "Couldn't connect to %s:%s: %s\n",
+				hostdup, port ? port : DEFAULT_PORT, comm_lasterr(&commt));
 	else
 		addtextf(COLOUR_INFO, "Connected to %s\n", hostdup);
 	updatewidgets();
@@ -184,18 +187,18 @@ G_MODULE_EXPORT gboolean on_entryName_focus_out_event(GtkEntry *ent, gpointer da
 
 static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 {
-	const char *type_str = NULL;
+	const char *type_str = NULL, *col = NULL;
 	char *insertme, *insertmel;
 	va_list l;
 
-#define TYPE(e, s) case e: type_str = s; break
+#define TYPE(e, s, c) case e: type_str = s; col = c; break
 	switch(type){
-		TYPE(COMM_INFO, "Info");
-		TYPE(COMM_SERVER_INFO, "Server Info");
-		TYPE(COMM_ERR,  "Error");
-		TYPE(COMM_RENAME,  "Rename");
-		TYPE(COMM_CLIENT_CONN,  "Client Comm");
-		TYPE(COMM_CLIENT_DISCO, "Client Disco");
+		TYPE(COMM_INFO,         "Info",         COLOUR_INFO);
+		TYPE(COMM_SERVER_INFO,  "Server Info",  COLOUR_INFO);
+		TYPE(COMM_RENAME,       "Rename",       COLOUR_INFO);
+		TYPE(COMM_CLIENT_CONN,  "Client Comm",  COLOUR_INFO);
+		TYPE(COMM_CLIENT_DISCO, "Client Disco", COLOUR_INFO);
+		TYPE(COMM_ERR,          "Error",        COLOUR_ERR);
 
 		case COMM_CLIENT_LIST:
 		{
@@ -231,10 +234,19 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 	else
 		insertme = g_strconcat(insertmel, "\n", NULL);
 
-	{
-		const char *col = comm_getcolour(
-
-	addtext(COLOUR_MSG, insertme);
+	if(type == COMM_MSG){
+		char *colon = strchr(insertmel, ':');
+		if(colon){
+			*colon = '\0';
+			if(!(col = comm_getcolour(&commt, insertmel)))
+				/* NULL if they have no colour set */
+				col = COLOUR_MSG;
+			*colon = ':';
+		}
+	}
+	if(!col)
+		col = COLOUR_UNKNOWN;
+	addtext(col, insertme);
 
 	if(type == COMM_MSG)
 		log_add(insertmel);

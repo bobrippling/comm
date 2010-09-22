@@ -5,7 +5,6 @@
 #include "gtkutil.h"
 
 #define WARN(s) fprintf(stderr, __FILE__ ":%d:" s, __LINE__)
-#define DEBUG 1
 
 static void addtag(const char *name, const char *col);
 static int havetag(GtkTextBuffer *buffa, const char *name);
@@ -23,10 +22,6 @@ static void addtag(const char *name, const char *col)
 		WARN("!buffa");
 		return;
 	}
-
-#if DEBUG
-	fprintf(stderr, "addtag(%s, %s)\n", name, col);
-#endif
 
 	gtk_text_buffer_create_tag(buffa, name,
 		"foreground", col, NULL);

@@ -60,17 +60,19 @@ static void comm_setlasterr_WSA(comm_t *);
 
 static int comm_addname(comm_t *ct, const char *name)
 {
-	char *dup = malloc(strlen(name)+1);
 	struct list *l = malloc(sizeof(*l));
 
-	if(!dup || !l){
-		free(dup);
+	if(!l || !(l->name = malloc(strlen(name)+1))){
+		if(l)
+			free(l->name);
 		free(l);
 		return 1;
 	}
 
-	strcpy(dup, name);
-	l->name = dup;
+	memset(l, '\0', sizeof *l);
+
+	strcpy(l->name, name);
+
 	l->next = ct->clientlist;
 	ct->clientlist = l;
 	return 0;
@@ -146,7 +148,14 @@ static void comm_freenames(comm_t *ct)
 {
 	struct list *l, *m;
 
-	for(l = ct->clientlist; l; m = l, l = l->next, free(m->name), free(m));
+	l = ct->clientlist;
+	while(l){
+		m = l;
+		l = l->next;
+		free(m->name);
+		free(m->col);
+		free(m);
+	}
 	ct->clientlist = NULL;
 }
 
@@ -302,13 +311,11 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 #ifdef _WIN32
 static void comm_setlasterr_WSA(comm_t *ct)
 {
-#define BSIZ 256
-	static char buffer[BSIZ];
+	static char buffer[256];
 	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
-			NULL, WSAGetLastError(), 0 /* lang */, buffer, BSIZ, NULL);
+			NULL, WSAGetLastError(), 0 /* lang */, buffer, sizeof buffer, NULL);
 
   ct->lasterr = buffer;
-#undef BSIZ
 }
 #endif
 
@@ -449,11 +456,7 @@ const char *comm_getcolour(comm_t *ct, const char *name)
 
 int comm_sendmessage(comm_t *ct, const char *msg)
 {
-#ifdef _WIN32
-	return sockprintf(ct->sock, "MESSAGE %s: %s\n", ct->name, msg);
-#else
-	return fprintf(  ct->sockf, "MESSAGE %s: %s\n", ct->name, msg);
-#endif
+	return TO_SERVER_F("MESSAGE %s: %s", ct->name, msg);
 }
 
 int comm_sendmessagef(comm_t *ct, const char *msg, ...)

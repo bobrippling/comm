@@ -21,7 +21,6 @@ icon:
 		manifest (commctl)
 
 protocol:
-	colour
 	file transfer
 	drawing
 	"Tim is typing"
