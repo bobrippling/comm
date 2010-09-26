@@ -24,6 +24,7 @@ protocol:
 	file transfer
 	drawing
 	"Tim is typing"
+	privmsg
 
 server:
 	dump last 5 lines of chat when a new client connects
