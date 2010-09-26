@@ -9,12 +9,14 @@ guicomm: ${GUI_DEPS}
 	$Qecho LD $@
 	$Q${CC} ${LDFLAGS} -o $@ $^
 
-gladegen.c: gladegen_pre.c comm.glade gladegen_post.c
+gladegen.c: gladegen_pre.c \
+		glade/comm.glade glade/col.glade \
+		gladegen_post.c
 	@echo GEN $@
 	@cat gladegen_pre.c > $@
 	@# awk script to paste comm.glade using multiple
 	@# fputs() calls (strings have a limit in C)
-	@sed 's/"/\\"/g' comm.glade | awk ' \
+	@sed 's/"/\\"/g' glade/comm.glade glade/col.glade | awk ' \
 BEGIN { \
 	ORS = ""; \
 	n = 0; \
@@ -45,4 +47,5 @@ gladegen.o: gladegen.c gladegen.h
 gladegen_post.o: gladegen_post.c
 gladegen_pre.o: gladegen_pre.c gladegen.h
 gtkutil.o: gtkutil.c gtkutil.h
-gui.o: gui.c gtkutil.h gladegen.h ../libcomm/comm.h
+gui.o: gui.c gtkutil.h gladegen.h ../log/log.h ../cfg/cfg.h \
+ ../libcomm/comm.h ../config.h

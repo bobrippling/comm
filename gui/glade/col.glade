@@ -1,0 +1,78 @@
+<?xml version="1.0"?>
+<interface>
+  <requires lib="gtk+" version="2.16"/>
+  <!-- interface-naming-policy project-wide -->
+  <object class="GtkColorSelectionDialog" id="colorseldiag">
+    <property name="border_width">5</property>
+    <property name="type_hint">normal</property>
+    <child internal-child="color_selection">
+      <object class="GtkColorSelection" id="colorsel">
+        <property name="visible">True</property>
+        <property name="border_width">5</property>
+        <property name="orientation">vertical</property>
+        <property name="has_palette">True</property>
+        <property name="current_color">#ffffffffffff</property>
+        <child>
+          <placeholder/>
+        </child>
+        <child>
+          <placeholder/>
+        </child>
+      </object>
+    </child>
+    <action-widgets>
+      <action-widget response="0">colorsel_help</action-widget>
+      <action-widget response="0">colorsel_ok</action-widget>
+      <action-widget response="0">colorsel_cancel</action-widget>
+    </action-widgets>
+    <child internal-child="help_button">
+      <object class="GtkButton" id="colorsel_help">
+        <property name="label">gtk-help</property>
+        <property name="can_focus">True</property>
+        <property name="can_default">True</property>
+        <property name="receives_default">True</property>
+        <property name="use_underline">True</property>
+        <property name="use_stock">True</property>
+      </object>
+    </child>
+    <action-widgets>
+      <action-widget response="0">colorsel_help</action-widget>
+      <action-widget response="0">colorsel_ok</action-widget>
+      <action-widget response="0">colorsel_cancel</action-widget>
+    </action-widgets>
+    <child internal-child="cancel_button">
+      <object class="GtkButton" id="colorsel_cancel">
+        <property name="label">gtk-cancel</property>
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="can_default">True</property>
+        <property name="receives_default">True</property>
+        <property name="use_underline">True</property>
+        <property name="use_stock">True</property>
+        <signal name="clicked" handler="on_colorsel_cancel_clicked"/>
+      </object>
+    </child>
+    <action-widgets>
+      <action-widget response="0">colorsel_help</action-widget>
+      <action-widget response="0">colorsel_ok</action-widget>
+      <action-widget response="0">colorsel_cancel</action-widget>
+    </action-widgets>
+    <child internal-child="ok_button">
+      <object class="GtkButton" id="colorsel_ok">
+        <property name="label">gtk-ok</property>
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="can_default">True</property>
+        <property name="receives_default">True</property>
+        <property name="use_underline">True</property>
+        <property name="use_stock">True</property>
+        <signal name="clicked" handler="on_colorsel_ok_clicked"/>
+      </object>
+    </child>
+    <action-widgets>
+      <action-widget response="0">colorsel_help</action-widget>
+      <action-widget response="0">colorsel_ok</action-widget>
+      <action-widget response="0">colorsel_cancel</action-widget>
+    </action-widgets>
+  </object>
+</interface>

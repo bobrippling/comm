@@ -34,6 +34,7 @@ static int  getobjects(GtkBuilder *);
 static void updatewidgets(void);
 static void commcallback(enum comm_callbacktype type, const char *fmt, ...);
 static void cfg2txt(void), txt2cfg(void);
+static const char *gtk_color_to_rgb(GdkColor *col);
 
 G_MODULE_EXPORT gboolean on_btnConnect_clicked        (GtkButton *button, gpointer data);
 G_MODULE_EXPORT gboolean on_btnDisconnect_clicked     (GtkButton *button, gpointer data);
@@ -45,11 +46,12 @@ G_MODULE_EXPORT gboolean timeout                      (gpointer data);
 
 
 /* vars */
-GtkWidget *winMain;
+GtkWidget *winMain, *colorseldiag;
 GtkWidget *entryHost, *entryIn, *entryName; /* Gtk_Entry */
 GtkWidget *txtMain; /* GtkTextView */
 GtkWidget *btnConnect, *btnDisconnect, *btnSend;
 GtkWidget *treeClients;
+GtkWidget *colorsel;
 
 comm_t commt;
 
@@ -140,6 +142,76 @@ G_MODULE_EXPORT gboolean on_btnSend_clicked(GtkButton *button, gpointer data)
 		addtext(COLOUR_ERR, "Not connected!\n");
 	updatewidgets();
 
+	return FALSE;
+}
+
+G_MODULE_EXPORT gboolean on_entryIn_button_press_event(GtkWidget *widget,
+		GdkEventButton *event, gpointer func_data)
+{
+	UNUSED(widget);
+	UNUSED(func_data);
+
+	/* GDK_3BUTTON_PRESS for triple click - TODO: SU */
+	if(event->type == GDK_2BUTTON_PRESS)
+		/* show colour choser */
+		gtk_widget_show(colorseldiag);
+
+	return FALSE;
+}
+
+static const char *gtk_color_to_rgb(GdkColor *col)
+{
+  static char colour_string[8] = "#"; /* #RRGGBB */
+
+  /* 0..65536 -> scale to 0..256 */
+  snprintf(colour_string + 1, sizeof colour_string, "%.2X", col->red   / 256);
+  snprintf(colour_string + 3, sizeof colour_string, "%.2X", col->green / 256);
+  snprintf(colour_string + 5, sizeof colour_string, "%.2X", col->blue  / 256);
+
+	return colour_string;
+}
+
+G_MODULE_EXPORT gboolean on_colorsel_ok_clicked(GtkWidget *widget)
+{
+#if 0
+	GdkColor color;
+	GtkRcrcstyle rcstyle;
+
+	gtk_color_selection_get_current_color(GTK_COLOR_SELECTION(colorsel), &color);
+
+	rcstyle = gtk_rc_style_new();
+	rcstyle->fg[GTK_STATE_NORMAL]             = color; /* struct cpy */
+	rcstyle->color_flags[GTK_STATE_NORMAL]   |= GTK_RC_FG;
+
+/*rcstyle->bg[GTK_STATE_NORMAL]             = color2;
+	rcstyle->base[GTK_STATE_NORMAL]           = color2;
+	rcstyle->text[GTK_STATE_SELECTED]         = color;
+	rcstyle->color_flags[GTK_STATE_NORMAL]   |= GTK_RC_BG;
+	rcstyle->color_flags[GTK_STATE_NORMAL]   |= GTK_RC_BASE;
+	rcstyle->color_flags[GTK_STATE_SELECTED] |= GTK_RC_TEXT;*/
+
+	gtk_widget_modify_style(GTK_WIDGET(entryIn), rcstyle);
+
+	gtk_rc_style_undef(rcstyle);
+#endif
+	GdkColor color;
+
+	UNUSED(widget);
+
+	gtk_color_selection_get_current_color(GTK_COLOR_SELECTION(colorsel), &color);
+	gtk_widget_modify_text(GTK_WIDGET(entryIn), GTK_STATE_NORMAL, &color);
+	/*                ^---: text, base, bg and fg are available */
+
+	comm_colour(&commt, gtk_color_to_rgb(&color));
+	gtk_widget_hide(colorseldiag);
+
+	return FALSE;
+}
+
+G_MODULE_EXPORT gboolean on_colorsel_cancel_clicked(GtkWidget *widget)
+{
+	UNUSED(widget);
+	gtk_widget_hide(colorseldiag);
 	return FALSE;
 }
 
@@ -337,6 +409,9 @@ static int getobjects(GtkBuilder *b)
 	GET_WIDGET(treeClients);
 
 	GET_WIDGET(winMain);
+
+	GET_WIDGET(colorseldiag);
+	GET_WIDGET(colorsel);
 
 	return 0;
 #undef GET_WIDGET

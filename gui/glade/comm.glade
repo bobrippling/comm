@@ -215,6 +215,7 @@
                     <property name="can_focus">True</property>
                     <property name="invisible_char">&#x25CF;</property>
                     <property name="activates_default">True</property>
+                    <signal name="button_press_event" handler="on_entryIn_button_press_event"/>
                   </object>
                   <packing>
                     <property name="position">0</property>
