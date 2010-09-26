@@ -11,7 +11,7 @@ typedef struct
 
 	struct sockaddr_in hostaddr;
 	int port;
-	char *name;
+	char *name, *col;
 
 	struct list
 	{
@@ -65,6 +65,7 @@ int comm_recv(comm_t *, comm_callback);
 int comm_kick(comm_t *, const char *name);
 int comm_su(comm_t *, const char *pass);
 int comm_rels(comm_t *);
+int comm_colour(comm_t *, const char *col);
 
 void comm_close(comm_t *);
 

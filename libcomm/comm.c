@@ -436,6 +436,18 @@ COMM_SIMPLE(comm_kick,   "KICK"  )
 
 #undef COMM_SIMPLE
 
+int comm_colour(comm_t *ct, const char *col)
+{
+	char *new = realloc(ct->col, strlen(col) + 1);
+
+	if(!new)
+		return 1;
+
+	strcpy(ct->col = new, col);
+
+	return TO_SERVER_F("COLOUR %s", col);
+}
+
 const char *comm_getname(comm_t *ct)
 {
 	return ct->name;
@@ -448,10 +460,13 @@ struct list *comm_clientlist(comm_t *ct)
 
 const char *comm_getcolour(comm_t *ct, const char *name)
 {
-	struct list *l = comm_findname(ct, name);
-	if(!l)
-		return NULL;
-	return l->col;
+	if(strcmp(name, ct->name)){
+		struct list *l = comm_findname(ct, name);
+		if(!l)
+			return NULL;
+		return l->col;
+	}else
+		return ct->col;
 }
 
 int comm_sendmessage(comm_t *ct, const char *msg)
