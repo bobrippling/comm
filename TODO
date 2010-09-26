@@ -20,6 +20,9 @@ icon:
 	windows:
 		manifest (commctl)
 
+config:
+	colour
+
 protocol:
 	file transfer
 	drawing
