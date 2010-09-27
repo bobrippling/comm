@@ -19,6 +19,7 @@ icon:
 	http://forums.codeblocks.org/index.php?topic=11128.0;wap2
 	windows:
 		manifest (commctl)
+		version - get from VERSION_STR
 
 config:
 	colour
