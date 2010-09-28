@@ -62,14 +62,12 @@ static int comm_addname(comm_t *ct, const char *name)
 {
 	struct list *l = malloc(sizeof(*l));
 
-	if(!l || !(l->name = malloc(strlen(name)+1))){
+	if(!l || !(memset(l, '\0', sizeof *l), l->name = malloc(strlen(name)+1))){
 		if(l)
 			free(l->name);
 		free(l);
 		return 1;
 	}
-
-	memset(l, '\0', sizeof *l);
 
 	strcpy(l->name, name);
 
