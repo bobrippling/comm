@@ -35,6 +35,7 @@ static void updatewidgets(void);
 static void commcallback(enum comm_callbacktype type, const char *fmt, ...);
 static void cfg2txt(void), txt2cfg(void);
 static const char *gtk_color_to_rgb(GdkColor *col);
+static void        gui_set_colour(GdkColor *col);
 
 G_MODULE_EXPORT gboolean on_btnConnect_clicked        (GtkButton *button, gpointer data);
 G_MODULE_EXPORT gboolean on_btnDisconnect_clicked     (GtkButton *button, gpointer data);
@@ -58,9 +59,7 @@ comm_t commt;
 /* events */
 G_MODULE_EXPORT gboolean on_winMain_destroy(void)
 {
-	if(comm_state(&commt) != COMM_DISCONNECTED)
-		comm_close(&commt);
-
+	/* program quit +comm_free takes place at the end of main */
 	txt2cfg();
 	config_write();
 
@@ -114,10 +113,31 @@ G_MODULE_EXPORT gboolean on_btnConnect_clicked(GtkButton *button, gpointer data)
 	if((port = strchr(hostdup, ':')))
 		*port++ = '\0';
 
-	if(comm_connect(&commt, hostdup, port, name))
+	/*
+	 * TODO
+	 *
+	 * call comm_connect (async)
+	 * call gtk_main()
+	 * when comm_callback, if connected/failure,
+	 *   then gtk_main_quit()
+	 * flow then returns here to handle "connected to..."
+	 *
+	 * OR
+	 *
+	 *   #include <gtk/gtkmain.h>
+	 *   while(1){
+	 *     if(gtk_events_pending())
+	 *         gtk_main_iteration();
+	 *     comm_checkconnected();
+	 *   }
+	 *
+	 *
+	 */
+	if(comm_connect(&commt, hostdup, port, name)){
 		addtextf(COLOUR_ERR, "Couldn't connect to %s:%s: %s\n",
 				hostdup, port ? port : DEFAULT_PORT, comm_lasterr(&commt));
-	else
+		/* FIXME gui_set_colour();*/
+	}else
 		addtextf(COLOUR_INFO, "Connected to %s\n", hostdup);
 	updatewidgets();
 	return FALSE;
@@ -199,13 +219,25 @@ G_MODULE_EXPORT gboolean on_colorsel_ok_clicked(GtkWidget *widget)
 	UNUSED(widget);
 
 	gtk_color_selection_get_current_color(GTK_COLOR_SELECTION(colorsel), &color);
-	gtk_widget_modify_text(GTK_WIDGET(entryIn), GTK_STATE_NORMAL, &color);
-	/*                ^---: text, base, bg and fg are available */
 
-	comm_colour(&commt, gtk_color_to_rgb(&color));
+	gui_set_colour(&color);
+
 	gtk_widget_hide(colorseldiag);
 
 	return FALSE;
+}
+
+static void gui_set_colour(GdkColor *col)
+{
+	const char *scol;
+
+	gtk_widget_modify_text(GTK_WIDGET(entryIn), GTK_STATE_NORMAL, col);
+	/*                ^---: text, base, bg and fg are available */
+
+	scol = gtk_color_to_rgb(col);
+
+	config_setcolour(scol);
+	comm_colour(&commt, scol);
 }
 
 G_MODULE_EXPORT gboolean on_colorsel_cancel_clicked(GtkWidget *widget)
@@ -218,6 +250,11 @@ G_MODULE_EXPORT gboolean on_colorsel_cancel_clicked(GtkWidget *widget)
 
 /* textbox events ------------------- */
 
+
+G_MODULE_EXPORT gboolean on_entryHost_activate(GtkEntry *ent, gpointer data)
+{
+	return on_entryName_activate(ent, data);
+}
 
 G_MODULE_EXPORT gboolean on_entryName_activate(GtkEntry *ent, gpointer data)
 {
@@ -420,6 +457,7 @@ static int getobjects(GtkBuilder *b)
 static void cfg2txt()
 {
 	const char *host = config_lasthost();
+	const char *col  = config_colour();
 
 	gtk_entry_set_text(GTK_ENTRY(entryName), config_name());
 
@@ -435,13 +473,26 @@ static void cfg2txt()
 		}else
 			gtk_entry_set_text(GTK_ENTRY(entryHost), host);
 	}
+
+	if(*col){
+		GdkColor gcol;
+
+		if(gdk_color_parse(col, &gcol)){
+			gui_set_colour(&gcol);
+			config_setcolour(col);
+		}else
+			fprintf(stderr, "Couldn't parse config colour \"%s\"\n", col);
+	}
 }
 
 static void txt2cfg()
 {
 	char *host, *port;
+	const char *name;
 
-	config_setname(gtk_entry_get_text(GTK_ENTRY(entryName)));
+	name = gtk_entry_get_text(GTK_ENTRY(entryName));
+
+	config_setname(name);
 
 	host = g_strdup(gtk_entry_get_text(GTK_ENTRY(entryHost)));
 	if(host){
@@ -524,6 +575,11 @@ int main(int argc, char **argv)
 	gtk_widget_show(winMain);
 
 	gtk_main();
+
+	if(comm_state(&commt) != COMM_DISCONNECTED)
+		comm_close(&commt);
+
+	/* FIXME: free */
 
 	return 0;
 usage:

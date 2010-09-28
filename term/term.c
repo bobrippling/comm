@@ -117,10 +117,12 @@ int main(int argc, char **argv)
 							comm_rename(&ct, in + 7);
 						else if(!strncmp(in, "kick ", 5))
 							comm_kick(&ct, in+5);
+						else if(!strncmp(in, "colour ", 7))
+							comm_colour(&ct, in+7);
 						else if(!strncmp(in, "su ", 3))
 							comm_su(&ct, in+3);
 						else
-							fputs("Invalid command: use /rename, /su or /kick\n", stderr);
+							fputs("Invalid command: use /colour, /rename, /su or /kick\n", stderr);
 					}else{
 						if((nl = strchr(buffer, '\n')))
 							*nl = '\0';

@@ -26,6 +26,7 @@ static const char *config_path(void);
 static char name[MAX_NAME_LEN];
 static char port[MAX_PORT_LEN];
 static char lasthost[MAX_LINE_LEN];
+static char colour[MAX_COLOUR_LEN];
 
 #ifndef _WIN32
 static int write = 0;
@@ -56,7 +57,7 @@ int config_read()
 	const char *fname = config_path();
 	FILE *f;
 
-	*name = *port = '\0';
+	*name = *port = *lasthost = *colour = '\0';
 
 	f = fopen(fname, "r");
 
@@ -84,6 +85,8 @@ int config_read()
 				strncpy(port, line + 5, sizeof port);
 			else if(!strncmp(line, "LASTHOST ", 9))
 				strncpy(lasthost, line + 9, sizeof lasthost);
+			else if(!strncmp(line, "COLOUR ", 7))
+				strncpy(colour, line + 7, sizeof colour);
 			else{
 				fprintf(stderr, "Invalid config line: %d\n", n);
 				goto bail;
@@ -127,6 +130,7 @@ int config_write()
 		OUT("NAME",     name);
 		OUT("PORT",     port);
 		OUT("LASTHOST", lasthost);
+		OUT("COLOUR",   colour);
 
 		fclose(f);
 		return 0;
@@ -136,32 +140,12 @@ int config_write()
 
 /* --- */
 
-void config_setname(const char *n)
-{
-	strncpy(name, n, sizeof name);
-}
+void config_setname(const char *n)     { strncpy(name, n, sizeof name); }
+void config_setport(const char *p)     { strncpy(port, p, sizeof port); }
+void config_setlasthost(const char *h) { strncpy(lasthost, h, sizeof lasthost); }
+void config_setcolour(const char *h)   { strncpy(colour, h, sizeof colour); }
 
-void config_setport(const char *p)
-{
-	strncpy(port, p, sizeof port);
-}
-
-void config_setlasthost(const char *h)
-{
-	strncpy(lasthost, h, sizeof lasthost);
-}
-
-const char *config_port()
-{
-	return port;
-}
-
-const char *config_name()
-{
-	return name;
-}
-
-const char *config_lasthost()
-{
-	return lasthost;
-}
+const char *config_port()     { return port; }
+const char *config_name()     { return name; }
+const char *config_lasthost() { return lasthost; }
+const char *config_colour()   { return colour; }

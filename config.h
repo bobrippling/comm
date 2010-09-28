@@ -9,6 +9,7 @@
 #define MAX_PORT_LEN     16
 #define MAX_PASS_LEN     32
 #define MAX_DESC_LEN     64
+#define MAX_COLOUR_LEN   16
 #define MAX_LINE_LEN     2048
 
 #define DEFAULT_PORT     "2848"

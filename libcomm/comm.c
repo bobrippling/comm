@@ -418,6 +418,7 @@ void comm_close(comm_t *ct)
 	CLOSE(ct);
 	comm_freenames(ct);
 	free(ct->name);
+	free(ct->col);
 
 	comm_init(ct);
 }

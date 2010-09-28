@@ -9,7 +9,10 @@ gtk:
 		incorrect scroll on multiple-lines
 		unknown publisher - run don't run UAC
 		separate window for connect-host
-	memleaks
+	"gtk textview link"
+		http://www.yolinux.com/TUTORIALS/GTK+ProgrammingTips.html
+		http://www.kksou.com/php-gtk2/articles/insert-links-in-GtkTextView---Part-5---Display-Tooltip-over-Link.php
+
 
 log:
 	add conn/disco and renames
