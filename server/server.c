@@ -818,7 +818,7 @@ int main(int argc, char **argv)
 				fprintf(stderr, "connection from %s dropped, not in allow list\n",
 						addrtostr((struct sockaddr *)&addr));
 #define WRITE(sock, str) write(sock, str, strlen(str))
-				WRITE(cfd, "loldenied\n");
+				WRITE(cfd, "ERR denied\n");
 #undef WRITE
 				close(cfd);
 				stats.blocked++;
