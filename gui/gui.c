@@ -35,7 +35,7 @@ static void updatewidgets(void);
 static void commcallback(enum comm_callbacktype type, const char *fmt, ...);
 static void cfg2txt(void), txt2cfg(void);
 static const char *gtk_color_to_rgb(GdkColor *col);
-static void        gui_set_colour(GdkColor *col);
+static void        gui_set_colour(void);
 
 G_MODULE_EXPORT gboolean on_btnConnect_clicked        (GtkButton *button, gpointer data);
 G_MODULE_EXPORT gboolean on_btnDisconnect_clicked     (GtkButton *button, gpointer data);
@@ -54,7 +54,10 @@ GtkWidget *btnConnect, *btnDisconnect, *btnSend;
 GtkWidget *treeClients;
 GtkWidget *colorsel;
 
-comm_t commt;
+comm_t   commt;
+
+GdkColor var_color;
+
 
 /* events */
 G_MODULE_EXPORT gboolean on_winMain_destroy(void)
@@ -133,11 +136,10 @@ G_MODULE_EXPORT gboolean on_btnConnect_clicked(GtkButton *button, gpointer data)
 	 *
 	 *
 	 */
-	if(comm_connect(&commt, hostdup, port, name)){
+	if(comm_connect(&commt, hostdup, port, name))
 		addtextf(COLOUR_ERR, "Couldn't connect to %s:%s: %s\n",
 				hostdup, port ? port : DEFAULT_PORT, comm_lasterr(&commt));
-		/* FIXME gui_set_colour();*/
-	}else
+	else
 		addtextf(COLOUR_INFO, "Connected to %s\n", hostdup);
 	updatewidgets();
 	return FALSE;
@@ -214,27 +216,25 @@ G_MODULE_EXPORT gboolean on_colorsel_ok_clicked(GtkWidget *widget)
 
 	gtk_rc_style_undef(rcstyle);
 #endif
-	GdkColor color;
-
 	UNUSED(widget);
 
-	gtk_color_selection_get_current_color(GTK_COLOR_SELECTION(colorsel), &color);
+	gtk_color_selection_get_current_color(GTK_COLOR_SELECTION(colorsel), &var_color);
 
-	gui_set_colour(&color);
+	gui_set_colour();
 
 	gtk_widget_hide(colorseldiag);
 
 	return FALSE;
 }
 
-static void gui_set_colour(GdkColor *col)
+static void gui_set_colour()
 {
 	const char *scol;
 
-	gtk_widget_modify_text(GTK_WIDGET(entryIn), GTK_STATE_NORMAL, col);
+	gtk_widget_modify_text(GTK_WIDGET(entryIn), GTK_STATE_NORMAL, &var_color);
 	/*                ^---: text, base, bg and fg are available */
 
-	scol = gtk_color_to_rgb(col);
+	scol = gtk_color_to_rgb(&var_color);
 
 	config_setcolour(scol);
 	comm_colour(&commt, scol);
@@ -410,10 +410,10 @@ static void updatewidgets(void)
 			gtk_widget_set_sensitive(btnSend,        FALSE);
 			break;
 
+		case COMM_ACCEPTED:
 		case CONN_CONNECTING:
 		case COMM_VERSION_WAIT:
 		case COMM_NAME_WAIT:
-		case COMM_ACCEPTED:
 			gtk_widget_set_sensitive(entryHost,      FALSE);
 			gtk_widget_set_sensitive(btnConnect,     FALSE);
 			gtk_widget_set_sensitive(btnDisconnect,  TRUE);
@@ -422,8 +422,11 @@ static void updatewidgets(void)
 			gtk_widget_set_sensitive(entryIn,        cs == COMM_ACCEPTED);
 			gtk_widget_set_sensitive(btnSend,        cs == COMM_ACCEPTED);
 			break;
-
 	}
+
+	if(cs == COMM_ACCEPTED)
+		gui_set_colour();
+		/* enable entryIn colour - must be after it's set sensitive */
 }
 
 static int getobjects(GtkBuilder *b)
@@ -475,10 +478,8 @@ static void cfg2txt()
 	}
 
 	if(*col){
-		GdkColor gcol;
-
-		if(gdk_color_parse(col, &gcol)){
-			gui_set_colour(&gcol);
+		if(gdk_color_parse(col, &var_color)){
+			gui_set_colour();
 			config_setcolour(col);
 		}else
 			fprintf(stderr, "Couldn't parse config colour \"%s\"\n", col);
@@ -537,6 +538,8 @@ int main(int argc, char **argv)
 	if(!debug)
 		FreeConsole();
 #endif
+
+	memset(&var_color, '\0', sizeof var_color);
 
 	comm_init(&commt);
 
