@@ -488,10 +488,9 @@ static void cfg2txt()
 	}
 
 	if(*col){
-		if(gdk_color_parse(col, &var_color)){
+		if(gdk_color_parse(col, &var_color))
 			gui_set_colour();
-			config_setcolour(col);
-		}else
+		else
 			fprintf(stderr, "Couldn't parse config colour \"%s\"\n", col);
 	}
 }
