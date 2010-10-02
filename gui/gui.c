@@ -141,7 +141,9 @@ G_MODULE_EXPORT gboolean on_btnConnect_clicked(GtkButton *button, gpointer data)
 				hostdup, port ? port : DEFAULT_PORT, comm_lasterr(&commt));
 	else
 		addtextf(COLOUR_INFO, "Connected to %s\n", hostdup);
+
 	updatewidgets();
+
 	return FALSE;
 }
 
@@ -237,7 +239,8 @@ static void gui_set_colour()
 	scol = gtk_color_to_rgb(&var_color);
 
 	config_setcolour(scol);
-	comm_colour(&commt, scol);
+	if(comm_state(&commt) == COMM_ACCEPTED)
+		comm_colour(&commt, scol);
 }
 
 G_MODULE_EXPORT gboolean on_colorsel_cancel_clicked(GtkWidget *widget)
@@ -309,6 +312,10 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 		TYPE(COMM_CLIENT_DISCO, "Client Disco", COLOUR_INFO);
 		TYPE(COMM_ERR,          "Error",        COLOUR_ERR);
 
+		case COMM_MSG_OK:
+			gui_set_colour();
+			return;
+
 		case COMM_CLIENT_LIST:
 		{
 			struct list *l;
@@ -377,6 +384,7 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 		case COMM_SELF_RENAME:
 		case COMM_CLIENT_LIST:
 		case COMM_CLOSED:
+		case COMM_MSG_OK:
 			break;
 	}
 }
@@ -398,7 +406,11 @@ G_MODULE_EXPORT gboolean timeout(gpointer data)
 
 static void updatewidgets(void)
 {
+	static   enum commstate last = COMM_DISCONNECTED;
 	register enum commstate cs = comm_state(&commt);
+
+	if(last == cs)
+		return;
 
 	switch(cs){
 		case COMM_DISCONNECTED:
@@ -424,9 +436,7 @@ static void updatewidgets(void)
 			break;
 	}
 
-	if(cs == COMM_ACCEPTED)
-		gui_set_colour();
-		/* enable entryIn colour - must be after it's set sensitive */
+	last = cs;
 }
 
 static int getobjects(GtkBuilder *b)
