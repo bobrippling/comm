@@ -42,6 +42,7 @@ void callback(enum comm_callbacktype type, const char *fmt, ...)
 				printf("client: %s\n", clients->name);
 		case COMM_CLOSED:
 		case COMM_SELF_RENAME:
+		case COMM_MSG_OK:
 			/* TODO */
 			return;
 		}

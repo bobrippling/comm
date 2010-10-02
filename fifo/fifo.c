@@ -202,6 +202,9 @@ void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 			outputf(file_info, "Connection closed: %s\n", comm_lasterr(&commt));
 			finito = 1;
 			return;
+
+		case COMM_MSG_OK:
+			return;
 	}
 #undef TYPE
 
