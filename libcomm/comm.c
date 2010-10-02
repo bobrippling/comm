@@ -265,6 +265,7 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 			if(!strcmp(buffer, "OK")){
 				ct->state = COMM_ACCEPTED;
 				callback(COMM_INFO, "%s", "Name accepted");
+				callback(COMM_MSG_OK, NULL);
 				return !TO_SERVER_F("%s", "CLIENT_LIST");
 			}else{
 				UNKNOWN_MESSAGE(buffer);

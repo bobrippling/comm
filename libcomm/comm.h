@@ -48,6 +48,7 @@ enum comm_callbacktype
 	COMM_CLIENT_LIST,
 
 	/* sockety statuses */
+	COMM_MSG_OK,
 	COMM_CLOSED
 };
 
