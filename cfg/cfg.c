@@ -62,7 +62,7 @@ int config_read()
 	f = fopen(fname, "r");
 
 	if(f){
-		char line[MAX_NAME_LEN + 8];
+		char line[MAX_CFG_LEN];
 		int n = 1;
 
 #ifndef _WIN32
@@ -70,10 +70,7 @@ int config_read()
 #endif
 
 		while(fgets(line, sizeof line, f)){
-			char *p = strchr(line, '#');
-			if(p)
-				*p = '\0';
-			p = strchr(line, '\n');
+			char *p = strchr(line, '\n');
 			if(p)
 				*p = '\0';
 			if(!*line)
@@ -140,12 +137,11 @@ int config_write()
 
 /* --- */
 
-void config_setname(const char *n)     { strncpy(name, n, sizeof name); }
-void config_setport(const char *p)     { strncpy(port, p, sizeof port); }
-void config_setlasthost(const char *h) { strncpy(lasthost, h, sizeof lasthost); }
-void config_setcolour(const char *h)   { strncpy(colour, h, sizeof colour); }
+#define CFG(n) \
+	void config_set##n(const char *s) { strncpy(n, s, sizeof n); } \
+	const char *config_##n() { return n; }
 
-const char *config_port()     { return port; }
-const char *config_name()     { return name; }
-const char *config_lasthost() { return lasthost; }
-const char *config_colour()   { return colour; }
+CFG(port)
+CFG(name)
+CFG(lasthost)
+CFG(colour)
