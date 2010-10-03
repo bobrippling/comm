@@ -25,7 +25,9 @@ Client -> Server:
 	CLIENT_LIST
 		server replies like so:
 			CLIENT_LIST_START
-			CLIENT_LIST %s
+			CLIENT_LIST %s^]%s % name, sep, col
+		OR
+			CLIENT_LIST %s % name
 			CLIENT_LIST_END
 			for each client except the queryer
 	RENAME %s
@@ -57,6 +59,8 @@ Server -> Client:
 		server informational message
 	RENAME %s^]%s
 		client %s[0] renamed to %s[1]
+	RESTART %d
+		Server is restarting, reconnect in %d seconds (default to 10)
 
 
 

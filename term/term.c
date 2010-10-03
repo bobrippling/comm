@@ -40,9 +40,8 @@ void callback(enum comm_callbacktype type, const char *fmt, ...)
 			printf("got updated client list: %d other clients\n", comm_nclients(&ct));
 			for(clients = comm_clientlist(&ct); clients; clients = clients->next)
 				printf("client: %s\n", clients->name);
-		case COMM_CLOSED:
+		case COMM_STATE_CHANGE:
 		case COMM_SELF_RENAME:
-		case COMM_MSG_OK:
 			/* TODO */
 			return;
 		}

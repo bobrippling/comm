@@ -198,12 +198,18 @@ void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 			return;
 		}
 
-		case COMM_CLOSED:
-			outputf(file_info, "Connection closed: %s\n", comm_lasterr(&commt));
-			finito = 1;
-			return;
+		case COMM_STATE_CHANGE:
+			switch(comm_state(&commt)){
+				case COMM_DISCONNECTED:
+					outputf(file_info, "Connection closed: %s\n", comm_lasterr(&commt));
+					finito = 1;
 
-		case COMM_MSG_OK:
+				case COMM_CONNECTING:
+				case COMM_VERSION_WAIT:
+				case COMM_NAME_WAIT:
+				case COMM_ACCEPTED:
+					break;
+			}
 			return;
 	}
 #undef TYPE

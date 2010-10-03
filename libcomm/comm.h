@@ -5,7 +5,7 @@ typedef struct
 {
 	enum commstate
 	{
-		COMM_DISCONNECTED, CONN_CONNECTING,
+		COMM_DISCONNECTED, COMM_CONNECTING,
 		COMM_VERSION_WAIT, COMM_NAME_WAIT, COMM_ACCEPTED
 	} state;
 
@@ -46,10 +46,7 @@ enum comm_callbacktype
 	COMM_CLIENT_CONN,
 	COMM_CLIENT_DISCO,
 	COMM_CLIENT_LIST,
-
-	/* sockety statuses */
-	COMM_MSG_OK,
-	COMM_CLOSED
+	COMM_STATE_CHANGE /* use comm_state() to do stuff */
 };
 
 typedef void (*comm_callback)(enum comm_callbacktype, const char *, ...);

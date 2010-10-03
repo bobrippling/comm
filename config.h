@@ -1,7 +1,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#define VERSION_STR      "0.4"
+#define VERSION_STR      "0.5"
 #define VERSION_MAJOR    ((VERSION_STR)[0] - '0')
 #define VERSION_MINOR    ((VERSION_STR)[2] - '0')
 

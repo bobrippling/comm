@@ -176,7 +176,7 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 			WARN("%s", "major logic error, you should never see this");
 			break;
 
-		case CONN_CONNECTING:
+		case COMM_CONNECTING:
 			/* TODO */
 			break;
 
@@ -215,14 +215,23 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 					ct->listing = 0;
 					callback(COMM_CLIENT_LIST, NULL);
 				}else if(ct->listing){
+					char *sep = strchr(buffer + 12, GROUP_SEPARATOR);
+
+					if(sep)
+						*sep++ = '\0';
+
 					if(comm_addname(ct, buffer + 12)){
 						int save = errno;
 						comm_close(ct);
 						errno = save;
 						comm_setlasterr(ct);
-						callback(COMM_CLOSED, NULL);
+						callback(COMM_STATE_CHANGE, NULL);
 						return 1;
 					}
+
+					if(sep)
+						comm_setcolour(ct, buffer+12, sep);
+
 				}else
 					/* shouldn't get them out-of-_START-_END */
 					UNKNOWN_MESSAGE(buffer);
@@ -252,7 +261,7 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 					int save = errno;
 					comm_close(ct);
 					errno = save;
-					callback(COMM_CLOSED, NULL);
+					callback(COMM_STATE_CHANGE, NULL);
 					return 1;
 				}
 				callback(COMM_CLIENT_LIST, NULL);
@@ -265,7 +274,7 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 			if(!strcmp(buffer, "OK")){
 				ct->state = COMM_ACCEPTED;
 				callback(COMM_INFO, "%s", "Name accepted");
-				callback(COMM_MSG_OK, NULL);
+				callback(COMM_STATE_CHANGE, NULL);
 				return !TO_SERVER_F("%s", "CLIENT_LIST");
 			}else{
 				UNKNOWN_MESSAGE(buffer);
@@ -290,6 +299,7 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 							desc_space ? desc_space + 1 : "Server",
 							maj, min);
 					ct->state = COMM_NAME_WAIT;
+					callback(COMM_STATE_CHANGE, NULL);
 					TO_SERVER_F("NAME %s", ct->name);
 				}else{
 					callback(COMM_ERR, "Server version mismatch: %d.%d", maj, min);
@@ -547,7 +557,7 @@ int comm_recv(comm_t *ct, comm_callback callback)
 closeconn:
 #endif
 			comm_close(ct);
-			callback(COMM_CLOSED, NULL);
+			callback(COMM_STATE_CHANGE, NULL);
 			ct->lasterr = "server disconnect";
 			return 1;
 		}else if(ret < 0){

@@ -31,8 +31,8 @@
 #define LOG_FILE         "svrcomm.log"
 #define CFG_FILE         "/.svrcommrc"
 #define LISTEN_BACKLOG   5
-#define POLL_SLEEP_MS    750
-#define RECV_SLEEP_MS    100
+#define POLL_SLEEP_MS    100
+#define RECV_SLEEP_MS    30
 
 #define DEBUG_SEND_TEXT " debug%d: send(): "
 
@@ -369,10 +369,16 @@ char svr_recv(int idx)
 
 		}else if(!strcmp(in, "CLIENT_LIST")){
 			int i;
+
 			TO_CLIENT(idx, "CLIENT_LIST_START");
 			for(i = 0; i < nclients; i++)
-				if(i != idx && clients[i].state == ACCEPTED)
-					toclientf(idx, "CLIENT_LIST %s", clients[i].name);
+				if(i != idx && clients[i].state == ACCEPTED){
+					if(clients[i].colour)
+						toclientf(idx, "CLIENT_LIST %s%c%s",
+								clients[i].name, GROUP_SEPARATOR, clients[i].colour);
+					else
+						toclientf(idx, "CLIENT_LIST %s", clients[i].name);
+				}
 			TO_CLIENT(idx, "CLIENT_LIST_END");
 
 		}else if(!strncmp(in, "RENAME ", 7)){
@@ -428,6 +434,7 @@ char svr_recv(int idx)
 					if(i != idx && clients[i].state == ACCEPTED)
 						toclientf(i, "COLOUR %s%c%s",
 								clients[idx].name, GROUP_SEPARATOR, clients[idx].colour);
+
 			}
 
 		}else if(!strncmp(in, "KICK ", 5)){
@@ -464,15 +471,16 @@ char svr_recv(int idx)
 		}else if(!strncmp(in, "SU ", 3)){
 			if(clients[idx].isroot){
 				TO_CLIENT(idx, "INFO dropping root");
+				DEBUG(idx, DEBUG_STATUS, "%s dropping root", clients[idx].name);
 				clients[idx].isroot = 0;
 			}else{
 				char *reqpass = in + 3;
 
 				if(!*reqpass)
-					TO_CLIENT(idx, "Need password");
+					TO_CLIENT(idx, "ERR Need password");
 				else if(strcmp(reqpass, glob_pass)){
 					TO_CLIENT(idx, "ERR incorrect root passphrase");
-					DEBUG(idx, DEBUG_STATUS, "%s root logout", clients[idx].name);
+					DEBUG(idx, DEBUG_STATUS, "%s incorrect root pass %s", clients[idx].name, reqpass);
 				}else{
 					clients[idx].isroot = 1;
 					TO_CLIENT(idx, "INFO root login successful");
@@ -536,7 +544,7 @@ void sigh(int sig)
 		}
 
 	}else if(sig == SIGUSR1){
-		/* reset server - clear all connections */
+		/* restart server */
 		int idx;
 		fputs("we get SIGUSR1 - server reset\n", stderr);
 		for(idx = 0; idx < nclients; idx++){
@@ -584,7 +592,7 @@ void sigh(int sig)
 		cfg_end();
 
 		/* program normal exit point here */
-		exit(sig);
+		exit(128 + sig);
 	}
 
 	/* restore */
