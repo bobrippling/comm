@@ -14,7 +14,8 @@ name="$2"
 
 echo "signal to quit"
 
-ncat localhost 2848 <<!
+# quite after EOF: send-only
+ncat --send-only localhost 2848 <<!
 NAME $me
 MESSAGE $me: Goodday $name!
 SU $pass
