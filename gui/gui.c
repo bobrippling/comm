@@ -154,13 +154,29 @@ G_MODULE_EXPORT gboolean on_btnSend_clicked(GtkButton *button, gpointer data)
 
 	if(comm_state(&commt) == COMM_ACCEPTED){
 		const char *txt = gtk_entry_get_text(GTK_ENTRY(entryIn));
+		int send = 0;
+
 		if(!*txt){
 			addtext(COLOUR_ERR, "Need text!\n");
 			return FALSE;
 		}
 
-		if(comm_sendmessage(&commt, txt) <= 0)
+		if(*txt == '/')
+			if(!strncmp(txt+1, "su", 2))
+				if(txt[3] == '\0')
+					comm_su(&commt, ""); /* drop */
+				else
+					comm_su(&commt, txt+4);
+			else if(!strncmp(txt+1, "kick ", 5))
+				comm_kick(&commt, txt+6);
+			else
+				send = 1;
+		else
+			send = 1;
+
+		if(send && comm_sendmessage(&commt, txt) <= 0)
 			addtextf(COLOUR_ERR, "Error sending message: %s\n", comm_lasterr(&commt));
+
 		gtk_entry_set_text(GTK_ENTRY(entryIn), "");
 	}else
 		addtext(COLOUR_ERR, "Not connected!\n");
@@ -301,19 +317,37 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 {
 	const char *type_str = NULL, *col = NULL;
 	char *insertme, *insertmel;
+	int logadd = 0;
 	va_list l;
 
-#define TYPE(e, s, c) case e: type_str = s; col = c; break
+#define TYPE(e, s, c, l) case e: type_str = s; col = c; logadd = l; break
 	switch(type){
-		TYPE(COMM_INFO,         "Info",         COLOUR_INFO);
-		TYPE(COMM_SERVER_INFO,  "Server Info",  COLOUR_INFO);
-		TYPE(COMM_RENAME,       "Rename",       COLOUR_INFO);
-		TYPE(COMM_CLIENT_CONN,  "Client Comm",  COLOUR_INFO);
-		TYPE(COMM_CLIENT_DISCO, "Client Disco", COLOUR_INFO);
-		TYPE(COMM_ERR,          "Error",        COLOUR_ERR);
+		TYPE(COMM_INFO,         "Info",         COLOUR_INFO, 1);
+		TYPE(COMM_SERVER_INFO,  "Server Info",  COLOUR_INFO, 1);
+		TYPE(COMM_RENAME,       "Rename",       COLOUR_INFO, 1);
+		TYPE(COMM_CLIENT_CONN,  "Client Comm",  COLOUR_INFO, 1);
+		TYPE(COMM_CLIENT_DISCO, "Client Disco", COLOUR_INFO, 1);
+		TYPE(COMM_ERR,          "Error",        COLOUR_ERR,  1);
 
-		case COMM_MSG_OK:
-			gui_set_colour();
+		case COMM_STATE_CHANGE:
+			updatewidgets();
+
+			switch(comm_state(&commt)){
+				case COMM_DISCONNECTED:
+					updatewidgets();
+					clientlist_clear();
+					break;
+
+				case COMM_ACCEPTED:
+					gui_set_colour();
+					gtk_widget_grab_focus(entryIn);
+					break;
+
+				case COMM_VERSION_WAIT:
+				case COMM_NAME_WAIT:
+				case COMM_CONNECTING:
+					break;
+			}
 			return;
 
 		case COMM_CLIENT_LIST:
@@ -331,12 +365,8 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 			addtextf(COLOUR_INFO, "Renamed to %s\n", comm_getname(&commt));
 			return;
 
-		case COMM_CLOSED:
-			updatewidgets();
-			clientlist_clear();
-			return;
-
 		case COMM_MSG:
+			logadd = 1;
 			break;
 	}
 #undef TYPE
@@ -364,7 +394,7 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 		col = COLOUR_UNKNOWN;
 	addtext(col, insertme);
 
-	if(type == COMM_MSG)
+	if(logadd)
 		log_add(insertmel);
 
 	g_free(insertme);
@@ -383,8 +413,7 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 
 		case COMM_SELF_RENAME:
 		case COMM_CLIENT_LIST:
-		case COMM_CLOSED:
-		case COMM_MSG_OK:
+		case COMM_STATE_CHANGE:
 			break;
 	}
 }
@@ -412,7 +441,7 @@ static void updatewidgets(void)
 	if(last == cs)
 		return;
 
-	switch(cs){
+	switch(last = cs){
 		case COMM_DISCONNECTED:
 			gtk_widget_set_sensitive(entryHost,      TRUE);
 			gtk_widget_set_sensitive(entryName,      TRUE);
@@ -423,7 +452,7 @@ static void updatewidgets(void)
 			break;
 
 		case COMM_ACCEPTED:
-		case CONN_CONNECTING:
+		case COMM_CONNECTING:
 		case COMM_VERSION_WAIT:
 		case COMM_NAME_WAIT:
 			gtk_widget_set_sensitive(entryHost,      FALSE);
@@ -435,8 +464,6 @@ static void updatewidgets(void)
 			gtk_widget_set_sensitive(btnSend,        cs == COMM_ACCEPTED);
 			break;
 	}
-
-	last = cs;
 }
 
 static int getobjects(GtkBuilder *b)
