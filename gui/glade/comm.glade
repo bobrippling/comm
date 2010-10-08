@@ -189,6 +189,7 @@
                     <property name="can_focus">True</property>
                     <property name="editable">False</property>
                     <property name="wrap_mode">word</property>
+                    <signal name="key_press_event" handler="on_txtMain_key_press_event"/>
                   </object>
                 </child>
               </object>

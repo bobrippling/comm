@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #include <stdarg.h>
 
@@ -42,6 +43,7 @@ G_MODULE_EXPORT gboolean on_btnDisconnect_clicked     (GtkButton *button, gpoint
 G_MODULE_EXPORT gboolean on_btnSend_clicked           (GtkButton *button, gpointer data);
 G_MODULE_EXPORT gboolean on_entryName_activate        (GtkEntry *ent,     gpointer data);
 G_MODULE_EXPORT gboolean on_entryName_focus_out_event (GtkEntry *ent,     gpointer data);
+G_MODULE_EXPORT gboolean on_txtMain_key_press_event   (GtkWidget *widget, GdkEventKey *event, gpointer func_data);
 G_MODULE_EXPORT gboolean on_winMain_destroy           (void);
 G_MODULE_EXPORT gboolean timeout                      (gpointer data);
 
@@ -195,6 +197,30 @@ G_MODULE_EXPORT gboolean on_entryIn_button_press_event(GtkWidget *widget,
 	if(event->type == GDK_2BUTTON_PRESS)
 		/* show colour choser */
 		gtk_widget_show(colorseldiag);
+
+	return FALSE;
+}
+
+G_MODULE_EXPORT gboolean on_txtMain_key_press_event(GtkWidget *widget, GdkEventKey *event, gpointer func_data)
+{
+	UNUSED(widget);
+	UNUSED(event);
+	UNUSED(func_data);
+
+	gtk_widget_grab_focus(entryIn);
+
+	if(isprint(event->keyval)){
+		const char *txt = gtk_entry_get_text(GTK_ENTRY(entryIn));
+		int len = strlen(txt) + 1;
+		char *new = alloca(len + 1);
+
+		strcpy(new, txt);
+		new[len-1] = event->keyval;
+		new[len  ] = '\0';
+
+		gtk_entry_set_text(GTK_ENTRY(entryIn), new);
+		gtk_editable_set_position(GTK_EDITABLE(entryIn), -1 /* last */);
+	}
 
 	return FALSE;
 }
