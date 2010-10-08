@@ -31,7 +31,7 @@
 #define LOG_FILE         "svrcomm.log"
 #define CFG_FILE         "/.svrcommrc"
 #define LISTEN_BACKLOG   5
-#define POLL_SLEEP_MS    100
+#define POLL_SLEEP_MS    500
 #define RECV_SLEEP_MS    30
 
 #define DEBUG_SEND_TEXT " debug%d: send(): "
