@@ -14,6 +14,7 @@
 #define MAX_LINE_LEN     2048
 #define MAX_CFG_LEN      128
 
+#define DEFAULT_BROWSER  "firefox"
 #define DEFAULT_PORT     "2848"
 #define GROUP_SEPARATOR  0x1d /* ^] aka ``group separator'' */
 

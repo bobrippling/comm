@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 
+#include <errno.h>
 #include <stdarg.h>
 
 /* comm includes */
@@ -11,6 +12,9 @@
 # include <winsock2.h>
 #else
 # include <arpa/inet.h>
+
+# include <sys/stat.h>
+# include <fcntl.h>
 #endif
 
 #include "gtkutil.h"
@@ -22,7 +26,6 @@
 
 #define WIN_MAIN   "winMain"
 #define TIMEOUT    250
-#define UNUSED(n) do (void)(n); while(0)
 
 /* On the TODO */
 #define COLOUR_UNKNOWN "#000000"
@@ -44,6 +47,7 @@ G_MODULE_EXPORT gboolean on_btnSend_clicked           (GtkButton *button, gpoint
 G_MODULE_EXPORT gboolean on_entryName_activate        (GtkEntry *ent,     gpointer data);
 G_MODULE_EXPORT gboolean on_entryName_focus_out_event (GtkEntry *ent,     gpointer data);
 G_MODULE_EXPORT gboolean on_txtMain_key_press_event   (GtkWidget *widget, GdkEventKey *event, gpointer func_data);
+G_MODULE_EXPORT gboolean on_txtMain_button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer func_data);
 G_MODULE_EXPORT gboolean on_winMain_destroy           (void);
 G_MODULE_EXPORT gboolean timeout                      (gpointer data);
 
@@ -68,7 +72,9 @@ G_MODULE_EXPORT gboolean on_winMain_destroy(void)
 	txt2cfg();
 	config_write();
 
-	gtk_main_quit();
+	gtkutil_cleanup();
+
+	gtk_main_quit(); /* gtk exit here only */
 	return FALSE;
 }
 
@@ -197,6 +203,55 @@ G_MODULE_EXPORT gboolean on_entryIn_button_press_event(GtkWidget *widget,
 	if(event->type == GDK_2BUTTON_PRESS)
 		/* show colour choser */
 		gtk_widget_show(colorseldiag);
+
+	return FALSE;
+}
+
+G_MODULE_EXPORT gboolean on_txtMain_button_press_event(
+		GtkWidget *widget, GdkEventButton *event, gpointer func_data)
+{
+	GtkTextIter iter;
+	const char *link;
+
+	UNUSED(widget);
+	UNUSED(func_data);
+
+	gtk_text_view_get_iter_at_location(GTK_TEXT_VIEW(txtMain),
+			&iter, event->x, event->y);
+
+	if((link = iterlink(&iter))){
+#ifdef _WIN32
+		int ret;
+
+		/* the usual bullshit... */
+		CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+
+		if((ret = ShellExecute(NULL, "open", link, NULL, NULL, SW_SHOW /* 5 */)) <= 32)
+			fprintf(stderr, "ShellExecute() failed: %d\n", ret);
+#else
+		const char *browser = getenv("BROWSER");
+		int devnull;
+
+		if(!browser)
+			browser = DEFAULT_BROWSER;
+
+		switch(fork()){
+			case -1:
+				perror("fork()");
+				addtextf(COLOUR_ERR, "fork(): %s\n", strerror(errno));
+				break;
+			case 0:
+				devnull = open("/dev/null", O_APPEND);
+				dup2(devnull, STDOUT_FILENO); /* leave open because of perror below? */
+				dup2(devnull, STDERR_FILENO);
+				close(devnull);
+
+				execlp(browser, browser, link, (char *)NULL);
+				perror("execvf()");
+				exit(-1);
+		}
+#endif
+	}
 
 	return FALSE;
 }
@@ -641,10 +696,9 @@ int main(int argc, char **argv)
 
 	gtk_main();
 
+	/* no gtk stuff after here - all invalid */
 	if(comm_state(&commt) != COMM_DISCONNECTED)
 		comm_close(&commt);
-
-	/* FIXME: free */
 
 	return 0;
 usage:

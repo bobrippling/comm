@@ -6,13 +6,14 @@
 
 #include "gtkutil.h"
 
-#define WARN(s) fprintf(stderr, __FILE__ ":%d:" s, __LINE__)
-#define strncpy0(dest, src, len) do{ strncpy(dest, src, len); dest[len-1] = '\0'; }while(0)
+#define PROPERTY_URL "url"
+
+#define WARN(s) fprintf(stderr, __FILE__ ":%d:" s "\n", __LINE__)
 
 static void addtag(const char *name, const char *col);
 static int havetag(GtkTextBuffer *buffa, const char *name);
 static int isurlchar(char c);
-static void insertlink(GtkTextBuffer *buffa, GtkTextIter *iter, gchar *text);
+static void insertlink(GtkTextBuffer *buffa, GtkTextIter *iter, const char *text, int textlen);
 static void insert_with_links(GtkTextBuffer *buffa, GtkTextIter *iter, const char *col, const char *text);
 
 /* funcs */
@@ -46,21 +47,36 @@ static int havetag(GtkTextBuffer *buffa, const char *name)
 	return !!gtk_text_tag_table_lookup(table, name);
 }
 
-static void insertlink(GtkTextBuffer *buffa, GtkTextIter *iter, gchar *text)
+static void insertlink(GtkTextBuffer *buffa, GtkTextIter *iter, const char *text, int textlen)
 {
-#define LINK_TAG_NAME "link"
-	if(!havetag(buffa, LINK_TAG_NAME))
-		gtk_text_buffer_create_tag(buffa, LINK_TAG_NAME,
-			                        "foreground", "blue",
-			                        "underline", PANGO_UNDERLINE_SINGLE,
-			                        NULL);
+	/*if(!havetag(buffa, LINK_TAG_NAME))*/
+	GtkTextTag *urltag;
+	char *dup = g_strndup(text, textlen), *nl;
 
-	gtk_text_buffer_insert_with_tags_by_name(buffa, iter, text, -1, LINK_TAG_NAME, NULL);
-#undef LINK_TAG_NAME
+	if(!dup){
+		WARN("!dup");
+		return;
+	}
+
+	urltag = gtk_text_buffer_create_tag(buffa, NULL, /* anon */
+	                        "foreground", "blue",
+	                        "underline", PANGO_UNDERLINE_SINGLE,
+	                        NULL);
+
+	if((nl = strchr(dup, '\n')))
+		*nl = '\0';
+
+	/* tag the address on */
+	g_object_set_data(G_OBJECT(urltag), PROPERTY_URL, dup);
+
+	gtk_text_buffer_insert_with_tags(buffa, iter, text, textlen, urltag, NULL);
 }
 
 static int isurlchar(char c)
 {
+	/*
+	 * search for [^a-z0-9._+#=?&:;%/!,-]
+	 */
 	if(('a' <= c && c <= 'z') ||
 		 ('A' <= c && c <= 'Z') ||
 		 ('0' <= c && c <= '9') ||
@@ -82,47 +98,67 @@ static int isurlchar(char c)
 static void insert_with_links(GtkTextBuffer *buffa, GtkTextIter *iter,
 		const char *col, const char *text)
 {
-#define URL_POST "://"
-	const char *link = strstr(text, URL_POST);
+	const char *link;
+	int linkiswww;
 
-	while(link){
-		if(link > text && isalpha(link[-1])){
-			/*
-			 * search for [^a-z0-9._+#=?&:;%/!,-]
-			 * [a-z0-9._+#=?&:;%/!,-]
-			 */
+	while(
+			(linkiswww = 0, link = strstr(text, "://")) ||
+			(linkiswww = 1, link = strstr(text, "www"))
+			){
+
+		if(link > text && (linkiswww || isalpha(link[-1]))){
 			const char *linkend = link + 1;
-			char *dup;
 			int len;
 
-			while(link > text && isalpha(*--link))
-				;
-			link++;
+			if(!linkiswww){
+				while(link > text && isalpha(*--link));
+				link++;
+			}
 
 			/* add previous text, since link > text */
-			dup = alloca(len = link - text + 1);
-			strncpy0(dup, text, len);
 			gtk_text_buffer_insert_with_tags_by_name(buffa,
-					iter, dup, -1, col, NULL);
-			text += len - 1; /* -1 for the \0 that len counts */
+					iter, text, len = link - text, col, NULL);
+			text += len;
 
 
 			while(isurlchar(*linkend))
 				linkend++;
 
-			dup = alloca(len = linkend - link + 1);
-			strncpy0(dup, link, len);
-			insertlink(buffa, iter, dup);
-			text += len - 1; /* main text iterator */
+			insertlink(buffa, iter, link, len = linkend - link);
+			text += len;
 		}else
 			link++;
-
-		link = strstr(link+1, URL_POST);
 	}
 
 	if(*text)
 		gtk_text_buffer_insert_with_tags_by_name(buffa,
 				iter, text, -1, col, NULL);
+}
+
+const char *iterlink(GtkTextIter *iter)
+{
+	GtkTextBuffer *buffa = gtk_text_view_get_buffer(GTK_TEXT_VIEW(txtMain));
+	GSList *list = NULL, *lp = NULL;
+	const char *ret = NULL;
+
+	if(!buffa){
+		WARN("!buffa");
+		return NULL;
+	}
+
+	list = gtk_text_iter_get_tags(iter); /* needs freeing */
+	for(lp = list; lp; lp = lp->next){
+		GtkTextTag *tag = lp->data;
+		const char *url = g_object_get_data(G_OBJECT(tag), PROPERTY_URL);
+		if(!url)
+			continue;
+		ret = url;
+	}
+
+	if(list)
+		g_slist_free(list);
+
+	return ret;
 }
 
 void addtext(const char *col, const char *text)
@@ -222,4 +258,34 @@ void clientlist_add(const char *name)
 void clientlist_clear()
 {
 	gtk_list_store_clear(treeStore);
+}
+
+/* GtkTextTagTableForeach */
+static void gtkutil_cleanup_tagtable(GtkTextTag *tag, gpointer data)
+{
+	char *url = g_object_get_data(G_OBJECT(tag), PROPERTY_URL);
+
+	UNUSED(data);
+
+	if(url)
+		g_free(url);
+		/*g_object_set_data(G_OBJECT(tag), PROPERTY_URL, NULL);*/
+}
+
+void gtkutil_cleanup()
+{
+	GtkTextBuffer *buffa;
+	GtkTextTagTable *table;
+
+	buffa = gtk_text_view_get_buffer(GTK_TEXT_VIEW(txtMain));
+	if(!buffa){
+		WARN("!buffa");
+		return;
+	}
+
+	table = gtk_text_buffer_get_tag_table(buffa);
+	if(table)
+		gtk_text_tag_table_foreach(table, gtkutil_cleanup_tagtable, table);
+	else
+		WARN("!table");
 }
