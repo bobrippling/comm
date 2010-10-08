@@ -1,13 +1,19 @@
 #include <gtk/gtk.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
+#include <alloca.h>
 
 #include "gtkutil.h"
 
 #define WARN(s) fprintf(stderr, __FILE__ ":%d:" s, __LINE__)
+#define strncpy0(dest, src, len) do{ strncpy(dest, src, len); dest[len-1] = '\0'; }while(0)
 
 static void addtag(const char *name, const char *col);
 static int havetag(GtkTextBuffer *buffa, const char *name);
+static int isurlchar(char c);
+static void insertlink(GtkTextBuffer *buffa, GtkTextIter *iter, gchar *text);
+static void insert_with_links(GtkTextBuffer *buffa, GtkTextIter *iter, const char *col, const char *text);
 
 /* funcs */
 extern GtkWidget    *txtMain;
@@ -40,6 +46,85 @@ static int havetag(GtkTextBuffer *buffa, const char *name)
 	return !!gtk_text_tag_table_lookup(table, name);
 }
 
+static void insertlink(GtkTextBuffer *buffa, GtkTextIter *iter, gchar *text)
+{
+#define LINK_TAG_NAME "link"
+	if(!havetag(buffa, LINK_TAG_NAME))
+		gtk_text_buffer_create_tag(buffa, LINK_TAG_NAME,
+			                        "foreground", "blue",
+			                        "underline", PANGO_UNDERLINE_SINGLE,
+			                        NULL);
+
+	gtk_text_buffer_insert_with_tags_by_name(buffa, iter, text, -1, LINK_TAG_NAME, NULL);
+#undef LINK_TAG_NAME
+}
+
+static int isurlchar(char c)
+{
+	if(('a' <= c && c <= 'z') ||
+		 ('A' <= c && c <= 'Z') ||
+		 ('0' <= c && c <= '9') ||
+		 ('+' <= c && c <= ';'))
+		return 1;
+
+	/* [+,-./] handled above */
+
+	switch(c){
+		case '!': case '#': case '%': case '&':
+		case ':': case ';': case '=':
+		case '?': case '_':
+			return 1;
+	}
+
+	return 0;
+}
+
+static void insert_with_links(GtkTextBuffer *buffa, GtkTextIter *iter,
+		const char *col, const char *text)
+{
+#define URL_POST "://"
+	const char *link = strstr(text, URL_POST);
+
+	while(link){
+		if(link > text && isalpha(link[-1])){
+			/*
+			 * search for [^a-z0-9._+#=?&:;%/!,-]
+			 * [a-z0-9._+#=?&:;%/!,-]
+			 */
+			const char *linkend = link + 1;
+			char *dup;
+			int len;
+
+			while(link > text && isalpha(*--link))
+				;
+			link++;
+
+			/* add previous text, since link > text */
+			dup = alloca(len = link - text + 1);
+			strncpy0(dup, text, len);
+			gtk_text_buffer_insert_with_tags_by_name(buffa,
+					iter, dup, -1, col, NULL);
+			text += len - 1; /* -1 for the \0 that len counts */
+
+
+			while(isurlchar(*linkend))
+				linkend++;
+
+			dup = alloca(len = linkend - link + 1);
+			strncpy0(dup, link, len);
+			insertlink(buffa, iter, dup);
+			text += len - 1; /* main text iterator */
+		}else
+			link++;
+
+		link = strstr(link+1, URL_POST);
+	}
+
+	if(*text)
+		gtk_text_buffer_insert_with_tags_by_name(buffa,
+				iter, text, -1, col, NULL);
+}
+
 void addtext(const char *col, const char *text)
 {
 	GtkTextIter    iter;
@@ -60,9 +145,7 @@ void addtext(const char *col, const char *text)
 	gtk_text_buffer_get_end_iter(buffa, &iter);
 	/*gtk_text_buffer_insert(buffa, &iter, text, -1 * nul-term * ); */
 
-	gtk_text_buffer_insert_with_tags_by_name(buffa,
-			&iter, text, strlen(text), col, NULL);
-
+	insert_with_links(buffa, &iter, col, text);
 
 	/* colour */
 	/* iter is still the start of the insertion
