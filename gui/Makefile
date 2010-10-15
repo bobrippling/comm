@@ -39,7 +39,8 @@ clean: mostlyclean
 	$Qrm -f guicomm comm.exe gladegen.c
 
 comm.exe: ${GUI_DEPS} ../common/sockprintf.o
-	${CC} ${CFLAGS} -o $@ $^ ${LDFLAGS} -lws2_32
+	@#${CC} ${CFLAGS} -o $@ $^ ${LDFLAGS} -LC:/MinGW/lib
+	${CC} ${CFLAGS} -o $@ $^ ${LDFLAGS} -lws2_32 -lole32
 
 include ../config.mk
 
