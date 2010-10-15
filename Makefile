@@ -6,6 +6,13 @@ MAKEFLAGS = --no-print-directory
 all: server libcomm term gui fifo
 windows: libcomm comm.exe
 
+info:
+	@echo OS: $(shell uname -o)
+	@echo CC: ${CC}
+	@echo CFLAGS:  ${CFLAGS}
+	@echo LD: ${LD}
+	@echo LDFLAGS: ${LDFLAGS}
+
 server:
 	$Qmake ${MAKEFLAGS} -C $@
 
