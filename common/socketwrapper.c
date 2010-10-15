@@ -9,8 +9,9 @@
 #include <sys/types.h>
 #if _WIN32
 # define _WIN32_WINNT 0x501
-# include <winsock2.h>
+/* ws2tcpip must be first... enterprise */
 # include <ws2tcpip.h>
+# include <winsock2.h>
 /* ^ getaddrinfo */
 #else
 # include <sys/socket.h>
@@ -43,8 +44,11 @@ int connectedsock(const char *host, const char *port)
 	hints.ai_family   = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 
-	if((lookup_errno = getaddrinfo(host, port, &hints, &ret)))
+	if((lookup_errno = getaddrinfo(host, port, &hints, &ret))){
+		fprintf(stderr, "connectedsock(): getaddrinfo failed: (%d) \"%s\"\n",
+				lookup_errno, lastsockerr());
 		return -1;
+	}
 	lookup_errno = 0;
 
 
@@ -52,14 +56,19 @@ int connectedsock(const char *host, const char *port)
 		sock = socket(dest->ai_family, dest->ai_socktype,
 				dest->ai_protocol);
 
-		if(sock == -1)
+		if(sock == -1){
+			fputs("connectedsock(): socket() failed\n", stderr);
 			continue;
+		}
 
 		if(connect(sock, dest->ai_addr, dest->ai_addrlen) == 0)
 			break;
 
-		if(errno)
+		if(errno){
+			fprintf(stderr, "connectedsock(): connect() failed: (%d) \"%s\"\n",
+					errno, strerror(errno));
 			lastconnerr = errno;
+		}
 		close(sock);
 		sock = -1;
 	}
@@ -68,6 +77,7 @@ int connectedsock(const char *host, const char *port)
 
 	if(sock == -1){
 		errno = lastconnerr;
+		fputs("connectedsock(): no successful connections\n", stderr);
 		return -1;
 	}
 
