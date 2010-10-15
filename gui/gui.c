@@ -221,12 +221,12 @@ G_MODULE_EXPORT gboolean on_txtMain_button_press_event(
 
 	if((link = iterlink(&iter))){
 #ifdef _WIN32
-		int ret;
+		HINSTANCE ret;
 
-		/* the usual bullshit... */
-		CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-
-		if((ret = ShellExecute(NULL, "open", link, NULL, NULL, SW_SHOW /* 5 */)) <= 32)
+		if(
+				(int)(ret =
+				 ShellExecute(NULL, "open", link, NULL, NULL, SW_SHOW /* 5 */))
+				<= 32)
 			fprintf(stderr, "ShellExecute() failed: %d\n", ret);
 #else
 		const char *browser = getenv("BROWSER");
@@ -652,6 +652,7 @@ int main(int argc, char **argv)
 	}
 
 #ifdef _WIN32
+	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
 	if(!debug)
 		FreeConsole();
 #endif
