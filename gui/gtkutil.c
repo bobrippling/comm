@@ -2,7 +2,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include <alloca.h>
+
+#ifdef _WIN32
+# include <malloc.h>
+#else
+# include <alloca.h>
+#endif
 
 #include "gtkutil.h"
 
