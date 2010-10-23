@@ -22,7 +22,6 @@
 # define CLOSE(ct) closesocket(ct->sock)
 
 	static int wsastartup_called = 0;
-
 #else
 # include <sys/select.h>
 # include <sys/socket.h>
@@ -56,6 +55,7 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback);
 static void comm_setlasterr(comm_t *);
 #ifdef _WIN32
 static void comm_setlasterr_WSA(comm_t *);
+static const char *win32_lasterr(void);
 #endif
 
 static int comm_addname(comm_t *ct, const char *name)
@@ -318,24 +318,37 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 }
 
 #ifdef _WIN32
-static void comm_setlasterr_WSA(comm_t *ct)
+static const char *win32_lasterr()
 {
 	static char buffer[256];
-	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
-			NULL, WSAGetLastError(), 0 /* lang */, buffer, sizeof buffer, NULL);
+	char *nl;
 
-  ct->lasterr = buffer;
+	if(!FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
+			NULL, WSAGetLastError(), 0 /* lang */, buffer, sizeof buffer, NULL))
+		return NULL;
+
+	if((nl = strchr(buffer, '\n')))
+		*nl = '\0';
+
+	return buffer;
+}
+
+static void comm_setlasterr_WSA(comm_t *ct)
+{
+  ct->lasterr = win32_lasterr();
 }
 #endif
 
 static void comm_setlasterr(comm_t *ct)
 {
+	fputs("comm_setlasterr()\n", stderr);
 #ifdef _WIN32
 	if(WSAGetLastError())
 			comm_setlasterr_WSA(ct);
 	else
 #endif
 		ct->lasterr = strerror(errno);
+	fprintf(stderr, "lasterr: (%d) \"%s\"\n", errno, ct->lasterr);
 }
 
 /* end of static */
@@ -413,11 +426,22 @@ int comm_connect(comm_t *ct, const char *host,
 	return 0;
 #ifndef _WIN32
 bail:
+	fputs("conn_connect(): bail\n", stderr);
 	CLOSE(ct);
 #endif
 bail_noclose:
+	fputs("conn_connect(): bail_noclose\n", stderr);
+#ifdef _WIN32
+	{
+		const char *tmp = win32_lasterr();
+		if(tmp)
+			fprintf(stderr, "WSAGetLastError(): \"%s\"\n", tmp);
+	}
+	comm_setlasterr(ct);
+#else
 	if(!(ct->lasterr = lastsockerr()))
 		comm_setlasterr(ct);
+#endif
 	return 1;
 }
 

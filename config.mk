@@ -4,9 +4,17 @@ CFLAGS   += -g -Wextra -Wall -pedantic -pipe -std=c99
 LD        = gcc
 LDFLAGS  += -g
 
-ifneq ($(shell uname -o),MSys)
-CFLAGS   += -fstack-protector
-LDFLAGS  += -fstack-protector
+# make lacks ||, i think
+ifeq ($(shell uname -o),MSys)
+else
+  ifeq ($(shell uname -o),Cygwin)
+  else
+    ifeq ($(shell uname -o),Msys)
+    else
+      CFLAGS   += -fstack-protector
+      LDFLAGS  += -fstack-protector
+    endif
+  endif
 endif
 
 Q         = @
