@@ -2,6 +2,7 @@ gtk:
 	http://gtkforums.com/viewtopic.php?t=988 (tutorial)
 	windows:
 		unknown publisher - run don't run UAC
+		win32 error code uses FormatMessage _instead_ of perror
 
 log:
 	add conn/disco and renames
