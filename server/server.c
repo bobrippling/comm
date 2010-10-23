@@ -635,6 +635,8 @@ int cfg_init()
 int setup()
 {
 	struct sockaddr_in svr_addr;
+	struct linger linger;
+	int i;
 
 	server = socket(PF_INET, SOCK_STREAM, 0);
 	if(server == -1){
@@ -649,7 +651,18 @@ int setup()
 	if(INADDR_ANY) /* usually optimised out of existence */
 		svr_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-	/* setsockopt ... SO_REUSE(ADDR|PORT) ? */
+
+	/* wait if there's more data in the tubes */
+	linger.l_onoff = 1;
+	linger.l_linger = 1;
+	if(setsockopt(server, SOL_SOCKET, SO_LINGER, &linger, sizeof linger) < 0)
+		perror("warning: setsockopt(SO_LINGER)");
+
+	/* listen immediately afterwards */
+	i = 1;
+	if(setsockopt(server, SOL_SOCKET, SO_REUSEADDR, &i, sizeof i) < 0)
+		perror("warning: setsockopt(SO_REUSEADDR)");
+
 	if(bind(server, (struct sockaddr *)&svr_addr, sizeof svr_addr) == -1){
 		fprintf(stderr, "bind on port %s: %s\n", glob_port, strerror(errno));
 		close(server);
