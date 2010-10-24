@@ -5,6 +5,13 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+/* can't use sendfile and have callbacks */
+#undef USE_SENDFILE
+
+#ifdef USE_SENDFILE
+# include <sys/sendfile.h>
+#endif
+
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -43,6 +50,7 @@ static char *strdup2(const char *s);
 	memset(ft,    '\0', sizeof *ft); \
 	memset(&addr, '\0', sizeof addr); \
 \
+	ft->lasterr_isnet = 0; \
 	if((ft->sock = socket(PF_INET, SOCK_STREAM, 0)) == -1) \
 		return 1; \
 
@@ -60,16 +68,14 @@ int ft_listen(struct filetransfer *ft, int port)
 	setsockopt(ft->sock, SOL_SOCKET, SO_REUSEADDR, &save, sizeof save);
 
 	if(bind(ft->sock, (struct sockaddr *)&addr, sizeof addr) == -1){
-		save = errno;
+		ft->lasterr = errno;
 		close(ft->sock);
-		errno = save;
 		BAIL("bind%s", "()");
 	}
 
 	if(listen(ft->sock, 1) == -1){
-		save = errno;
+		ft->lasterr = errno;
 		close(ft->sock);
-		errno = save;
 		BAIL("listen%s", "()");
 	}
 
@@ -99,7 +105,8 @@ int ft_recv(struct filetransfer *ft, ft_callback callback)
 	 *            ""
 	 */
 	FILE *local;
-	char *basename;
+	int ilocal;
+	char *basename; /* FIXME: free() */
 	char buffer[BUFFER_SIZE];
 	ssize_t size, nbytes = 0;
 	enum
@@ -119,6 +126,7 @@ int ft_recv(struct filetransfer *ft, ft_callback callback)
 				if(nbytes == size)
 					return 0;
 				BAIL("nbytes != size%s", "");
+				/* XXX: function exit point here */
 			}else
 				BAIL("premature transfer end: %zd != %zd",
 						nbytes, size);
@@ -131,14 +139,25 @@ check_buffer:
 			if(!local)
 				/* TODO: diagnostic */
 				BAIL("fopen local%s", "");
+			ilocal = fileno(local);
+			if(ilocal == -1){
+				/* wat */
+				ft->lasterr = errno;
+				fclose(local);
+				return 1;
+			}
 			state = RUNNING;
 		}
 
 		if(state == RUNNING){
-			if(write(fileno(local), buffer, nread) != nread)
+			if(write(ilocal, buffer, nread) != nread)
 				/* TODO: diagnostic */
 				BAIL("fwrite()%s", "");
-			nbytes += nread;
+			if(callback(ft, nbytes += nread, size)){
+				/* cancelled */
+				fclose(local);
+				return 1;
+			}
 		}else{
 			while(1){
 				char *nl = strchr(buffer, '\n');
@@ -158,6 +177,7 @@ check_buffer:
 								basename = strdup2(buffer + 5);
 								if(!basename)
 									BAIL("strndup2()%s", "");
+								ft_fname(ft) = basename;
 								SHIFT_BUFFER();
 								state = GOT_FILE;
 							}else
@@ -192,14 +212,16 @@ check_buffer:
 			}
 		}
 	}
+	/* unreachable */
 }
 
 int ft_send(struct filetransfer *ft, const char *fname, ft_callback callback)
 {
 	struct stat st;
 	FILE *local;
+	int ilocal, cancelled = 0;
 	char buffer[BUFFER_SIZE];
-	size_t nwrite;
+	size_t nwrite, nsent;
 	const char *basename = strrchr(fname, '/');
 
 	local = fopen(fname, "rb");
@@ -207,7 +229,13 @@ int ft_send(struct filetransfer *ft, const char *fname, ft_callback callback)
 		/* TODO: diagnostic */
 		BAIL("fopen local%s", "");
 
-	if(fstat(fileno(local), &st) == -1)
+	ilocal = fileno(local);
+
+	if(ilocal == -1)
+		/* pretty much impossible */
+		goto bail;
+
+	if(fstat(ilocal, &st) == -1)
 		/* TODO: diagnostic */
 		goto bail;
 
@@ -216,17 +244,32 @@ int ft_send(struct filetransfer *ft, const char *fname, ft_callback callback)
 	else
 		basename++;
 
+	ft_fname(ft) = basename;
+
 	if((nwrite = snprintf(buffer, sizeof buffer, "FILE %s\nSIZE %zd\n\n",
 			basename, st.st_size)) >= (signed)sizeof buffer)
 		/* FIXME TODO: diagnostic */
 		goto bail;
 
+#ifndef USE_SENDFILE
 	while(1){
+#endif
 		if(write(ft->sock, buffer, nwrite) == -1)
 			/* TODO: diagnostic */
 			goto bail;
 
-		switch((nwrite = read(fileno(local), buffer, sizeof buffer))){
+		nsent += nwrite;
+		if(callback(ft, nsent, st.st_size)){
+			/* cancel */
+			cancelled = 1;
+			break;
+		}
+
+#ifdef USE_SENDFILE
+		if(sendfile(ft->sock, ilocal, NULL, st.st_size) == -1)
+			goto bail;
+#else
+		switch((nwrite = read(ilocal, buffer, sizeof buffer))){
 			case 0:
 				if(ferror(local))
 					/* TODO: diagnostic */
@@ -238,9 +281,13 @@ int ft_send(struct filetransfer *ft, const char *fname, ft_callback callback)
 		}
 	}
 complete:
+#endif
 
-	fclose(local);
-	return 0;
+	if(fclose(local)){
+		ft->lasterr = errno;
+		return 1;
+	}else
+		return cancelled;
 bail:
 	BAIL("generic ft_send()%s", "");
 	fclose(local);
@@ -258,9 +305,10 @@ int ft_connect(struct filetransfer *ft, const char *host, const char *port)
 	hints.ai_family   = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 
-	/* FIXME: lookup_errno */
-	if(getaddrinfo(host, port, &hints, &ret))
+	if((ft->lasterr = getaddrinfo(host, port, &hints, &ret))){
+		ft->lasterr_isnet = 1;
 		BAIL("getaddrinfo()%s", "");
+	}
 
 	for(dest = ret; dest; dest = dest->ai_next){
 		ft->sock = socket(dest->ai_family, dest->ai_socktype,
@@ -280,17 +328,22 @@ int ft_connect(struct filetransfer *ft, const char *host, const char *port)
 	freeaddrinfo(ret);
 
 	if(ft->sock == -1){
-		errno = lastconnerr;
+		ft->lasterr = lastconnerr;
 		BAIL("connect()%s", "");
 	}
 
 	return 0;
 }
 
-void ft_close(struct filetransfer *ft)
+int ft_close(struct filetransfer *ft)
 {
-	close(ft->sock);
+	int ret = 0;
+	if(close(ft->sock)){
+		ft->lasterr = errno;
+		ret = 1;
+	}
 	ft->sock = -1;
+	return ret;
 }
 
 

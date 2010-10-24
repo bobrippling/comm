@@ -3,23 +3,22 @@
 
 struct filetransfer
 {
-	int connected;
+	int lasterr, lasterr_isnet;
 	int sock;
-
 	const char *fname;
-	size_t fsize;
 };
 
 typedef int (*ft_callback)(struct filetransfer *, size_t bytessent, size_t bytestotal);
 
-int  ft_connect(struct filetransfer *, const char *host, const char *port);
-int  ft_listen( struct filetransfer *, int port);
-int  ft_accept( struct filetransfer *);
-void ft_close(  struct filetransfer *);
+int ft_connect(struct filetransfer *, const char *host, const char *port);
+int ft_listen( struct filetransfer *, int port);
+int ft_accept( struct filetransfer *);
+int ft_close(  struct filetransfer *);
 
 int ft_recv(       struct filetransfer *, ft_callback callback);
 int ft_send(    struct filetransfer *, const char *fname, ft_callback callback);
 
+#define ft_fname(ft) (ft->fname)
 
 /*
  * all functions return 0 on success
