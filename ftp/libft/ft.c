@@ -1,9 +1,10 @@
-#define _POSIX_SOURCE
+#define _POSIX_C_SOURCE 200809L
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/select.h>
 
 /* can't use sendfile and have callbacks */
 #undef USE_SENDFILE
@@ -18,7 +19,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 
-#include "ftp.h"
+#include "ft.h"
 
 #define BUFFER_SIZE 2048
 
@@ -34,15 +35,6 @@
  * sender:    <file dump>
  *            <close conn>
  */
-
-static char *strdup2(const char *s);
-
-#define BAIL(s, ...) \
-	do{ \
-		printf(__FILE__ ":%d: (serrno: %s) bailing: " s \
-				"\n", __LINE__, strerror(errno), __VA_ARGS__); \
-		return 1; \
-	}while(0)
 
 #define SOCK_INIT() \
 	struct sockaddr_in addr; \
@@ -70,27 +62,43 @@ int ft_listen(struct filetransfer *ft, int port)
 	if(bind(ft->sock, (struct sockaddr *)&addr, sizeof addr) == -1){
 		ft->lasterr = errno;
 		close(ft->sock);
-		BAIL("bind%s", "()");
+		return 1;
 	}
 
 	if(listen(ft->sock, 1) == -1){
 		ft->lasterr = errno;
 		close(ft->sock);
-		BAIL("listen%s", "()");
+		return 1;
 	}
 
 	return 0;
 }
 
-int ft_accept(struct filetransfer *ft)
+int ft_accept(struct filetransfer *ft, int block)
 {
 	int new;
 
-	/* TODO: select() for non blocking */
+	if(!block){
+		fd_set fds;
+
+		FD_ZERO(&fds);
+		FD_SET(ft->sock, &fds);
+
+		if(select(ft->sock+1, &fds, NULL, NULL, NULL) == -1){
+			ft->lasterr = errno;
+			return 1;
+		}
+
+		if(!FD_ISSET(ft->sock, &fds))
+			return 0;
+	}
+
 	new = accept(ft->sock, NULL, 0);
 
 	if(new == -1)
-		BAIL("accept%s", "()");
+		return 1;
+
+	ft_connected(ft) = 1;
 
 	close(ft->sock);
 	ft->sock = new;
@@ -118,18 +126,22 @@ int ft_recv(struct filetransfer *ft, ft_callback callback)
 		ssize_t nread = recv(ft->sock, buffer, sizeof buffer, 0);
 
 		if(nread == -1)
-			BAIL("recv%s", "()");
+			return 1;
 		else if(nread == 0){
 			if(state == RUNNING){
 				fclose(local);
 				/* check finished */
-				if(nbytes == size)
+				if(nbytes == size){
+					if(callback(ft, FT_END, nbytes, size)){
+						fclose(local);
+						return 1;
+					}
 					return 0;
-				BAIL("nbytes != size%s", "");
+				}
+				return 1;
 				/* XXX: function exit point here */
 			}else
-				BAIL("premature transfer end: %zd != %zd",
-						nbytes, size);
+				return 1;
 		}
 
 check_buffer:
@@ -138,11 +150,15 @@ check_buffer:
 			local = fopen(basename, "wb");
 			if(!local)
 				/* TODO: diagnostic */
-				BAIL("fopen local%s", "");
+				return 1;
 			ilocal = fileno(local);
 			if(ilocal == -1){
 				/* wat */
 				ft->lasterr = errno;
+				fclose(local);
+				return 1;
+			}
+			if(callback(ft, FT_BEGIN, 0, size)){
 				fclose(local);
 				return 1;
 			}
@@ -152,8 +168,8 @@ check_buffer:
 		if(state == RUNNING){
 			if(write(ilocal, buffer, nread) != nread)
 				/* TODO: diagnostic */
-				BAIL("fwrite()%s", "");
-			if(callback(ft, nbytes += nread, size)){
+				return 1;
+			if(callback(ft, FT_TRANSFER, nbytes += nread, size)){
 				/* cancelled */
 				fclose(local);
 				return 1;
@@ -174,26 +190,26 @@ check_buffer:
 					switch(state){
 						case GOT_NOWT:
 							if(!strncmp(buffer, "FILE ", 5)){
-								basename = strdup2(buffer + 5);
+								basename = strdup(buffer + 5);
 								if(!basename)
-									BAIL("strndup2()%s", "");
+									return 1;
 								ft_fname(ft) = basename;
 								SHIFT_BUFFER();
 								state = GOT_FILE;
 							}else
 								/* TODO: diagnostic */
-								BAIL("FILE... expected%s", "");
+								return 1;
 							break;
 						case GOT_FILE:
 							if(!strncmp(buffer, "SIZE ", 5)){
 								if(sscanf(buffer + 5, "%zd", &size) != 1)
 									/* TODO: diagnostic */
-									BAIL("SIZE %%d... expected%s", "");
+									return 1;
 								SHIFT_BUFFER();
 								state = GOT_SIZE;
 							}else
 								/* TODO: diagnostic */
-								BAIL("SIZE... expected%s", "");
+								return 1;
 							break;
 						case GOT_SIZE:
 							if(buffer[0] == '\0'){
@@ -201,11 +217,11 @@ check_buffer:
 								SHIFT_BUFFER();
 							}else
 								/* TODO: diagnostic */
-								BAIL("\\n... expected%s", "");
+								return 1;
 							goto check_buffer;
 						case GOT_ALL:
 						case RUNNING:
-							BAIL("BUH?!?!?!%s", "");
+							return 1;
 					}
 				}else
 					break;
@@ -215,7 +231,7 @@ check_buffer:
 	/* unreachable */
 }
 
-int ft_send(struct filetransfer *ft, const char *fname, ft_callback callback)
+int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 {
 	struct stat st;
 	FILE *local;
@@ -227,7 +243,7 @@ int ft_send(struct filetransfer *ft, const char *fname, ft_callback callback)
 	local = fopen(fname, "rb");
 	if(!local)
 		/* TODO: diagnostic */
-		BAIL("fopen local%s", "");
+		return 1;
 
 	ilocal = fileno(local);
 
@@ -251,6 +267,15 @@ int ft_send(struct filetransfer *ft, const char *fname, ft_callback callback)
 		/* FIXME TODO: diagnostic */
 		goto bail;
 
+	if(callback(ft, FT_BEGIN, 0, st.st_size)){
+		/* cancel */
+		cancelled = 1;
+		goto complete;
+	}
+
+	/* so the numbers add up properly later on */
+	nsent = -nwrite;
+
 #ifndef USE_SENDFILE
 	while(1){
 #endif
@@ -259,7 +284,7 @@ int ft_send(struct filetransfer *ft, const char *fname, ft_callback callback)
 			goto bail;
 
 		nsent += nwrite;
-		if(callback(ft, nsent, st.st_size)){
+		if(callback(ft, FT_TRANSFER, nsent, st.st_size)){
 			/* cancel */
 			cancelled = 1;
 			break;
@@ -274,6 +299,12 @@ int ft_send(struct filetransfer *ft, const char *fname, ft_callback callback)
 				if(ferror(local))
 					/* TODO: diagnostic */
 					goto bail;
+				/* FIXME: assert(nbytes == st.st_size); */
+				if(callback(ft, FT_END, nsent, st.st_size)){
+					/* cancel */
+					cancelled = 1;
+					goto complete;
+				}
 				goto complete;
 			case -1:
 				/* TODO: diagnostic */
@@ -289,7 +320,7 @@ complete:
 	}else
 		return cancelled;
 bail:
-	BAIL("generic ft_send()%s", "");
+	return 1;
 	fclose(local);
 	return 1;
 }
@@ -301,13 +332,15 @@ int ft_connect(struct filetransfer *ft, const char *host, const char *port)
 
 	SOCK_INIT();
 
+	ft_connected(ft) = 0;
+
 	memset(&hints, '\0', sizeof hints);
 	hints.ai_family   = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 
 	if((ft->lasterr = getaddrinfo(host, port, &hints, &ret))){
 		ft->lasterr_isnet = 1;
-		BAIL("getaddrinfo()%s", "");
+		return 1;
 	}
 
 	for(dest = ret; dest; dest = dest->ai_next){
@@ -329,24 +362,35 @@ int ft_connect(struct filetransfer *ft, const char *host, const char *port)
 
 	if(ft->sock == -1){
 		ft->lasterr = lastconnerr;
-		BAIL("connect()%s", "");
+		return 1;
 	}
 
+	ft_connected(ft) = 1;
 	return 0;
 }
 
 int ft_close(struct filetransfer *ft)
 {
 	int ret = 0;
+
 	if(close(ft->sock)){
 		ft->lasterr = errno;
 		ret = 1;
 	}
+
 	ft->sock = -1;
+	ft_connected(ft) = 0;
+
 	return ret;
 }
 
+const char *ft_lasterr(struct filetransfer *ft)
+{
+	return ft->lasterr_isnet ?
+		gai_strerror(ft->lasterr) : strerror(ft->lasterr);
+}
 
+/*
 static char *strdup2(const char *s)
 {
 	size_t len = strlen(s);
@@ -356,3 +400,4 @@ static char *strdup2(const char *s)
 	strcpy(d, s);
 	return d;
 }
+*/
