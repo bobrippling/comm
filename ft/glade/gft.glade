@@ -1,0 +1,135 @@
+<?xml version="1.0"?>
+<interface>
+  <requires lib="gtk+" version="2.16"/>
+  <!-- interface-naming-policy project-wide -->
+  <object class="GtkWindow" id="winMain">
+    <property name="title" translatable="yes">GFT v1.0</property>
+    <property name="default_width">300</property>
+    <property name="default_height">21</property>
+    <child>
+      <object class="GtkHBox" id="hboxMain">
+        <property name="visible">True</property>
+        <child>
+          <object class="GtkVBox" id="vboxLeft">
+            <property name="width_request">41</property>
+            <property name="visible">True</property>
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkLabel" id="lblHost">
+                <property name="visible">True</property>
+                <property name="label" translatable="yes">Host:</property>
+              </object>
+              <packing>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel" id="lblFile">
+                <property name="visible">True</property>
+                <property name="label" translatable="yes">File:</property>
+              </object>
+              <packing>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel" id="lblButtans">
+                <property name="visible">True</property>
+                <property name="label" translatable="yes">Command:</property>
+              </object>
+              <packing>
+                <property name="position">2</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkVBox" id="vboxRight">
+            <property name="visible">True</property>
+            <property name="orientation">vertical</property>
+            <property name="homogeneous">True</property>
+            <child>
+              <object class="GtkComboBoxEntry" id="cboHost">
+                <property name="visible">True</property>
+              </object>
+              <packing>
+                <property name="fill">False</property>
+                <property name="padding">2</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkEntry" id="entryIn">
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="invisible_char">&#x25CF;</property>
+                <property name="activates_default">True</property>
+              </object>
+              <packing>
+                <property name="padding">2</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkHBox" id="hboxButtans">
+                <property name="visible">True</property>
+                <property name="homogeneous">True</property>
+                <child>
+                  <object class="GtkButton" id="btnConnect">
+                    <property name="label" translatable="yes">Connect</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">True</property>
+                    <signal name="clicked" handler="on_btnConnect_clicked"/>
+                  </object>
+                  <packing>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkButton" id="btnListen">
+                    <property name="label" translatable="yes">Listen</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">True</property>
+                    <signal name="clicked" handler="on_btnListen_clicked"/>
+                  </object>
+                  <packing>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkButton" id="btnSend">
+                    <property name="label" translatable="yes">Send</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="can_default">True</property>
+                    <property name="has_default">True</property>
+                    <property name="receives_default">True</property>
+                    <signal name="clicked" handler="on_btnSend_clicked"/>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="position">2</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="fill">False</property>
+                <property name="padding">2</property>
+                <property name="position">2</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="padding">2</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>

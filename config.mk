@@ -20,23 +20,25 @@ endif
 Q         = @
 
 .c.o:
-	$Qecho CC $<
+	@echo CC $<
 	$Q${CC} -c ${CFLAGS} -o $@ $<
 
 mostlyclean:
 	$Qrm -f *.o
 
-%gen.c: %gen_pre.c %gen_post.c
+# need to provide gladegen.h
+# %gen.h
+# %gen_pre.c %gen_post.c
+%gen.c:
 	@echo GEN $@
-	@cat gladegen_pre.c > $@
+	@cat ../glade/gladegen_pre.c > $@
 	@# awk script to paste comm.glade using multiple
 	@# fputs() calls (strings have a limit in C)
-	@sed 's/"/\\"/g' glade/comm.glade glade/col.glade | awk ' \
+	@sed 's/"/\\"/g' $^ | awk ' \
 BEGIN { \
 	ORS = ""; \
 	n = 0; \
 } \
- \
 { \
 	lines[n] = $$0; \
 	n++; \
@@ -48,4 +50,4 @@ BEGIN { \
 		print ", f) == EOF) goto bail;\n"; \
 	} \
 }' | sed 's/^\([",]\)/  \1/; s/^/  /' >> $@
-	@cat gladegen_post.c >> $@
+	@cat ../glade/gladegen_post.c >> $@

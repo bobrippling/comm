@@ -6,20 +6,17 @@ GUI_DEPS = gui.o gtkutil.o gladegen.o ../log/log.o \
 					 ../cfg/cfg.o ../libcomm/libcomm.a
 
 guicomm: ${GUI_DEPS}
-	$Qecho LD $@
+	@echo LD $@
 	$Q${CC} ${LDFLAGS} -o $@ $^
-
-# rule is in ../Makefile
-#gladegen.c: gladegen_pre.c \
-		glade/comm.glade glade/col.glade \
-		gladegen_post.c
-
-clean: mostlyclean
-	$Qrm -f guicomm comm.exe gladegen.c
 
 comm.exe: ${GUI_DEPS} ../common/sockprintf.o
 	@#${CC} ${CFLAGS} -o $@ $^ ${LDFLAGS} -LC:/MinGW/lib
 	${CC} ${CFLAGS} -o $@ $^ ${LDFLAGS} -lws2_32 -lole32
+
+clean: mostlyclean
+	$Qrm -f guicomm comm.exe gladegen.c
+
+gladegen.c: glade/comm.glade glade/col.glade
 
 include ../config.mk
 

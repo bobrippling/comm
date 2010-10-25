@@ -12,21 +12,25 @@ LDFLAGS_G  = ${LDFLAGS} `pkg-config --libs ${GTKINC}`
 all: tft gft
 
 tft: tft.o libft/ft.o
-	${CC} -o $@ $^ ${LDFLAGS}
+	@echo LD $@
+	$Q${CC} -o $@ $^ ${LDFLAGS}
 
 gft: gft.o libft/ft.o gladegen.o
-	${CC} ${LDFLAGS_G} -o $@ $^
+	@echo LD $@
+	$Q${CC} ${LDFLAGS_G} -o $@ $^
 
 gft.o: gft.c
-	${CC} ${CFLAGS_G} -o $@ $<
+	@echo CC $@
+	$Q${CC} ${CFLAGS_G} -c -o $@ $<
 
-gladegen.c: gladegen_pre.c gladegen_post.c \
-	glade/gft.glade
+gladegen.c: glade/gft.glade
 
 clean:
-	rm -f `find . -iname \*.o` tft
+	rm -f `find . -iname \*.o` tft gft gladegen.c
 
 .PHONY: all clean
+
+include ../config.mk
 
 tft.o: tft.c libft/ft.h
 libft/ft.o: libft/ft.c libft/ft.h

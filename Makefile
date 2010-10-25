@@ -28,6 +28,9 @@ gui: libcomm
 comm.exe: libcomm
 	$Qmake ${MAKEFLAGS} -C gui $@
 
+ft:
+	$Qmake ${MAKEFLAGS} -C $@
+
 fifo: libcomm
 	$Qmake ${MAKEFLAGS} -C $@
 
