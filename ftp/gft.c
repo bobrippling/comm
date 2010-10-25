@@ -1,67 +1,14 @@
 #include <gtk/gtk.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <ctype.h>
-#include <unistd.h>
 
-#include <errno.h>
-#include <stdarg.h>
-
-/* comm includes */
-#ifdef _WIN32
-# include <winsock2.h>
-#else
-# include <arpa/inet.h>
-
-# include <sys/stat.h>
-# include <fcntl.h>
-#endif
-
-#include "gtkutil.h"
-#include "gladegen.h"
-#include "../log/log.h"
-#include "../cfg/cfg.h"
-#include "../libcomm/comm.h"
-#include "../config.h"
-
-#define WIN_MAIN   "winMain"
+#define WIN_MAIN   "winFT"
 #define TIMEOUT    250
 
-/* On the TODO */
-#define COLOUR_UNKNOWN "#000000"
-#define COLOUR_ERR     "#FF0000"
-#define COLOUR_INFO    "#00DD00"
-#define COLOUR_MSG     "#0000FF"
-
-/* prototypes */
 static int  getobjects(GtkBuilder *);
 static void updatewidgets(void);
-static void commcallback(enum comm_callbacktype type, const char *fmt, ...);
-static void cfg2txt(void), txt2cfg(void);
 static const char *gtk_color_to_rgb(GdkColor *col);
 static void        gui_set_colour(void);
 
-G_MODULE_EXPORT gboolean on_btnConnect_clicked        (GtkButton *button, gpointer data);
-G_MODULE_EXPORT gboolean on_btnDisconnect_clicked     (GtkButton *button, gpointer data);
-G_MODULE_EXPORT gboolean on_btnSend_clicked           (GtkButton *button, gpointer data);
-G_MODULE_EXPORT gboolean on_entryName_activate        (GtkEntry *ent,     gpointer data);
-G_MODULE_EXPORT gboolean on_entryName_focus_out_event (GtkEntry *ent,     gpointer data);
-G_MODULE_EXPORT gboolean on_txtMain_key_press_event   (GtkWidget *widget, GdkEventKey *event, gpointer func_data);
-G_MODULE_EXPORT gboolean on_txtMain_button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer func_data);
-G_MODULE_EXPORT gboolean on_winMain_destroy           (void);
-G_MODULE_EXPORT gboolean timeout                      (gpointer data);
 
-
-/* vars */
-GtkWidget *winMain, *colorseldiag;
-GtkWidget *entryHost, *entryIn, *entryName; /* Gtk_Entry */
-GtkWidget *txtMain; /* GtkTextView */
-GtkWidget *btnConnect, *btnDisconnect, *btnSend;
-GtkWidget *treeClients;
-GtkWidget *colorsel;
-
-comm_t   commt;
 
 GdkColor var_color;
 

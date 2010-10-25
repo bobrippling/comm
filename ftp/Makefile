@@ -14,11 +14,14 @@ all: tft gft
 tft: tft.o libft/ft.o
 	${CC} -o $@ $^ ${LDFLAGS}
 
-gft: gft.o libft/ft.o
+gft: gft.o libft/ft.o gladegen.o
 	${CC} ${LDFLAGS_G} -o $@ $^
 
 gft.o: gft.c
 	${CC} ${CFLAGS_G} -o $@ $<
+
+gladegen.c: gladegen_pre.c gladegen_post.c \
+	glade/gft.glade
 
 clean:
 	rm -f `find . -iname \*.o` tft

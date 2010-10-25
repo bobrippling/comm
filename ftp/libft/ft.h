@@ -3,9 +3,9 @@
 
 struct filetransfer
 {
-	int lasterr, lasterr_isnet;
-	int sock, connected;
+	const char *lasterr;
 	const char *fname;
+	int sock, connected;
 };
 
 enum ftstate

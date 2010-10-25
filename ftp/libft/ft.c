@@ -1,16 +1,17 @@
 #ifdef _WIN32
 # define _WIN32_WINNT 0x501
 # define close(x) closesocket(x)
-# define PRINTF_SIZET "%ld"
 /* ws2tcpip must be first... enterprise */
 # include <ws2tcpip.h>
 # include <winsock2.h>
 /* ^ getaddrinfo */
 
-#define os_lasterr WSAGetLastError()
+#define os_getlasterr Win32_LastErr()
+# define PRINTF_SIZET "%ld"
 
 #else
 # define _POSIX_C_SOURCE 200809L
+# define _XOPEN_SOURCE   501
 # include <sys/socket.h>
 # include <arpa/inet.h>
 # include <netdb.h>
@@ -19,9 +20,9 @@
 # include <sys/select.h>
 # include <errno.h>
 
-#define os_lasterr errno
-
-# define PRINTF_SIZET "%zd"
+#define os_getlasterr strerror(errno)
+/* needs cast to unsigned long */
+# define PRINTF_SIZET "%lu"
 
 #endif
 
@@ -70,7 +71,7 @@ static int WSA_Startuped = 0;
 		struct WSAData d; \
 		WSA_Startuped = 1; \
 		if(WSAStartup(MAKEWORD(2, 2), &d)){ \
-			ft->lasterr = os_lasterr; \
+			ft->lasterr = os_getlasterr; \
 			return 1; \
 		} \
 	} \
@@ -91,9 +92,8 @@ int ft_listen(struct filetransfer *ft, int port)
 
 	DATA_INIT();
 
-	ft->lasterr_isnet = 0;
 	if((ft->sock = socket(PF_INET, SOCK_STREAM, 0)) == -1){
-		ft->lasterr = os_lasterr;
+		ft->lasterr = os_getlasterr;
 		return 1;
 	}
 
@@ -106,13 +106,13 @@ int ft_listen(struct filetransfer *ft, int port)
 #endif
 
 	if(bind(ft->sock, (struct sockaddr *)&addr, sizeof addr) == -1){
-		ft->lasterr = os_lasterr;
+		ft->lasterr = os_getlasterr;
 		close(ft->sock);
 		return 1;
 	}
 
 	if(listen(ft->sock, 1) == -1){
-		ft->lasterr = os_lasterr;
+		ft->lasterr = os_getlasterr;
 		close(ft->sock);
 		return 1;
 	}
@@ -131,7 +131,7 @@ int ft_accept(struct filetransfer *ft, int block)
 		FD_SET(ft->sock, &fds);
 
 		if(select(ft->sock+1, &fds, NULL, NULL, NULL) == -1){
-			ft->lasterr = errno;
+			ft->lasterr = os_getlasterr;
 			return 1;
 		}
 
@@ -172,7 +172,7 @@ int ft_recv(struct filetransfer *ft, ft_callback callback)
 		ssize_t nread = recv(ft->sock, buffer, sizeof buffer, 0);
 
 		if(nread == -1){
-			ft->lasterr = errno;
+			ft->lasterr = os_getlasterr;
 			return 1;
 		}else if(nread == 0){
 			if(state == RUNNING){
@@ -202,7 +202,7 @@ check_buffer:
 			ilocal = fileno(local);
 			if(ilocal == -1){
 				/* wat */
-				ft->lasterr = errno;
+				ft->lasterr = os_getlasterr;
 				fclose(local);
 				return 1;
 			}
@@ -250,7 +250,7 @@ check_buffer:
 							break;
 						case GOT_FILE:
 							if(!strncmp(buffer, "SIZE ", 5)){
-								if(sscanf(buffer + 5, PRINTF_SIZET, &size) != 1)
+								if(sscanf(buffer + 5, PRINTF_SIZET, (unsigned long *)&size) != 1)
 									/* TODO: diagnostic */
 									return 1;
 								SHIFT_BUFFER();
@@ -364,7 +364,7 @@ complete:
 #endif
 
 	if(fclose(local)){
-		ft->lasterr = errno;
+		ft->lasterr = os_getlasterr;
 		return 1;
 	}else
 		return cancelled;
@@ -378,7 +378,8 @@ int ft_connect(struct filetransfer *ft, const char *host, const char *port)
 {
 	struct addrinfo hints, *ret = NULL, *dest = NULL;
 	struct sockaddr_in addr;
-	int lastconnerr = 0;
+	const char *lastconnerr = NULL;
+	int eno;
 
 	DATA_INIT();
 
@@ -388,8 +389,8 @@ int ft_connect(struct filetransfer *ft, const char *host, const char *port)
 	hints.ai_family   = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 
-	if((ft->lasterr = getaddrinfo(host, port, &hints, &ret))){
-		ft->lasterr_isnet = 1;
+	if((eno = getaddrinfo(host, port, &hints, &ret))){
+		ft->lasterr = gai_strerror(eno);
 		return 1;
 	}
 
@@ -403,7 +404,7 @@ int ft_connect(struct filetransfer *ft, const char *host, const char *port)
 		if(connect(ft->sock, dest->ai_addr, dest->ai_addrlen) == 0)
 			break;
 
-		lastconnerr = os_lasterr;
+		lastconnerr = os_getlasterr;
 		close(ft->sock);
 		ft->sock = -1;
 	}
@@ -424,7 +425,7 @@ int ft_close(struct filetransfer *ft)
 	int ret = 0;
 
 	if(close(ft->sock)){
-		ft->lasterr = os_lasterr;
+		ft->lasterr = os_getlasterr;
 		ret = 1;
 	}
 
@@ -434,35 +435,19 @@ int ft_close(struct filetransfer *ft)
 	return ret;
 }
 
+#ifdef _WIN32
+const char *Win32_LastErr()
+{
+	static char errbuf[256];
+	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL,
+			ft->lasterr, 0, errbuf, sizeof errbuf, NULL);
+	return errbuf;
+}
+#endif
+
 const char *ft_lasterr(struct filetransfer *ft)
 {
-#ifdef _WIN32
-	static char errbuf[256];
-
-	if(ft->lasterr_isnet)
-		return gai_strerror(ft->lasterr);
-	else{
-		if(!ft->lasterr)
-			return "libft: no error";
-
-		FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL,
-				ft->lasterr, 0, errbuf, sizeof errbuf, NULL);
-		return errbuf;
-	}
-#else
-	return ft->lasterr_isnet ?
-		gai_strerror(ft->lasterr) : strerror(ft->lasterr);
-#endif
+	if(!ft->lasterr)
+		return "libft: no error";
+	return ft->lasterr;
 }
-
-/*
-static char *strdup2(const char *s)
-{
-	size_t len = strlen(s);
-	char *d = malloc(len + 1);
-	if(!d)
-		return NULL;
-	strcpy(d, s);
-	return d;
-}
-*/

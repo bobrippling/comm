@@ -9,31 +9,10 @@ guicomm: ${GUI_DEPS}
 	$Qecho LD $@
 	$Q${CC} ${LDFLAGS} -o $@ $^
 
-gladegen.c: gladegen_pre.c \
+# rule is in ../Makefile
+#gladegen.c: gladegen_pre.c \
 		glade/comm.glade glade/col.glade \
 		gladegen_post.c
-	@echo GEN $@
-	@cat gladegen_pre.c > $@
-	@# awk script to paste comm.glade using multiple
-	@# fputs() calls (strings have a limit in C)
-	@sed 's/"/\\"/g' glade/comm.glade glade/col.glade | awk ' \
-BEGIN { \
-	ORS = ""; \
-	n = 0; \
-} \
- \
-{ \
-	lines[n] = $$0; \
-	n++; \
-	if(n > 2){ \
-		print "if(fputs(\n"; \
-		for(i = 0; i < n; i++) \
-			print "\"" lines[i] "\\n\"\n"; \
-		n = 0; \
-		print ", f) == EOF) goto bail;\n"; \
-	} \
-}' | sed 's/^\([",]\)/  \1/; s/^/  /' >> $@
-	@cat gladegen_post.c >> $@
 
 clean: mostlyclean
 	$Qrm -f guicomm comm.exe gladegen.c
