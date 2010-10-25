@@ -788,6 +788,14 @@ int main(int argc, char **argv)
 	if(background){
 		fprintf(stderr, "%s: %sforking to background\n", *argv, log ? "" : "closing output and ");
 
+		/*
+		 * TODO: use daemon(3)?
+		 *
+		 * daemon(1, 0);
+		 * 1 - don't chdir("/")
+		 * 0 - close STD{IN,OUT,ERR}
+		 */
+
 		signal(SIGCHLD, SIG_IGN);
 		switch(fork()){
 			case 0:
