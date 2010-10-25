@@ -1,10 +1,29 @@
-#define _POSIX_C_SOURCE 200809L
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/select.h>
+#ifdef _WIN32
+# define _WIN32_WINNT 0x501
+# define close(x) closesocket(x)
+# define PRINTF_SIZET "%ld"
+/* ws2tcpip must be first... enterprise */
+# include <ws2tcpip.h>
+# include <winsock2.h>
+/* ^ getaddrinfo */
+
+#define os_lasterr WSAGetLastError()
+
+#else
+# define _POSIX_C_SOURCE 200809L
+# include <sys/socket.h>
+# include <arpa/inet.h>
+# include <netdb.h>
+# include <unistd.h>
+# include <fcntl.h>
+# include <sys/select.h>
+# include <errno.h>
+
+#define os_lasterr errno
+
+# define PRINTF_SIZET "%zd"
+
+#endif
 
 /* can't use sendfile and have callbacks */
 #undef USE_SENDFILE
@@ -15,9 +34,18 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+
+#ifdef _WIN32
+int fileno(FILE *);
+ssize_t write(int fd, const char *, ssize_t);
+ssize_t read( int fd, const char *, ssize_t);
+char *strdup(const char *);
+
+static int WSA_Startuped = 0;
+#endif
+
 
 #include "ft.h"
 
@@ -36,37 +64,55 @@
  *            <close conn>
  */
 
-#define SOCK_INIT() \
-	struct sockaddr_in addr; \
-\
+#ifdef _WIN32
+# define DATA_INIT() \
+	if(!WSA_Startuped){ \
+		struct WSAData d; \
+		WSA_Startuped = 1; \
+		if(WSAStartup(MAKEWORD(2, 2), &d)){ \
+			ft->lasterr = os_lasterr; \
+			return 1; \
+		} \
+	} \
 	memset(ft,    '\0', sizeof *ft); \
-	memset(&addr, '\0', sizeof addr); \
-\
-	ft->lasterr_isnet = 0; \
-	if((ft->sock = socket(PF_INET, SOCK_STREAM, 0)) == -1) \
-		return 1; \
-
+	memset(&addr, '\0', sizeof addr);
+#else
+# define DATA_INIT() \
+	memset(ft,    '\0', sizeof *ft); \
+	memset(&addr, '\0', sizeof addr);
+#endif
 
 int ft_listen(struct filetransfer *ft, int port)
 {
+#ifndef _WIN32
 	int save;
+#endif
+	struct sockaddr_in addr;
 
-	SOCK_INIT();
+	DATA_INIT();
+
+	ft->lasterr_isnet = 0;
+	if((ft->sock = socket(PF_INET, SOCK_STREAM, 0)) == -1){
+		ft->lasterr = os_lasterr;
+		return 1;
+	}
 
 	addr.sin_port = htons(port);
 	addr.sin_family = AF_INET;
 
+#ifndef _WIN32
 	save = 1;
 	setsockopt(ft->sock, SOL_SOCKET, SO_REUSEADDR, &save, sizeof save);
+#endif
 
 	if(bind(ft->sock, (struct sockaddr *)&addr, sizeof addr) == -1){
-		ft->lasterr = errno;
+		ft->lasterr = os_lasterr;
 		close(ft->sock);
 		return 1;
 	}
 
 	if(listen(ft->sock, 1) == -1){
-		ft->lasterr = errno;
+		ft->lasterr = os_lasterr;
 		close(ft->sock);
 		return 1;
 	}
@@ -125,9 +171,10 @@ int ft_recv(struct filetransfer *ft, ft_callback callback)
 	while(1){
 		ssize_t nread = recv(ft->sock, buffer, sizeof buffer, 0);
 
-		if(nread == -1)
+		if(nread == -1){
+			ft->lasterr = errno;
 			return 1;
-		else if(nread == 0){
+		}else if(nread == 0){
 			if(state == RUNNING){
 				fclose(local);
 				/* check finished */
@@ -138,6 +185,7 @@ int ft_recv(struct filetransfer *ft, ft_callback callback)
 					}
 					return 0;
 				}
+				ft->lasterr = "Connection prematurely closed"; // XXX
 				return 1;
 				/* XXX: function exit point here */
 			}else
@@ -202,7 +250,7 @@ check_buffer:
 							break;
 						case GOT_FILE:
 							if(!strncmp(buffer, "SIZE ", 5)){
-								if(sscanf(buffer + 5, "%zd", &size) != 1)
+								if(sscanf(buffer + 5, PRINTF_SIZET, &size) != 1)
 									/* TODO: diagnostic */
 									return 1;
 								SHIFT_BUFFER();
@@ -262,7 +310,8 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 
 	ft_fname(ft) = basename;
 
-	if((nwrite = snprintf(buffer, sizeof buffer, "FILE %s\nSIZE %zd\n\n",
+	if((nwrite = snprintf(buffer, sizeof buffer,
+					"FILE %s\nSIZE " PRINTF_SIZET "\n\n",
 			basename, st.st_size)) >= (signed)sizeof buffer)
 		/* FIXME TODO: diagnostic */
 		goto bail;
@@ -328,9 +377,10 @@ bail:
 int ft_connect(struct filetransfer *ft, const char *host, const char *port)
 {
 	struct addrinfo hints, *ret = NULL, *dest = NULL;
+	struct sockaddr_in addr;
 	int lastconnerr = 0;
 
-	SOCK_INIT();
+	DATA_INIT();
 
 	ft_connected(ft) = 0;
 
@@ -353,7 +403,7 @@ int ft_connect(struct filetransfer *ft, const char *host, const char *port)
 		if(connect(ft->sock, dest->ai_addr, dest->ai_addrlen) == 0)
 			break;
 
-		lastconnerr = errno;
+		lastconnerr = os_lasterr;
 		close(ft->sock);
 		ft->sock = -1;
 	}
@@ -374,7 +424,7 @@ int ft_close(struct filetransfer *ft)
 	int ret = 0;
 
 	if(close(ft->sock)){
-		ft->lasterr = errno;
+		ft->lasterr = os_lasterr;
 		ret = 1;
 	}
 
@@ -386,8 +436,23 @@ int ft_close(struct filetransfer *ft)
 
 const char *ft_lasterr(struct filetransfer *ft)
 {
+#ifdef _WIN32
+	static char errbuf[256];
+
+	if(ft->lasterr_isnet)
+		return gai_strerror(ft->lasterr);
+	else{
+		if(!ft->lasterr)
+			return "libft: no error";
+
+		FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL,
+				ft->lasterr, 0, errbuf, sizeof errbuf, NULL);
+		return errbuf;
+	}
+#else
 	return ft->lasterr_isnet ?
 		gai_strerror(ft->lasterr) : strerror(ft->lasterr);
+#endif
 }
 
 /*
