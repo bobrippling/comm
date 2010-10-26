@@ -6,11 +6,12 @@ struct filetransfer
 	const char *lasterr;
 	const char *fname;
 	int sock, connected;
+	size_t lastcallback;
 };
 
 enum ftstate
 {
-	FT_BEGIN, FT_TRANSFER, FT_END
+	FT_WAIT, FT_BEGIN, FT_TRANSFER, FT_END
 };
 
 typedef int (*ft_callback)(struct filetransfer *, enum ftstate state,
@@ -28,6 +29,8 @@ const char *ft_lasterr(struct filetransfer *);
 
 #define ft_fname(ft)     ((ft)->fname)
 #define ft_connected(ft) ((ft)->connected)
+
+#define DEFAULT_PORT "7643"
 
 /*
  * all functions return 0 on success

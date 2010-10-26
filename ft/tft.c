@@ -6,8 +6,6 @@
 
 #include "libft/ft.h"
 
-#define PORT "7643"
-
 void cleanup(void);
 
 struct filetransfer ft;
@@ -18,6 +16,8 @@ int callback(struct filetransfer *ft, enum ftstate state,
 {
 	if(state == FT_END && !(recvfile = strdup(ft_fname(ft))))
 		perror("strdup()");
+	else if(state == FT_WAIT)
+		return 0;
 
 	printf("\"%s\": %zd / %zd (%2.2f)%%\r", ft_fname(ft),
 			bytessent, bytestotal, (float)(100.0f * bytessent / bytestotal));
@@ -33,7 +33,7 @@ void cleanup()
 int main(int argc, char **argv)
 {
 	int i, listen = 0, verbose = 0;
-	const char *fname = NULL, *host  = NULL, *port = PORT;
+	const char *fname = NULL, *host  = NULL, *port = DEFAULT_PORT;
 
 	for(i = 1; i < argc; i++)
 		if(!strcmp(argv[i], "-l"))
@@ -106,7 +106,7 @@ int main(int argc, char **argv)
 			printf("%s: sending %s\n", *argv, fname);
 
 		if(ft_send(&ft, callback, fname)){
-			fprintf(stderr, "ft_send(): %s\n", ft_lasterr(&ft));
+			fprintf(stderr, "\nft_send(): %s\n", ft_lasterr(&ft));
 			return 1;
 		}
 	}else{
@@ -114,7 +114,7 @@ int main(int argc, char **argv)
 			printf("%s: receiving incomming file\n", *argv);
 
 		if(ft_recv(&ft, callback)){
-			fprintf(stderr, "ft_recv(): %s\n", ft_lasterr(&ft));
+			fprintf(stderr, "\nft_recv(): %s\n", ft_lasterr(&ft));
 			return 1;
 		}
 	}

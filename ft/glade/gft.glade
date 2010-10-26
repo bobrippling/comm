@@ -14,6 +14,7 @@
             <property name="width_request">41</property>
             <property name="visible">True</property>
             <property name="orientation">vertical</property>
+            <property name="homogeneous">True</property>
             <child>
               <object class="GtkLabel" id="lblHost">
                 <property name="visible">True</property>
@@ -33,12 +34,21 @@
               </packing>
             </child>
             <child>
+              <object class="GtkLabel" id="lblProgress">
+                <property name="visible">True</property>
+                <property name="label" translatable="yes">Progress:</property>
+              </object>
+              <packing>
+                <property name="position">2</property>
+              </packing>
+            </child>
+            <child>
               <object class="GtkLabel" id="lblButtans">
                 <property name="visible">True</property>
                 <property name="label" translatable="yes">Command:</property>
               </object>
               <packing>
-                <property name="position">2</property>
+                <property name="position">3</property>
               </packing>
             </child>
           </object>
@@ -62,7 +72,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkEntry" id="entryIn">
+              <object class="GtkEntry" id="entryFile">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="invisible_char">&#x25CF;</property>
@@ -74,21 +84,40 @@
               </packing>
             </child>
             <child>
-              <object class="GtkHBox" id="hboxButtans">
+              <object class="GtkVBox" id="vbox1">
                 <property name="visible">True</property>
-                <property name="homogeneous">True</property>
+                <property name="orientation">vertical</property>
                 <child>
-                  <object class="GtkButton" id="btnConnect">
-                    <property name="label" translatable="yes">Connect</property>
+                  <object class="GtkLabel" id="lblStatus">
                     <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="receives_default">True</property>
-                    <signal name="clicked" handler="on_btnConnect_clicked"/>
+                    <property name="label" translatable="yes">Not much going on...</property>
                   </object>
                   <packing>
                     <property name="position">0</property>
                   </packing>
                 </child>
+                <child>
+                  <object class="GtkProgressBar" id="progressft">
+                    <property name="visible">True</property>
+                    <property name="discrete_blocks">5</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">False</property>
+                <property name="position">2</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkHBox" id="hboxButtans">
+                <property name="visible">True</property>
+                <property name="homogeneous">True</property>
                 <child>
                   <object class="GtkButton" id="btnListen">
                     <property name="label" translatable="yes">Listen</property>
@@ -96,6 +125,18 @@
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
                     <signal name="clicked" handler="on_btnListen_clicked"/>
+                  </object>
+                  <packing>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkButton" id="btnConnect">
+                    <property name="label" translatable="yes">Connect</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">True</property>
+                    <signal name="clicked" handler="on_btnConnect_clicked"/>
                   </object>
                   <packing>
                     <property name="position">1</property>
@@ -112,15 +153,13 @@
                     <signal name="clicked" handler="on_btnSend_clicked"/>
                   </object>
                   <packing>
-                    <property name="expand">False</property>
                     <property name="position">2</property>
                   </packing>
                 </child>
               </object>
               <packing>
                 <property name="fill">False</property>
-                <property name="padding">2</property>
-                <property name="position">2</property>
+                <property name="position">3</property>
               </packing>
             </child>
           </object>

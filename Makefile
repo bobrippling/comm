@@ -1,10 +1,10 @@
 MAKEFLAGS = --no-print-directory
 
 .PHONY : clean mostlyclean all \
-	server libcomm term gui fifo
+	server libcomm term gui fifo ft
 
-all: server libcomm term gui fifo
-windows: libcomm comm.exe
+all: server libcomm term gui fifo ft
+windows: libcomm comm.exe ft
 
 info:
 	@echo OS: $(shell uname -o)
