@@ -10,7 +10,7 @@
 
 # define os_getlasterr Win32_LastErr()
 # define PRINTF_SIZET "%ld"
-# define PRINTF_SIZET_CAST long *
+# define PRINTF_SIZET_CAST long
 
 #else
 # define _POSIX_C_SOURCE 200809L
@@ -28,7 +28,7 @@
 # define os_getlasterr strerror(errno)
 /* needs cast to unsigned long */
 # define PRINTF_SIZET "%lu"
-# define PRINTF_SIZET_CAST unsigned long *
+# define PRINTF_SIZET_CAST unsigned long
 
 #endif
 
@@ -227,14 +227,9 @@ static int ft_get_meta(struct filetransfer *ft, ft_callback callback,
 			return 1;
 		}
 
-#ifdef _WIN32
-# define UNSIGNED signed
-#else
-# define UNSIGNED unsigned
-#endif
 		nnewlines = 0;
 		for(bufptr = buffer;
-				bufptr - buffer < (UNSIGNED)sizeof buffer;
+				bufptr - buffer < (signed)sizeof buffer;
 				++bufptr)
 			if(*bufptr == '\n')
 				if(++nnewlines == 3)
@@ -277,7 +272,7 @@ static int ft_get_meta(struct filetransfer *ft, ft_callback callback,
 
 	bufptr = strtok(NULL, "\n");
 	if(!strncmp(bufptr, "SIZE ", 5)){
-		if(sscanf(bufptr + 5, PRINTF_SIZET, (PRINTF_SIZET_CAST)size) != 1){
+		if(sscanf(bufptr + 5, PRINTF_SIZET, (PRINTF_SIZET_CAST *)size) != 1){
 			ft->lasterr = "libft: Invalid SIZE recieved";
 			return 1;
 		}
@@ -374,7 +369,7 @@ done:
 			RET(1);
 		}
 
-		if((UNSIGNED)fwrite(buffer, sizeof(char),
+		if((signed)fwrite(buffer, sizeof(char),
 					nread, local) != nread /* !*sizeof char */){
 			ft->lasterr = os_getlasterr;
 			RET(1);
@@ -510,8 +505,9 @@ complete:
 		ft->lasterr = FT_ERR_PREMATURE_CLOSE;
 	else if(nsent > (unsigned)st.st_size){
 		ft->lasterr = FT_ERR_TOO_MUCH;
-		fprintf(stderr, "libft: nsent: %ld, st.st_size: %ld\n",
-				nsent, st.st_size);
+		fprintf(stderr, "libft: nsent: " PRINTF_SIZET
+				", st.st_size: " PRINTF_SIZET "\n",
+				(PRINTF_SIZET_CAST)nsent, (PRINTF_SIZET_CAST)st.st_size);
 	}else{
 		if(callback(ft, FT_END, nsent, st.st_size)){
 			/* cancel */
