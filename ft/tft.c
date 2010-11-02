@@ -1,8 +1,6 @@
-#define _POSIX_C_SOURCE 200809L
-#define _XOPEN_SOURCE   501
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "libft/ft.h"
 
@@ -12,7 +10,6 @@ void clrtoeol(void);
 void cleanup(void);
 
 struct filetransfer ft;
-char *recvfile = NULL;
 
 int callback(struct filetransfer *ft, enum ftstate state,
 		size_t bytessent, size_t bytestotal)
@@ -20,8 +17,8 @@ int callback(struct filetransfer *ft, enum ftstate state,
 	int l = strlen(ft_fname(ft));
 
 	if(state == FT_END){
-		if(!(recvfile = strdup(ft_fname(ft))))
-			perror("strdup()");
+		printf("Recieved: %s\n", ft_fname(ft));
+		return 0;
 	}
 
 	putchar('"');
