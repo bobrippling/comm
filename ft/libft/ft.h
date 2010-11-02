@@ -11,7 +11,7 @@ struct filetransfer
 
 enum ftstate
 {
-	FT_WAIT, FT_BEGIN, FT_TRANSFER, FT_END
+	FT_BEGIN, FT_TRANSFER, FT_END
 };
 
 typedef int (*ft_callback)(struct filetransfer *, enum ftstate state,

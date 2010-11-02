@@ -22,8 +22,7 @@ int callback(struct filetransfer *ft, enum ftstate state,
 	if(state == FT_END){
 		if(!(recvfile = strdup(ft_fname(ft))))
 			perror("strdup()");
-	}else if(state == FT_WAIT)
-		return 0;
+	}
 
 	putchar('"');
 	fwrite(ft_fname(ft), sizeof(char), MAX(l, 32), stdout);

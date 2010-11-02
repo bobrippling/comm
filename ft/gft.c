@@ -232,10 +232,7 @@ int callback(struct filetransfer *ft, enum ftstate state,
 {
 	const double fraction = (double)bytessent / (double)bytestotal;
 
-	if(state == FT_WAIT){
-		status("waiting for inital data...");
-		return 0;
-	}else if(state == FT_BEGIN){
+	if(state == FT_BEGIN){
 		cancelled = 0;
 		state = STATE_TRANSFER;
 		cmds();
