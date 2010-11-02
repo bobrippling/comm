@@ -17,6 +17,8 @@ enum ftstate
 typedef int (*ft_callback)(struct filetransfer *, enum ftstate state,
 		size_t bytessent, size_t bytestotal);
 
+void ft_zero(struct filetransfer *);
+
 int ft_connect(struct filetransfer *, const char *host, const char *port);
 int ft_listen( struct filetransfer *, int port);
 int ft_accept( struct filetransfer *, int block);
@@ -29,6 +31,8 @@ const char *ft_lasterr(struct filetransfer *);
 
 #define ft_fname(ft)     ((ft)->fname)
 #define ft_connected(ft) ((ft)->connected)
+#define ft_haderror(ft)  (!!(ft)->lasterr)
+
 
 #define DEFAULT_PORT "7643"
 

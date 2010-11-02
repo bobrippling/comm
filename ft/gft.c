@@ -8,28 +8,53 @@
 #define WIN_MAIN   "winFT"
 #define TIMEOUT    250
 
+#define CLOSE() \
+	do{ \
+		ft_close(&ft); \
+		state = STATE_DISCO; \
+		cmds(); \
+	}while(0)
+
 #include "libft/ft.h"
 #include "gladegen.h"
 
+void cmds(void);
 void status(const char *, ...);
 int callback(struct filetransfer *ft, enum ftstate state,
 		size_t bytessent, size_t bytestotal);
 void settimeout(int on);
 
-GtkWidget *btnSend, *btnConnect, *btnListen;
+GtkWidget *btnSend, *btnConnect, *btnListen, *btnCancel;
 GtkWidget *winMain;
 GtkWidget *progressft, *lblStatus;
 GtkWidget *entryFile, *cboHost;
 
 struct filetransfer ft;
+int cancelled = 0;
 double lastfraction = 0;
+enum
+{
+	STATE_DISCO, STATE_LISTEN, STATE_CONNECTED, STATE_TRANSFER
+} state;
 
 
 /* events */
 G_MODULE_EXPORT gboolean on_winMain_destroy(void)
 {
-	ft_close(&ft);
+	CLOSE();
 	gtk_main_quit(); /* gtk exit here only */
+	return FALSE;
+}
+
+G_MODULE_EXPORT gboolean
+on_btnCancel_clicked(void)
+{
+	if(state == STATE_CONNECTED || state == STATE_LISTEN){
+		CLOSE();
+		cancelled = 1;
+		cmds();
+	}else if(state == STATE_TRANSFER)
+		cancelled = 1;
 	return FALSE;
 }
 
@@ -52,13 +77,15 @@ on_btnListen_clicked(void)
 	if(sscanf(port, "%d", &iport) != 1)
 		status("Invalid port number");
 	else{
-		if(ft_listen(&ft, iport))
+		if(ft_listen(&ft, iport)){
 			status("Couldn't listen: %s", ft_lasterr(&ft));
-		else{
+			CLOSE();
+		}else{
 			status("Awaiting connection...");
 			settimeout(1);
+			state = STATE_LISTEN;
 		}
-		// TODO: cmds
+		cmds();
 	}
 
 	return FALSE;
@@ -86,11 +113,14 @@ on_btnConnect_clicked(void)
 	if(port)
 		*port++ = '\0';
 
-	if(ft_connect(&ft, host, port))
+	if(ft_connect(&ft, host, port)){
 		status("Couldn't connect: %s", ft_lasterr(&ft));
-	else
+		CLOSE();
+	}else{
 		status("Connected to %s", host);
-	// TODO: cmds
+		state = STATE_CONNECTED;
+	}
+	cmds();
 
 	return FALSE;
 }
@@ -104,9 +134,10 @@ on_btnSend_clicked(void)
 
 	lastfraction = 0;
 
-	if(ft_send(&ft, callback, fname))
+	if(ft_send(&ft, callback, fname)){
 		status("Couldn't send %s: %s", fname, ft_lasterr(&ft));
-	else
+		CLOSE();
+	}else
 		status("Sent %s", fname);
 
 	return FALSE;
@@ -118,22 +149,70 @@ timeout(gpointer data)
 	(void)data;
 
 	if(ft_accept(&ft, 0)){
-		const char *err = ft_lasterr(&ft);
-		if(err){
-			status("Couldn't accept connection: %s", err);
+		if(cancelled){
+			status("Cancelled");
+			cancelled = 0;
 			return FALSE;
-		}/* else timeout for accept() */
+		}else
+			if(ft_haderror(&ft)){
+				status("Couldn't accept connection: %s", ft_lasterr(&ft));
+				return FALSE; /* kill timer */
+			}/* else timeout for accept() */
 	}else{
 		status("Got connection");
 		if(ft_recv(&ft, callback))
 			status("Couldn't recveive file: %s", ft_lasterr(&ft));
 		else
 			status("Recieved %s", "TODO"); /* TODO */
-		ft_close(&ft);
+		CLOSE();
 		return FALSE; /* kill timer */
 	}
 
 	return TRUE;
+}
+
+void cmds()
+{
+	switch(state){
+		case STATE_DISCO:
+			gtk_widget_set_sensitive(cboHost,     TRUE);
+			gtk_widget_set_sensitive(btnConnect,  TRUE);
+			gtk_widget_set_sensitive(btnListen,   TRUE);
+			gtk_widget_set_sensitive(entryFile,   TRUE);
+			gtk_widget_set_sensitive(btnSend,     FALSE);
+			gtk_widget_set_sensitive(btnCancel,   FALSE);
+			break;
+
+		case STATE_CONNECTED:
+			gtk_widget_set_sensitive(cboHost,     FALSE);
+			gtk_widget_set_sensitive(btnConnect,  FALSE);
+			gtk_widget_set_sensitive(btnListen,   FALSE);
+			gtk_widget_set_sensitive(entryFile,   TRUE);
+			gtk_widget_set_sensitive(btnSend,     TRUE);
+			gtk_widget_set_sensitive(btnCancel,   TRUE);
+			break;
+
+		case STATE_LISTEN:
+			gtk_widget_set_sensitive(cboHost,     FALSE);
+			gtk_widget_set_sensitive(btnConnect,  FALSE);
+			gtk_widget_set_sensitive(btnListen,   FALSE);
+			gtk_widget_set_sensitive(entryFile,   FALSE);
+			gtk_widget_set_sensitive(btnSend,     FALSE);
+			gtk_widget_set_sensitive(btnCancel,   TRUE);
+			break;
+
+		case STATE_TRANSFER:
+			gtk_widget_set_sensitive(cboHost,     FALSE);
+			gtk_widget_set_sensitive(btnConnect,  FALSE);
+			gtk_widget_set_sensitive(btnListen,   FALSE);
+			gtk_widget_set_sensitive(entryFile,   FALSE);
+			gtk_widget_set_sensitive(btnSend,     FALSE);
+			gtk_widget_set_sensitive(btnCancel,   TRUE);
+			break;
+	}
+
+	if(gtk_events_pending())
+		gtk_main_iteration();
 }
 
 void settimeout(int on)
@@ -141,7 +220,7 @@ void settimeout(int on)
 	static int id = -1;
 
 	if(on)
-		g_timeout_add(100, timeout, NULL);
+		id = g_timeout_add(100, timeout, NULL);
 	else if(id != -1){
 		g_source_remove(id);
 		id = -1;
@@ -155,7 +234,11 @@ int callback(struct filetransfer *ft, enum ftstate state,
 
 	if(state == FT_WAIT){
 		status("waiting for inital data...");
-		return;
+		return 0;
+	}else if(state == FT_BEGIN){
+		cancelled = 0;
+		state = STATE_TRANSFER;
+		cmds();
 	}
 
 	gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progressft), fraction);
@@ -165,7 +248,7 @@ int callback(struct filetransfer *ft, enum ftstate state,
 	while(gtk_events_pending())
 		gtk_main_iteration();
 
-	return 0; // TODO: cancel
+	return cancelled; // TODO: cancel
 }
 
 
@@ -180,6 +263,7 @@ static int getobjects(GtkBuilder *b)
 	GET_WIDGET(btnSend);
 	GET_WIDGET(btnConnect);
 	GET_WIDGET(btnListen);
+	GET_WIDGET(btnCancel);
 	GET_WIDGET(winMain);
 	GET_WIDGET(cboHost);
 	GET_WIDGET(entryFile);
@@ -218,6 +302,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
+	ft_zero(&ft);
 	gtk_init(&argc, &argv); /* bail here if !$DISPLAY */
 
 	builder = gtk_builder_new();
@@ -244,6 +329,7 @@ int main(int argc, char **argv)
 	g_signal_connect(G_OBJECT(winMain), "destroy", G_CALLBACK(on_winMain_destroy), NULL);
 
 	gtk_widget_show(winMain);
+	cmds();
 
 	gtk_main();
 

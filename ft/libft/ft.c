@@ -6,7 +6,7 @@
 # include <winsock2.h>
 /* ^ getaddrinfo */
 
-#define os_getlasterr Win32_LastErr()
+# define os_getlasterr Win32_LastErr()
 # define PRINTF_SIZET "%ld"
 
 #else
@@ -17,10 +17,10 @@
 # include <netdb.h>
 # include <unistd.h>
 # include <fcntl.h>
-# include <sys/select.h>
 # include <errno.h>
+# include <sys/select.h>
 
-#define os_getlasterr strerror(errno)
+# define os_getlasterr strerror(errno)
 /* needs cast to unsigned long */
 # define PRINTF_SIZET "%lu"
 
@@ -42,7 +42,6 @@ char *strdup(const char *);
 static int WSA_Startuped = 0;
 #endif
 
-
 #include "ft.h"
 
 #define FT_ERR_PREMATURE_CLOSE "libft: Connection prematurely closed"
@@ -51,7 +50,6 @@ static int WSA_Startuped = 0;
 #define BUFFER_SIZE            2048
 #define CALLBACK_BYTES_STEP    (BUFFER_SIZE * 32)
 
-#define STAT_SIZE_TYPE_CAST(x) ((unsigned long)(x))
 
 /*
  * sender:    "FILE fname"
@@ -83,6 +81,15 @@ static int WSA_Startuped = 0;
 	memset(ft,    '\0', sizeof *ft); \
 	memset(&addr, '\0', sizeof addr);
 #endif
+
+static int ft_get_meta(struct filetransfer *ft, ft_callback callback,
+		char **basename, FILE **local, size_t *size);
+
+
+void ft_zero(struct filetransfer *ft)
+{
+	memset(ft, 0, sizeof *ft);
+}
 
 int ft_listen(struct filetransfer *ft, int port)
 {
@@ -121,31 +128,37 @@ int ft_listen(struct filetransfer *ft, int port)
 	return 0;
 }
 
-int ft_accept(struct filetransfer *ft, int block)
+int ft_accept(struct filetransfer *ft, const int block)
 {
-	int new;
+	int new, save, flags;
 
 	ft->lasterr = NULL; /* must be checkable after this funcall */
 
 	if(!block){
-		fd_set fds;
-
-		FD_ZERO(&fds);
-		FD_SET(ft->sock, &fds);
-
-		if(select(ft->sock+1, &fds, NULL, NULL, NULL) == -1){
+		flags = fcntl(ft->sock, F_GETFL);
+		if(fcntl(ft->sock, F_SETFL, flags | O_NONBLOCK) == -1){
 			ft->lasterr = os_getlasterr;
 			return 1;
 		}
-
-		if(!FD_ISSET(ft->sock, &fds))
-			return 0;
 	}
 
 	new = accept(ft->sock, NULL, 0);
+	save = errno;
 
-	if(new == -1)
+	if(!block)
+		if(fcntl(ft->sock, F_SETFL, flags & ~O_NONBLOCK) == -1){
+			ft->lasterr = os_getlasterr;
+			return 1;
+		}
+	errno = save;
+
+	if(new == -1){
+		if(errno == EAGAIN || errno == EWOULDBLOCK)
+			ft->lasterr = NULL;
+		else
+			ft->lasterr = os_getlasterr;
 		return 1;
+	}
 
 	ft_connected(ft) = 1;
 
@@ -154,17 +167,128 @@ int ft_accept(struct filetransfer *ft, int block)
 	return 0;
 }
 
+static int ft_get_meta(struct filetransfer *ft, ft_callback callback,
+		char **basename, FILE **local, size_t *size)
+{
+#define INVALID_MSG() \
+				do{\
+					ft->lasterr = "libft: Invalid message recieved"; \
+					return 1; \
+				}while(0)
+	char buffer[2048], *bufptr;
+	ssize_t thisread;
+	int nnewlines;
+
+	ft->lastcallback = 0;
+
+	do{
+		/* read three newlines */
+		thisread = recv(ft->sock, buffer, sizeof buffer, MSG_PEEK);
+
+		if(thisread == 0){
+			ft->lasterr = FT_ERR_PREMATURE_CLOSE;
+			return 1;
+		}else if(thisread == -1){
+			ft->lasterr = os_getlasterr;
+			return 1;
+		}
+
+		nnewlines = 0;
+		for(bufptr = buffer; bufptr - buffer < (unsigned)sizeof buffer; ++bufptr)
+			if(*bufptr == '\n')
+				if(++nnewlines == 3)
+					break;
+
+		if(nnewlines == 3)
+			break;
+		else{
+			struct timeval tv;
+
+			if((unsigned)thisread > sizeof(buffer) - 32){
+				ft->lasterr = "libft: meta data overflow (shorten your darn filename)";
+				return 1;
+			}
+
+			/* sleep while we wait */
+			tv.tv_sec  = 0;
+			tv.tv_usec = 1000000;
+			select(0, NULL, NULL, NULL, &tv);
+		}
+	}while(1);
+
+	thisread = bufptr - buffer + 1; /* truncate to how much is left */
+
+	if(recv(ft->sock, buffer, thisread, 0) != thisread){
+		ft->lasterr = os_getlasterr;
+		return 1;
+	}
+
+	bufptr = strtok(buffer, "\n");
+	if(!strncmp(bufptr, "FILE ", 5)){
+		*basename = strdup(buffer + 5);
+		if(!*basename){
+			ft->lasterr = os_getlasterr;
+			return 1;
+		}
+		ft_fname(ft) = *basename;
+	}else
+		INVALID_MSG();
+
+	bufptr = strtok(NULL, "\n");
+	if(!strncmp(bufptr, "SIZE ", 5)){
+		if(sscanf(bufptr + 5, PRINTF_SIZET, (unsigned long *)size) != 1){
+			ft->lasterr = "libft: Invalid SIZE recieved";
+			return 1;
+		}
+	}else
+		INVALID_MSG();
+
+
+	bufptr = strchr(bufptr, '\0');
+	/*
+	 * FILE name\nSIZE 1234\n\n
+	 *          |
+	 *          V
+	 * FILE name\0SIZE 1234\0\nDATA_GOES_HERE
+	 *                     ^   ^-------+
+	 *                     |           |
+	 *                     |           |
+	 * bufptr ----------------+   bufptr -+
+	 *
+	 * safe to check bufptr[1], since
+	 * there are at least 3 \n:s
+	 *
+	 * bufptr[1] hasn't been changed by strtok
+	 * yet either (but check both \n and \0
+	 * for libc agnositicism
+	 */
+
+	if(!bufptr[1] || bufptr[1] == '\n'){
+		/* FIXME: clobber check */
+		*local = fopen(*basename, "wb");
+		if(!*local){
+			ft->lasterr = os_getlasterr;
+			return 1;
+		}
+		if(callback(ft, FT_BEGIN, 0, *size)){
+			ft->lasterr = "Cancelled";
+			return 1;
+		}
+	}else
+		INVALID_MSG();
+
+	return 0;
+#undef INVALID_MSG
+}
+
 int ft_recv(struct filetransfer *ft, ft_callback callback)
 {
-#define RET(x) do{ ret = x; goto ret; }while(0)
 #define INVALID_MSG() \
 				do{\
 					ft->lasterr = "libft: Invalid message recieved"; \
 					RET(1); \
 				}while(0)
-
-	/* FIXME */
-#define DEBUG(x, ...) printf(x "\n", __VA_ARGS__)
+#define RET(x) do{ ret = x; goto ret; }while(0)
 
 	/*
 	 * expect:    "FILE fname"
@@ -172,162 +296,18 @@ int ft_recv(struct filetransfer *ft, ft_callback callback)
 	 *            ""
 	 */
 	FILE *local = NULL;
-	int ilocal, ret = 0;
+	int ret = 0;
 	char *basename = NULL; /* dynamic alloc */
-	char buffer[BUFFER_SIZE], *bufptr = buffer, *tok;
-	size_t size, nbytes = 0;
-	ssize_t nread; /* must allow -1 */
+	char buffer[BUFFER_SIZE];
+	size_t size, size_so_far = 0;
+	ssize_t nread;
 
-	ft->lastcallback = 0;
+	ft_fname(ft) = NULL;
 
-	/* first loop - read three newlines */
-	nread = 0;
+	if(ft_get_meta(ft, callback, &basename, &local, &size))
+		RET(1);
+
 	for(;;){
-		unsigned int nnewlines = 0;
-		ssize_t i, thisread;
-
-		/*
-		 * -1 on buffer size, so tok can't overflow below
-		 *  justified, since this recv() is called a negligible amount
-		 *  compared to the data loop below
-		 */
-		thisread = recv(ft->sock, bufptr, sizeof buffer - (bufptr - buffer) - 1, 0);
-		if(thisread == 0){
-			ft->lasterr = FT_ERR_PREMATURE_CLOSE;
-			RET(1);
-		}else if(thisread == -1){
-			ft->lasterr = os_getlasterr;
-			RET(1);
-		}
-
-		nread += thisread;
-
-		if((bufptr += thisread) > (buffer + sizeof buffer)){
-			ft->lasterr = "libft: too much initialisation data";
-			RET(1);
-		}
-
-		for(i = 0; i < nread; i++) /* could be more efficient, but eh */
-			if(buffer[i] == '\n')
-				if(++nnewlines == 3)
-					break;
-
-		if(nnewlines == 3)
-			break; /* next stage */
-		else{
-			struct timeval tv;
-			tv.tv_sec = 0;
-			tv.tv_usec = 100000; /* 100ms */
-
-			select(0, NULL, NULL, NULL, &tv);
-			if(callback(ft, FT_WAIT, 0, 0)){
-				/* cancelled */
-				ft->lasterr = "Cancelled";
-				RET(1);
-			}
-		}
-	}/* first loop */
-
-	tok = strtok(buffer, "\n");
-
-	if(!strncmp(tok, "FILE ", 5)){
-		basename = strdup(buffer + 5);
-		if(!basename){
-			ft->lasterr = os_getlasterr;
-			RET(1);
-		}
-		DEBUG("GOT FILE: %s", basename);
-		ft_fname(ft) = basename;
-	}else
-		INVALID_MSG();
-
-	tok = strtok(NULL, "\n");
-
-	if(!strncmp(tok, "SIZE ", 5)){
-		if(sscanf(tok + 5, PRINTF_SIZET, (unsigned long *)&size) != 1){
-			ft->lasterr = "libft: Invalid SIZE recieved";
-			RET(1);
-		}
-		DEBUG("GOT SIZE: %ld", size);
-	}else
-		INVALID_MSG();
-
-
-	tok = strchr(tok, '\0');
-	/*
-	 * FILE name\nSIZE 1234\n\n
-	 *          |
-	 *          V
-	 * FILE name\0SIZE 1234\0\nDATA_GOES_HERE
-	 *                     ^          ^-----^
-	 *                     |             |
-	 *                     |             |
-	 * tok ----------------+   bufptr ---+ (anywhere)
-	 *
-	 * safe to check tok[1], since
-	 * there are at least 3 \n:s
-	 *
-	 * tok[1] hasn't been changed by strtok
-	 * yet either (but check both \n and \0
-	 * for libc agnositicism
-	 */
-
-	if(!tok[1] || tok[1] == '\n'){
-		/* FIXME: clobber check */
-		local = fopen(basename, "wb");
-		if(!local){
-			ft->lasterr = os_getlasterr;
-			RET(1);
-		}
-		ilocal = fileno(local);
-		if(ilocal == -1){
-			/* wat */
-			ft->lasterr = os_getlasterr;
-			RET(1);
-		}
-		if(callback(ft, FT_BEGIN, 0, size)){
-			ft->lasterr = "Cancelled";
-			RET(1);
-		}
-	}else
-		INVALID_MSG();
-
-	tok += 2;
-	/*
-	 * tok now points at the very first byte of data,
-	 * (or the space where it will go)
-	 */
-
-	nread -= tok - buffer; /* much left over? */
-
-	printf("nread: %ld\n", nread);
-
-	/* shift the buffer */
-	memmove(buffer, tok, tok - buffer);
-
-	/*
-	 * check if there's any tail on the buffer that needs writing
-	 * with the initial write() in the loop
-	 */
-	for(;;){
-		if(write(ilocal, buffer, nread) != nread){
-			ft->lasterr = os_getlasterr;
-			RET(1);
-		}
-
-		if(STAT_SIZE_TYPE_CAST(nbytes += nread) >= size)
-			goto done;
-
-		if(ft->lastcallback < nbytes){
-			ft->lastcallback += CALLBACK_BYTES_STEP;
-			if(callback(ft, FT_TRANSFER, nbytes, size)){
-				/* cancelled */
-				ft->lasterr = "Cancelled";
-				fclose(local);
-				RET(1);
-			}
-		}
-
 		nread = recv(ft->sock, buffer, sizeof buffer, 0);
 
 		if(nread == -1){
@@ -336,13 +316,14 @@ int ft_recv(struct filetransfer *ft, ft_callback callback)
 		}else if(nread == 0){
 done:
 			/* check */
-			if(nbytes < size)
+			if(size_so_far < size)
 				ft->lasterr = FT_ERR_PREMATURE_CLOSE;
-			else if(nbytes > size)
+			else if(size_so_far > size)
 				ft->lasterr = FT_ERR_TOO_MUCH;
 			else{
-				/* good so far */
-				if(callback(ft, FT_END, nbytes, size)){
+				/* good so far, don't be a douche and cancel it.. */
+				if(callback(ft, FT_END, size_so_far, size)){
+					/* ... douche */
 					ft->lasterr = "Cancelled";
 					RET(1);
 				}
@@ -350,6 +331,26 @@ done:
 			}
 			/* exit for too much/little */
 			RET(1);
+		}
+
+		if((unsigned)fwrite(buffer, sizeof(char),
+					nread, local) != nread /* !*sizeof char */){
+			ft->lasterr = os_getlasterr;
+			RET(1);
+		}
+
+		/* no need to have this above, since it's only 0/-1 */
+		size_so_far += nread;
+		if(size_so_far > size)
+			goto done;
+
+		if(ft->lastcallback < size_so_far){
+			ft->lastcallback += CALLBACK_BYTES_STEP;
+			if(callback(ft, FT_TRANSFER, size_so_far, size)){
+				/* cancelled */
+				ft->lasterr = "Cancelled";
+				RET(1);
+			}
 		}
 	}
 	/* unreachable */
@@ -444,7 +445,7 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 			goto bail;
 		}
 
-		if((nsent += nwrite) >= STAT_SIZE_TYPE_CAST(st.st_size))
+		if((nsent += nwrite) >= (unsigned)st.st_size)
 			break; /* goto complete */
 
 		if(ft->lastcallback < nsent){
@@ -459,9 +460,9 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 	}
 
 complete:
-	if(nsent < STAT_SIZE_TYPE_CAST(st.st_size))
+	if(nsent < (unsigned)st.st_size)
 		ft->lasterr = FT_ERR_PREMATURE_CLOSE;
-	else if(nsent > STAT_SIZE_TYPE_CAST(st.st_size)){
+	else if(nsent > (unsigned)st.st_size){
 		ft->lasterr = FT_ERR_TOO_MUCH;
 		fprintf(stderr, "libft: nsent: %ld, st.st_size: %ld\n",
 				nsent, st.st_size);

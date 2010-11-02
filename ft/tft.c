@@ -6,6 +6,9 @@
 
 #include "libft/ft.h"
 
+#define MAX(x, y) (x > y ? x : y)
+
+void clrtoeol(void);
 void cleanup(void);
 
 struct filetransfer ft;
@@ -14,14 +17,26 @@ char *recvfile = NULL;
 int callback(struct filetransfer *ft, enum ftstate state,
 		size_t bytessent, size_t bytestotal)
 {
-	if(state == FT_END && !(recvfile = strdup(ft_fname(ft))))
-		perror("strdup()");
-	else if(state == FT_WAIT)
+	int l = strlen(ft_fname(ft));
+
+	if(state == FT_END){
+		if(!(recvfile = strdup(ft_fname(ft))))
+			perror("strdup()");
+	}else if(state == FT_WAIT)
 		return 0;
 
-	printf("\"%s\": %zd / %zd (%2.2f)%%\r", ft_fname(ft),
+	putchar('"');
+	fwrite(ft_fname(ft), sizeof(char), MAX(l, 32), stdout);
+	printf("\": %zd / %zd (%2.2f)%%\r",
 			bytessent, bytestotal, (float)(100.0f * bytessent / bytestotal));
+
 	return 0;
+}
+
+void clrtoeol()
+{
+	static const char esc[] = { 0x1b, '[', '2', 'K', 0 };
+	fputs(esc, stdout);
 }
 
 void cleanup()
@@ -81,7 +96,7 @@ int main(int argc, char **argv)
 			return 1;
 		}
 
-		if(ft_accept(&ft, 0)){
+		if(ft_accept(&ft, 1)){
 			fprintf(stderr, "ft_accept(): %s\n", ft_lasterr(&ft));
 			return 1;
 		}else if(!ft_connected(&ft)){
@@ -106,7 +121,8 @@ int main(int argc, char **argv)
 			printf("%s: sending %s\n", *argv, fname);
 
 		if(ft_send(&ft, callback, fname)){
-			fprintf(stderr, "\nft_send(): %s\n", ft_lasterr(&ft));
+			clrtoeol();
+			fprintf(stderr, "ft_send(): %s\n", ft_lasterr(&ft));
 			return 1;
 		}
 	}else{
@@ -114,7 +130,8 @@ int main(int argc, char **argv)
 			printf("%s: receiving incomming file\n", *argv);
 
 		if(ft_recv(&ft, callback)){
-			fprintf(stderr, "\nft_recv(): %s\n", ft_lasterr(&ft));
+			clrtoeol();
+			fprintf(stderr, "ft_recv(): %s\n", ft_lasterr(&ft));
 			return 1;
 		}
 	}
