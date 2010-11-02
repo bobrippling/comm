@@ -14,17 +14,24 @@ struct filetransfer ft;
 int callback(struct filetransfer *ft, enum ftstate state,
 		size_t bytessent, size_t bytestotal)
 {
+#ifdef OLD_TRUNC
 	int l = strlen(ft_fname(ft));
+#endif
 
 	if(state == FT_END){
 		printf("Recieved: %s\n", ft_fname(ft));
 		return 0;
 	}
 
+#ifdef OLD_TRUNC
 	putchar('"');
 	fwrite(ft_fname(ft), sizeof(char), MAX(l, 32), stdout);
 	printf("\": %zd / %zd (%2.2f)%%\r",
 			bytessent, bytestotal, (float)(100.0f * bytessent / bytestotal));
+#else
+	printf("\"%s\": %zd / %zd (%2.2f)%%\r", ft_truncname(ft, 32),
+			bytessent, bytestotal, (float)(100.0f * bytessent / bytestotal));
+#endif
 
 	return 0;
 }

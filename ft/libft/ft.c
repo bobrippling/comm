@@ -610,3 +610,18 @@ const char *ft_lasterr(struct filetransfer *ft)
 		return "libft: no error";
 	return ft->lasterr;
 }
+
+const char *ft_truncname(struct filetransfer *ft, unsigned int n)
+{
+	const char *fname = ft_fname(ft);
+	const char *slash = strrchr(fname, '/');
+	unsigned int len;
+
+	if(slash)
+		fname = slash + 1;
+
+	len = strlen(fname);
+	if(len > n)
+		return fname + len - n;
+	return fname;
+}

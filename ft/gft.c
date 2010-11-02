@@ -135,16 +135,20 @@ G_MODULE_EXPORT gboolean
 on_btnSend_clicked(void)
 {
 	const char *fname = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(btnFileChoice));
+	const char *basename = strrchr(fname, '/');
+
+	if(!basename)
+		basename = fname;
 
 	settimeout(0);
 
 	lastfraction = 0;
 
 	if(ft_send(&ft, callback, fname)){
-		status("Couldn't send %s: %s", fname, ft_lasterr(&ft));
+		status("Couldn't send %s: %s", basename, ft_lasterr(&ft));
 		CLOSE();
 	}else
-		status("Sent %s", fname);
+		status("Sent %s", basename);
 
 	return FALSE;
 }
@@ -168,8 +172,10 @@ timeout(gpointer data)
 		status("Got connection");
 		if(ft_recv(&ft, callback))
 			status("Couldn't recveive file: %s", ft_lasterr(&ft));
-		else
-			status("Recieved %s", "TODO"); /* TODO */
+		/*else
+			* can't do this here - displayed via callback instead
+			status("Recieved %s", ft_truncname(&ft, 32));
+			*/
 		CLOSE();
 		return FALSE; /* kill timer */
 	}
@@ -238,20 +244,28 @@ int callback(struct filetransfer *ft, enum ftstate state,
 {
 	const double fraction = (double)bytessent / (double)bytestotal;
 
-	if(state == FT_BEGIN){
-		cancelled = 0;
-		state = STATE_TRANSFER;
-		cmds();
-	}
+	switch(state){
+		case FT_END:
+			status("Recieved %s", ft_truncname(ft, 32));
+			gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progressft), 1.0f);
+			break;
 
-	gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progressft), fraction);
-	status("%s: %dK/%dK (%2.2f%%)", ft_fname(ft),
-			bytessent / 1024, bytestotal / 1024, 100.0f * fraction);
+		case FT_BEGIN:
+			cancelled = 0;
+			state = STATE_TRANSFER;
+			cmds();
+			/* fall */
+
+		case FT_TRANSFER:
+			gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progressft), fraction);
+			status("%s: %dK/%dK (%2.2f%%)", ft_truncname(ft, 32),
+					bytessent / 1024, bytestotal / 1024, 100.0f * fraction);
+	}
 
 	while(gtk_events_pending())
 		gtk_main_iteration();
 
-	return cancelled; // TODO: cancel
+	return cancelled;
 }
 
 

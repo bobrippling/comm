@@ -28,6 +28,7 @@ int ft_recv(   struct filetransfer *, ft_callback callback);
 int ft_send(   struct filetransfer *, ft_callback callback, const char *fname);
 
 const char *ft_lasterr(struct filetransfer *);
+const char *ft_truncname(struct filetransfer *, unsigned int n);
 
 #define ft_fname(ft)     ((ft)->fname)
 #define ft_connected(ft) ((ft)->connected)
