@@ -16,21 +16,30 @@
             <property name="orientation">vertical</property>
             <property name="homogeneous">True</property>
             <child>
-              <object class="GtkLabel" id="lblHost">
+              <object class="GtkVBox" id="vboxTxtLbl">
                 <property name="visible">True</property>
-                <property name="label" translatable="yes">Host:</property>
+                <property name="orientation">vertical</property>
+                <child>
+                  <object class="GtkLabel" id="lblHost">
+                    <property name="visible">True</property>
+                    <property name="label" translatable="yes">Host:</property>
+                  </object>
+                  <packing>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="lblFile">
+                    <property name="visible">True</property>
+                    <property name="label" translatable="yes">File:</property>
+                  </object>
+                  <packing>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
               </object>
               <packing>
                 <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkLabel" id="lblFile">
-                <property name="visible">True</property>
-                <property name="label" translatable="yes">File:</property>
-              </object>
-              <packing>
-                <property name="position">1</property>
               </packing>
             </child>
             <child>
@@ -39,7 +48,7 @@
                 <property name="label" translatable="yes">Progress:</property>
               </object>
               <packing>
-                <property name="position">2</property>
+                <property name="position">1</property>
               </packing>
             </child>
             <child>
@@ -48,7 +57,7 @@
                 <property name="label" translatable="yes">Command:</property>
               </object>
               <packing>
-                <property name="position">3</property>
+                <property name="position">2</property>
               </packing>
             </child>
           </object>
@@ -63,25 +72,35 @@
             <property name="orientation">vertical</property>
             <property name="homogeneous">True</property>
             <child>
-              <object class="GtkComboBoxEntry" id="cboHost">
+              <object class="GtkVBox" id="vboxTxt">
                 <property name="visible">True</property>
+                <property name="orientation">vertical</property>
+                <child>
+                  <object class="GtkComboBoxEntry" id="cboHost">
+                    <property name="visible">True</property>
+                  </object>
+                  <packing>
+                    <property name="fill">False</property>
+                    <property name="padding">2</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkEntry" id="entryFile">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="invisible_char">&#x25CF;</property>
+                    <property name="activates_default">True</property>
+                  </object>
+                  <packing>
+                    <property name="padding">2</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
               </object>
               <packing>
-                <property name="fill">False</property>
                 <property name="padding">2</property>
                 <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkEntry" id="entryFile">
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="invisible_char">&#x25CF;</property>
-                <property name="activates_default">True</property>
-              </object>
-              <packing>
-                <property name="padding">2</property>
-                <property name="position">1</property>
               </packing>
             </child>
             <child>
@@ -111,7 +130,7 @@
               <packing>
                 <property name="expand">False</property>
                 <property name="fill">False</property>
-                <property name="position">2</property>
+                <property name="position">1</property>
               </packing>
             </child>
             <child>
@@ -187,7 +206,7 @@
               </object>
               <packing>
                 <property name="fill">False</property>
-                <property name="position">3</property>
+                <property name="position">2</property>
               </packing>
             </child>
           </object>
