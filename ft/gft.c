@@ -20,6 +20,12 @@
 		cmds(); \
 	}while(0)
 
+#ifdef _WIN32
+# define PATH_SEPERATOR '\\'
+#else
+# define PATH_SEPERATOR '/'
+#endif
+
 #include "libft/ft.h"
 #include "gladegen.h"
 
@@ -135,7 +141,7 @@ G_MODULE_EXPORT gboolean
 on_btnSend_clicked(void)
 {
 	const char *fname = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(btnFileChoice));
-	const char *basename = strrchr(fname, '/');
+	const char *basename = strrchr(fname, PATH_SEPERATOR);
 
 	if(!basename)
 		basename = fname;
