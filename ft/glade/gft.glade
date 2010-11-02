@@ -86,14 +86,11 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkEntry" id="entryFile">
+                  <object class="GtkFileChooserButton" id="btnFileChoice">
                     <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="invisible_char">&#x25CF;</property>
-                    <property name="activates_default">True</property>
+                    <property name="title" translatable="yes">File to Send</property>
                   </object>
                   <packing>
-                    <property name="padding">2</property>
                     <property name="position">1</property>
                   </packing>
                 </child>
