@@ -6,8 +6,11 @@
 # include <winsock2.h>
 /* ^ getaddrinfo */
 
+# define WIN_DEBUG(x) perror("WIN_DEBUG(): " x )
+
 # define os_getlasterr Win32_LastErr()
 # define PRINTF_SIZET "%ld"
+# define PRINTF_SIZET_CAST long *
 
 #else
 # define _POSIX_C_SOURCE 200809L
@@ -20,9 +23,12 @@
 # include <errno.h>
 # include <sys/select.h>
 
+# define WIN_DEBUG(x)
+
 # define os_getlasterr strerror(errno)
 /* needs cast to unsigned long */
 # define PRINTF_SIZET "%lu"
+# define PRINTF_SIZET_CAST unsigned long *
 
 #endif
 
@@ -38,6 +44,8 @@ int fileno(FILE *);
 ssize_t write(int fd, const char *, ssize_t);
 ssize_t read( int fd, const char *, ssize_t);
 char *strdup(const char *);
+
+const char *Win32_LastErr(void);
 
 static int WSA_Startuped = 0;
 #endif
@@ -130,30 +138,56 @@ int ft_listen(struct filetransfer *ft, int port)
 
 int ft_accept(struct filetransfer *ft, const int block)
 {
-	int new, save, flags;
+	int new, save;
+#ifndef _WIN32
+	int flags;
+#endif
 
 	ft->lasterr = NULL; /* must be checkable after this funcall */
 
 	if(!block){
+#ifdef _WIN32
+		u_long m = 0;
+		if(ioctlsocket(ft->sock, FIONBIO, &m) != 0){
+			ft->lasterr = os_getlasterr;
+			return 1;
+		}
+#else
 		flags = fcntl(ft->sock, F_GETFL);
 		if(fcntl(ft->sock, F_SETFL, flags | O_NONBLOCK) == -1){
 			ft->lasterr = os_getlasterr;
 			return 1;
 		}
+#endif
 	}
 
 	new = accept(ft->sock, NULL, 0);
 	save = errno;
 
-	if(!block)
+	if(!block){
+#ifdef _WIN32
+		u_long m = 1;
+		if(ioctlsocket(ft->sock, FIONBIO, &m) != 0){
+			ft->lasterr = os_getlasterr;
+			return 1;
+		}
+#else
 		if(fcntl(ft->sock, F_SETFL, flags & ~O_NONBLOCK) == -1){
 			ft->lasterr = os_getlasterr;
 			return 1;
 		}
+#endif
+	}
 	errno = save;
 
 	if(new == -1){
-		if(errno == EAGAIN || errno == EWOULDBLOCK)
+		if(
+#ifdef _WIN32
+				errno == WSAEWOULDBLOCK
+#else
+				errno == EAGAIN || errno == EWOULDBLOCK
+#endif
+				)
 			ft->lasterr = NULL;
 		else
 			ft->lasterr = os_getlasterr;
@@ -193,8 +227,15 @@ static int ft_get_meta(struct filetransfer *ft, ft_callback callback,
 			return 1;
 		}
 
+#ifdef _WIN32
+# define UNSIGNED signed
+#else
+# define UNSIGNED unsigned
+#endif
 		nnewlines = 0;
-		for(bufptr = buffer; bufptr - buffer < (unsigned)sizeof buffer; ++bufptr)
+		for(bufptr = buffer;
+				bufptr - buffer < (UNSIGNED)sizeof buffer;
+				++bufptr)
 			if(*bufptr == '\n')
 				if(++nnewlines == 3)
 					break;
@@ -236,7 +277,7 @@ static int ft_get_meta(struct filetransfer *ft, ft_callback callback,
 
 	bufptr = strtok(NULL, "\n");
 	if(!strncmp(bufptr, "SIZE ", 5)){
-		if(sscanf(bufptr + 5, PRINTF_SIZET, (unsigned long *)size) != 1){
+		if(sscanf(bufptr + 5, PRINTF_SIZET, (PRINTF_SIZET_CAST)size) != 1){
 			ft->lasterr = "libft: Invalid SIZE recieved";
 			return 1;
 		}
@@ -333,7 +374,7 @@ done:
 			RET(1);
 		}
 
-		if((unsigned)fwrite(buffer, sizeof(char),
+		if((UNSIGNED)fwrite(buffer, sizeof(char),
 					nread, local) != nread /* !*sizeof char */){
 			ft->lasterr = os_getlasterr;
 			RET(1);
@@ -384,17 +425,22 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 
 	local = fopen(fname, "rb");
 	if(!local){
+		WIN_DEBUG("fopen()");
 		ft->lasterr = os_getlasterr;
 		return 1;
 	}
 
 	ilocal = fileno(local);
 
-	if(ilocal == -1)
+	if(ilocal == -1){
 		/* pretty much impossible */
+		WIN_DEBUG("fileno()");
+		ft->lasterr = os_getlasterr;
 		goto bail;
+	}
 
 	if(fstat(ilocal, &st) == -1){
+		WIN_DEBUG("fstat()");
 		ft->lasterr = os_getlasterr;
 		goto bail;
 	}
@@ -557,7 +603,7 @@ const char *Win32_LastErr()
 {
 	static char errbuf[256];
 	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL,
-			ft->lasterr, 0, errbuf, sizeof errbuf, NULL);
+			errno, 0, errbuf, sizeof errbuf, NULL);
 	return errbuf;
 }
 #endif

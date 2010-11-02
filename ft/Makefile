@@ -17,7 +17,7 @@ tft: tft.o libft/ft.o
 
 gft: gft.o libft/ft.o gladegen.o
 	@echo LD $@
-	$Q${CC} ${LDFLAGS_G} -o $@ $^
+	$Q${CC} -o $@ $^ ${LDFLAGS_G}
 
 gft.o: gft.c
 	@echo CC $@

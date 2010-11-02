@@ -1,6 +1,11 @@
 #include <gtk/gtk.h>
 #include <string.h>
-#include <alloca.h>
+#ifdef _WIN32
+# include <malloc.h>
+# include <windows.h>
+#else
+# include <alloca.h>
+#endif
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -294,13 +299,36 @@ int main(int argc, char **argv)
 	GError     *error = NULL;
 	GtkBuilder *builder;
 
+	ft_zero(&ft);
+	gtk_init(&argc, &argv); /* bail here if !$DISPLAY */
+
+#ifdef _WIN32
+	{
+		int debug = 0;
+
+		if(argc == 2){
+			if(!strcmp(argv[1], "-d")){
+				debug = 1;
+				fprintf(stderr, "%s: debug on\n",
+						*argv);
+			}else{
+usage:
+				fprintf(stderr, "Usage: %s [-d]\n",
+						*argv);
+				return 1;
+			}
+		}else if(argc != 1)
+			goto usage;
+
+		if(!debug)
+			FreeConsole();
+	}
+#else
 	if(argc != 1){
 		fprintf(stderr, "Usage: %s\n", *argv);
 		return 1;
 	}
-
-	ft_zero(&ft);
-	gtk_init(&argc, &argv); /* bail here if !$DISPLAY */
+#endif
 
 	builder = gtk_builder_new();
 
