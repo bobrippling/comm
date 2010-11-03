@@ -19,7 +19,8 @@ int callback(struct filetransfer *ft, enum ftstate state,
 #endif
 
 	if(state == FT_END){
-		printf("Recieved: %s\n", ft_fname(ft));
+		clrtoeol();
+		printf("Done: %s\n", ft_fname(ft));
 		return 0;
 	}
 
