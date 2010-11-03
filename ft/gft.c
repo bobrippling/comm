@@ -177,7 +177,7 @@ timeout(gpointer data)
 				 */
 
 				if(ft_recv(&ft, callback, queryback))
-					status("Couldn't recveive file: %s", ft_lasterr(&ft));
+					status("Couldn't recieve file: %s", ft_lasterr(&ft));
 				/* else
 				 *   // can't do this here - displayed via callback instead
 				 *   status("Recieved %s", ft_truncname(&ft, 32));
@@ -357,6 +357,7 @@ int queryback(struct filetransfer *ft, const char *msg, ...)
 	va_end(l);
 
 	gtk_widget_show(label);
+	gtk_window_set_urgency_hint(GTK_WINDOW(dialog), TRUE);
 	i = gtk_dialog_run(GTK_DIALOG(dialog));
 	g_free(caption);
 	gtk_widget_destroy(dialog);
