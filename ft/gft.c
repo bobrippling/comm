@@ -11,7 +11,7 @@
 #include <stdarg.h>
 
 #define WIN_MAIN   "winFT"
-#define TIMEOUT    250
+#define TIMEOUT    500
 
 #define CLOSE() \
 	do{ \
@@ -143,7 +143,7 @@ on_btnSend_clicked(void)
 	const char *fname = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(btnFileChoice));
 	const char *basename = strrchr(fname, PATH_SEPERATOR);
 
-	if(!basename)
+	if(!basename++)
 		basename = fname;
 
 	settimeout(0);
@@ -238,7 +238,7 @@ void settimeout(int on)
 	static int id = -1;
 
 	if(on)
-		id = g_timeout_add(100, timeout, NULL);
+		id = g_timeout_add(TIMEOUT, timeout, NULL);
 	else if(id != -1){
 		g_source_remove(id);
 		id = -1;
@@ -252,6 +252,10 @@ int callback(struct filetransfer *ft, enum ftstate state,
 
 	switch(state){
 		case FT_END:
+			/*
+			 * FIXME: FT_{SENT,RECIEVED} and
+			 *        FT_BEGIN_{SEND,RECV}
+			 */
 			status("Recieved %s", ft_truncname(ft, 32));
 			gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progressft), 1.0f);
 			break;
