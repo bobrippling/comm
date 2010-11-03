@@ -15,6 +15,7 @@
 
 #define CLOSE() \
 	do{ \
+		settimeout(0); \
 		ft_close(&ft); \
 		state = STATE_DISCO; \
 		cmds(); \
@@ -131,6 +132,7 @@ on_btnConnect_clicked(void)
 	}else{
 		status("Connected to %s", host);
 		state = STATE_CONNECTED;
+		settimeout(1);
 	}
 	cmds();
 
@@ -164,28 +166,57 @@ timeout(gpointer data)
 {
 	(void)data;
 
-	if(ft_accept(&ft, 0)){
+	if(state == STATE_CONNECTED){
+		switch(ft_poll_recv(&ft)){
+			case FT_YES:
+				/*
+				 * state = STATE_TRANSFER;
+				 * cmds();
+				 * no need for this - set in the callback straight away
+				 */
+
+				if(ft_recv(&ft, callback))
+					status("Couldn't recveive file: %s", ft_lasterr(&ft));
+				/* else
+				 *   // can't do this here - displayed via callback instead
+				 *   status("Recieved %s", ft_truncname(&ft, 32));
+				 */
+				CLOSE();
+				return FALSE; /* kill timer */
+
+			case FT_ERR:
+				status("ft_poll() error: %s", ft_lasterr(&ft));
+				CLOSE();
+				return FALSE;
+
+			case FT_NO:
+				return TRUE; /* keep looking */
+		}
+		/* unreachable */
+	}else{
+		enum ftret ftr = ft_accept(&ft, 0);
+
 		if(cancelled){
 			status("Cancelled");
 			cancelled = 0;
 			return FALSE;
 		}else
-			if(ft_haderror(&ft)){
-				status("Couldn't accept connection: %s", ft_lasterr(&ft));
-				return FALSE; /* kill timer */
-			}/* else timeout for accept() */
-	}else{
-		status("Got connection");
-		if(ft_recv(&ft, callback))
-			status("Couldn't recveive file: %s", ft_lasterr(&ft));
-		/*else
-			* can't do this here - displayed via callback instead
-			status("Recieved %s", ft_truncname(&ft, 32));
-			*/
-		CLOSE();
-		return FALSE; /* kill timer */
-	}
+			switch(ftr){
+				case FT_ERR:
+					status("Couldn't accept connection: %s", ft_lasterr(&ft));
+					return FALSE; /* kill timer */
 
+				case FT_YES:
+					status("Got connection from %s", ft_remoteaddr(&ft));
+					state = STATE_CONNECTED;
+					cmds();
+					/* fall */
+				case FT_NO:
+					return TRUE; /* make sure timeout keeps getting called */
+			}
+		/* unreachable */
+	}
+	/* unreachable (unless bogus enum value) */
 	return TRUE;
 }
 
@@ -251,22 +282,24 @@ int callback(struct filetransfer *ft, enum ftstate state,
 	const double fraction = (double)bytessent / (double)bytestotal;
 
 	switch(state){
-		case FT_END:
-			/*
-			 * FIXME: FT_{SENT,RECIEVED} and
-			 *        FT_BEGIN_{SEND,RECV}
-			 */
-			status("Recieved %s", ft_truncname(ft, 32));
+		case FT_SENT:
+		case FT_RECIEVED:
+			if(state == FT_SENT)
+				status("Sent %s", ft_truncname(ft, 32));
+			else
+				status("Recieved %s", ft_truncname(ft, 32));
 			gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progressft), 1.0f);
 			break;
 
-		case FT_BEGIN:
+		case FT_BEGIN_SEND:
+		case FT_BEGIN_RECV:
 			cancelled = 0;
 			state = STATE_TRANSFER;
 			cmds();
 			/* fall */
 
-		case FT_TRANSFER:
+		case FT_RECIEVING:
+		case FT_SENDING:
 			gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progressft), fraction);
 			status("%s: %dK/%dK (%2.2f%%)", ft_truncname(ft, 32),
 					bytessent / 1024, bytestotal / 1024, 100.0f * fraction);

@@ -14,25 +14,14 @@ struct filetransfer ft;
 int callback(struct filetransfer *ft, enum ftstate state,
 		size_t bytessent, size_t bytestotal)
 {
-#ifdef OLD_TRUNC
-	int l = strlen(ft_fname(ft));
-#endif
-
-	if(state == FT_END){
+	if(state == FT_SENT || state == FT_RECIEVED){
 		clrtoeol();
 		printf("Done: %s\n", ft_fname(ft));
 		return 0;
 	}
 
-#ifdef OLD_TRUNC
-	putchar('"');
-	fwrite(ft_fname(ft), sizeof(char), MAX(l, 32), stdout);
-	printf("\": %zd / %zd (%2.2f)%%\r",
-			bytessent, bytestotal, (float)(100.0f * bytessent / bytestotal));
-#else
 	printf("\"%s\": %zd / %zd (%2.2f)%%\r", ft_truncname(ft, 32),
 			bytessent, bytestotal, (float)(100.0f * bytessent / bytestotal));
-#endif
 
 	return 0;
 }
@@ -100,13 +89,17 @@ int main(int argc, char **argv)
 			return 1;
 		}
 
-		if(ft_accept(&ft, 1)){
-			fprintf(stderr, "ft_accept(): %s\n", ft_lasterr(&ft));
-			return 1;
-		}else if(!ft_connected(&ft)){
-			/* shouldn't get here - since it blocks until a connection is made */
-			fprintf(stderr, "no incomming connections... :S\n");
-			return 1;
+		switch(ft_accept(&ft, 1)){
+			case FT_ERR:
+				fprintf(stderr, "ft_accept(): %s\n", ft_lasterr(&ft));
+				return 1;
+			case FT_NO:
+				/* shouldn't get here - since it blocks until a connection is made */
+				fprintf(stderr, "no incomming connections... :S\n");
+				return 1;
+			case FT_YES:
+				printf("got connection from %s\n", ft_remoteaddr(&ft));
+				break; /* accepted */
 		}
 	}else{
 		if(!host)

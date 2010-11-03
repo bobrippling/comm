@@ -7,11 +7,20 @@ struct filetransfer
 	const char *fname;
 	int sock, connected;
 	size_t lastcallback;
+	/*struct sockaddr_in addr;*/
+	char addr[32]; /* sizeof(sockaddr_in) == 16 */
 };
 
 enum ftstate
 {
-	FT_BEGIN, FT_TRANSFER, FT_END
+	FT_BEGIN_SEND, FT_BEGIN_RECV,
+	FT_RECIEVING, FT_SENDING,
+	FT_SENT, FT_RECIEVED
+};
+
+enum ftret
+{
+	FT_YES, FT_NO, FT_ERR
 };
 
 typedef int (*ft_callback)(struct filetransfer *, enum ftstate state,
@@ -21,14 +30,17 @@ void ft_zero(struct filetransfer *);
 
 int ft_connect(struct filetransfer *, const char *host, const char *port);
 int ft_listen( struct filetransfer *, int port);
-int ft_accept( struct filetransfer *, int block);
 int ft_close(  struct filetransfer *);
 
-int ft_recv(   struct filetransfer *, ft_callback callback);
-int ft_send(   struct filetransfer *, ft_callback callback, const char *fname);
+enum ftret ft_accept(   struct filetransfer *, int block);
+enum ftret ft_poll_recv(struct filetransfer *);
 
-const char *ft_lasterr(struct filetransfer *);
-const char *ft_truncname(struct filetransfer *, unsigned int n);
+int ft_recv(     struct filetransfer *, ft_callback callback);
+int ft_send(     struct filetransfer *, ft_callback callback, const char *fname);
+
+const char *ft_lasterr(   struct filetransfer *);
+const char *ft_truncname( struct filetransfer *, unsigned int n);
+const char *ft_remoteaddr(struct filetransfer *);
 
 #define ft_fname(ft)     ((ft)->fname)
 #define ft_connected(ft) ((ft)->connected)

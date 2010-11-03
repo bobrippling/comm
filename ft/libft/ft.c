@@ -143,9 +143,10 @@ int ft_listen(struct filetransfer *ft, int port)
 	return 0;
 }
 
-int ft_accept(struct filetransfer *ft, const int block)
+enum ftret ft_accept(struct filetransfer *ft, const int block)
 {
 	int new, save;
+	socklen_t socklen;
 #ifndef _WIN32
 	int flags;
 #endif
@@ -157,18 +158,21 @@ int ft_accept(struct filetransfer *ft, const int block)
 		u_long m = 0;
 		if(ioctlsocket(ft->sock, FIONBIO, &m) != 0){
 			ft->lasterr = net_getlasterr;
-			return 1;
+			return FT_ERR;
 		}
 #else
 		flags = fcntl(ft->sock, F_GETFL);
 		if(fcntl(ft->sock, F_SETFL, flags | O_NONBLOCK) == -1){
 			ft->lasterr = net_getlasterr;
-			return 1;
+			return FT_ERR;
 		}
 #endif
 	}
 
-	new = accept(ft->sock, NULL, 0);
+	socklen = sizeof(struct sockaddr_in);
+	new = accept(ft->sock,
+			(struct sockaddr *)ft->addr,
+			&socklen);
 	save = errno;
 
 	if(!block){
@@ -176,12 +180,12 @@ int ft_accept(struct filetransfer *ft, const int block)
 		u_long m = 1;
 		if(ioctlsocket(ft->sock, FIONBIO, &m) != 0){
 			ft->lasterr = net_getlasterr;
-			return 1;
+			return FT_ERR;
 		}
 #else
 		if(fcntl(ft->sock, F_SETFL, flags & ~O_NONBLOCK) == -1){
 			ft->lasterr = net_getlasterr;
-			return 1;
+			return FT_ERR;
 		}
 #endif
 	}
@@ -195,17 +199,18 @@ int ft_accept(struct filetransfer *ft, const int block)
 				errno == EAGAIN || errno == EWOULDBLOCK
 #endif
 				)
-			ft->lasterr = NULL;
-		else
+			return FT_NO;
+		else{
 			ft->lasterr = net_getlasterr;
-		return 1;
+			return FT_ERR;
+		}
 	}
 
 	ft_connected(ft) = 1;
 
 	close(ft->sock);
 	ft->sock = new;
-	return 0;
+	return FT_YES;
 }
 
 static int ft_get_meta(struct filetransfer *ft, ft_callback callback,
@@ -313,7 +318,7 @@ static int ft_get_meta(struct filetransfer *ft, ft_callback callback,
 			ft->lasterr = os_getlasterr;
 			return 1;
 		}
-		if(callback(ft, FT_BEGIN, 0, *size)){
+		if(callback(ft, FT_BEGIN_RECV, 0, *size)){
 			ft->lasterr = "Cancelled";
 			return 1;
 		}
@@ -365,7 +370,7 @@ done:
 				ft->lasterr = FT_ERR_TOO_MUCH;
 			else{
 				/* good so far, don't be a douche and cancel it.. */
-				if(callback(ft, FT_END, size_so_far, size)){
+				if(callback(ft, FT_RECIEVED, size_so_far, size)){
 					/* ... douche */
 					ft->lasterr = "Cancelled";
 					RET(1);
@@ -389,7 +394,7 @@ done:
 
 		if(ft->lastcallback < size_so_far){
 			ft->lastcallback += CALLBACK_BYTES_STEP;
-			if(callback(ft, FT_TRANSFER, size_so_far, size)){
+			if(callback(ft, FT_RECIEVING, size_so_far, size)){
 				/* cancelled */
 				ft->lasterr = "Cancelled";
 				RET(1);
@@ -412,6 +417,27 @@ ret:
 	return ret;
 #undef RET
 #undef INVALID_MSG
+}
+
+enum ftret ft_poll_recv(struct filetransfer *ft)
+{
+	struct timeval tv;
+	fd_set fds;
+
+	FD_ZERO(&fds);
+	FD_SET(ft->sock, &fds);
+
+	tv.tv_sec  = 0;
+	tv.tv_usec = 1000;
+
+	switch(select(ft->sock + 1, &fds, NULL, NULL, &tv)){
+		case -1:
+			ft->lasterr = os_getlasterr;
+			return FT_ERR;
+		case 0:
+			return FT_NO;
+	}
+	return FD_ISSET(ft->sock, &fds) ? FT_YES : FT_NO;
 }
 
 int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
@@ -470,7 +496,7 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 		goto bail;
 	}
 
-	if(callback(ft, FT_BEGIN, 0, st.st_size)){
+	if(callback(ft, FT_BEGIN_SEND, 0, st.st_size)){
 		/* cancel */
 		ft->lasterr = "Cancelled";
 		cancelled = 1;
@@ -501,7 +527,7 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 
 		if(ft->lastcallback < nsent){
 			ft->lastcallback += CALLBACK_BYTES_STEP;
-			if(callback(ft, FT_TRANSFER, nsent, st.st_size)){
+			if(callback(ft, FT_SENDING, nsent, st.st_size)){
 				/* cancel */
 				cancelled = 1;
 				ft->lasterr = "Cancelled";
@@ -519,7 +545,7 @@ complete:
 				", st.st_size: " PRINTF_SIZET "\n",
 				(PRINTF_SIZET_CAST)nsent, (PRINTF_SIZET_CAST)st.st_size);
 	}else{
-		if(callback(ft, FT_END, nsent, st.st_size)){
+		if(callback(ft, FT_SENT, nsent, st.st_size)){
 			/* cancel */
 			cancelled = 1;
 			ft->lasterr = "Cancelled";
@@ -568,8 +594,10 @@ int ft_connect(struct filetransfer *ft, const char *host, const char *port)
 		if(ft->sock == -1)
 			continue;
 
-		if(connect(ft->sock, dest->ai_addr, dest->ai_addrlen) == 0)
+		if(connect(ft->sock, dest->ai_addr, dest->ai_addrlen) == 0){
+			memcpy(ft->addr, dest->ai_addr, sizeof(struct sockaddr_in));
 			break;
+		}
 
 		lastconnerr = net_getlasterr;
 		close(ft->sock);
@@ -642,4 +670,17 @@ const char *ft_truncname(struct filetransfer *ft, unsigned int n)
 	if(len > n)
 		return fname + len - n;
 	return fname;
+}
+
+const char *ft_remoteaddr(struct filetransfer *ft)
+{
+	static char buf[128];
+
+	if(getnameinfo((struct sockaddr *)ft->addr,
+			sizeof(struct sockaddr_in),
+			buf, sizeof buf,
+			NULL, 0, /* no service */
+			0 /* flags */))
+		return NULL;
+	return buf;
 }
