@@ -1,3 +1,5 @@
 file chooser
 host memory/cbobox
 FT_{SENT,RECIEVED} and FT_BEGIN_{SEND,RECV}
+
+gft: on connect, check if they're sending a file
