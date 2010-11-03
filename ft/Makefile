@@ -33,5 +33,6 @@ clean:
 include ../config.mk
 
 gft.o: gft.c libft/ft.h gladegen.h
+gladegen.o: gladegen.c gladegen.h
 tft.o: tft.c libft/ft.h
-libft/ft.o: libft/ft.c libft/ft.h
+ft.o: libft/ft.c libft/ft.h

@@ -17,7 +17,7 @@
 	do{ \
 		settimeout(0); \
 		ft_close(&ft); \
-		state = STATE_DISCO; \
+		gstate = STATE_DISCO; \
 		cmds(); \
 	}while(0)
 
@@ -48,7 +48,7 @@ double lastfraction = 0;
 enum
 {
 	STATE_DISCO, STATE_LISTEN, STATE_CONNECTED, STATE_TRANSFER
-} state;
+} gstate;
 
 
 /* events */
@@ -62,11 +62,11 @@ G_MODULE_EXPORT gboolean on_winMain_destroy(void)
 G_MODULE_EXPORT gboolean
 on_btnCancel_clicked(void)
 {
-	if(state == STATE_CONNECTED || state == STATE_LISTEN){
+	if(gstate == STATE_CONNECTED || gstate == STATE_LISTEN){
 		CLOSE();
 		cancelled = 1;
 		cmds();
-	}else if(state == STATE_TRANSFER)
+	}else if(gstate == STATE_TRANSFER)
 		cancelled = 1;
 	return FALSE;
 }
@@ -96,7 +96,7 @@ on_btnListen_clicked(void)
 		}else{
 			status("Awaiting connection...");
 			settimeout(1);
-			state = STATE_LISTEN;
+			gstate = STATE_LISTEN;
 		}
 		cmds();
 	}
@@ -131,7 +131,7 @@ on_btnConnect_clicked(void)
 		CLOSE();
 	}else{
 		status("Connected to %s", host);
-		state = STATE_CONNECTED;
+		gstate = STATE_CONNECTED;
 		settimeout(1);
 	}
 	cmds();
@@ -166,7 +166,7 @@ timeout(gpointer data)
 {
 	(void)data;
 
-	if(state == STATE_CONNECTED){
+	if(gstate == STATE_CONNECTED){
 		switch(ft_poll_recv(&ft)){
 			case FT_YES:
 				/*
@@ -208,7 +208,7 @@ timeout(gpointer data)
 
 				case FT_YES:
 					status("Got connection from %s", ft_remoteaddr(&ft));
-					state = STATE_CONNECTED;
+					gstate = STATE_CONNECTED;
 					cmds();
 					/* fall */
 				case FT_NO:
@@ -222,7 +222,7 @@ timeout(gpointer data)
 
 void cmds()
 {
-	switch(state){
+	switch(gstate){
 		case STATE_DISCO:
 			gtk_widget_set_sensitive(cboHost,        TRUE);
 			gtk_widget_set_sensitive(btnConnect,     TRUE);
@@ -230,6 +230,7 @@ void cmds()
 			gtk_widget_set_sensitive(btnFileChoice,  TRUE);
 			gtk_widget_set_sensitive(btnSend,        FALSE);
 			gtk_widget_set_sensitive(btnCancel,      FALSE);
+			gtk_widget_set_sensitive(btnFileChoice,  TRUE);
 			break;
 
 		case STATE_CONNECTED:
@@ -239,6 +240,7 @@ void cmds()
 			gtk_widget_set_sensitive(btnFileChoice,  TRUE);
 			gtk_widget_set_sensitive(btnSend,        TRUE);
 			gtk_widget_set_sensitive(btnCancel,      TRUE);
+			gtk_widget_set_sensitive(btnFileChoice,  TRUE);
 			break;
 
 		case STATE_LISTEN:
@@ -248,6 +250,7 @@ void cmds()
 			gtk_widget_set_sensitive(btnFileChoice,  FALSE);
 			gtk_widget_set_sensitive(btnSend,        FALSE);
 			gtk_widget_set_sensitive(btnCancel,      TRUE);
+			gtk_widget_set_sensitive(btnFileChoice,  TRUE);
 			break;
 
 		case STATE_TRANSFER:
@@ -257,6 +260,7 @@ void cmds()
 			gtk_widget_set_sensitive(btnFileChoice,  FALSE);
 			gtk_widget_set_sensitive(btnSend,        FALSE);
 			gtk_widget_set_sensitive(btnCancel,      TRUE);
+			gtk_widget_set_sensitive(btnFileChoice,  FALSE);
 			break;
 	}
 
@@ -276,15 +280,15 @@ void settimeout(int on)
 	}
 }
 
-int callback(struct filetransfer *ft, enum ftstate state,
+int callback(struct filetransfer *ft, enum ftstate ftst,
 		size_t bytessent, size_t bytestotal)
 {
 	const double fraction = (double)bytessent / (double)bytestotal;
 
-	switch(state){
+	switch(ftst){
 		case FT_SENT:
 		case FT_RECIEVED:
-			if(state == FT_SENT)
+			if(ftst == FT_SENT)
 				status("Sent %s", ft_truncname(ft, 32));
 			else
 				status("Recieved %s", ft_truncname(ft, 32));
@@ -294,7 +298,7 @@ int callback(struct filetransfer *ft, enum ftstate state,
 		case FT_BEGIN_SEND:
 		case FT_BEGIN_RECV:
 			cancelled = 0;
-			state = STATE_TRANSFER;
+			gstate = STATE_TRANSFER;
 			cmds();
 			/* fall */
 

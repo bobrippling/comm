@@ -97,7 +97,7 @@ static int WSA_Startuped = 0;
 	memset(&addr, '\0', sizeof addr);
 #endif
 
-static int ft_get_meta(struct filetransfer *ft, ft_callback callback,
+static int ft_get_meta(struct filetransfer *ft,
 		char **basename, FILE **local, size_t *size);
 
 
@@ -213,7 +213,7 @@ enum ftret ft_accept(struct filetransfer *ft, const int block)
 	return FT_YES;
 }
 
-static int ft_get_meta(struct filetransfer *ft, ft_callback callback,
+static int ft_get_meta(struct filetransfer *ft,
 		char **basename, FILE **local, size_t *size)
 {
 #define INVALID_MSG() \
@@ -318,10 +318,6 @@ static int ft_get_meta(struct filetransfer *ft, ft_callback callback,
 			ft->lasterr = os_getlasterr;
 			return 1;
 		}
-		if(callback(ft, FT_BEGIN_RECV, 0, *size)){
-			ft->lasterr = "Cancelled";
-			return 1;
-		}
 	}else
 		INVALID_MSG();
 
@@ -352,8 +348,13 @@ int ft_recv(struct filetransfer *ft, ft_callback callback)
 
 	ft_fname(ft) = NULL;
 
-	if(ft_get_meta(ft, callback, &basename, &local, &size))
+	if(ft_get_meta(ft, &basename, &local, &size))
 		RET(1);
+
+	if(callback(ft, FT_BEGIN_RECV, 0, size)){
+		ft->lasterr = "Cancelled";
+		return 1;
+	}
 
 	for(;;){
 		nread = recv(ft->sock, buffer, sizeof buffer, 0);
