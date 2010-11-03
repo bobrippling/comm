@@ -36,7 +36,7 @@ int callback(struct filetransfer *ft, enum ftstate state,
 		size_t bytessent, size_t bytestotal);
 void settimeout(int on);
 
-GtkWidget *btnSend, *btnConnect, *btnListen, *btnCancel;
+GtkWidget *btnSend, *btnConnect, *btnListen, *btnClose;
 GtkWidget *btnFileChoice;
 GtkWidget *winMain;
 GtkWidget *progressft, *lblStatus;
@@ -60,12 +60,11 @@ G_MODULE_EXPORT gboolean on_winMain_destroy(void)
 }
 
 G_MODULE_EXPORT gboolean
-on_btnCancel_clicked(void)
+on_btnClose_clicked(void)
 {
 	if(gstate == STATE_CONNECTED || gstate == STATE_LISTEN){
 		CLOSE();
 		cancelled = 1;
-		cmds();
 	}else if(gstate == STATE_TRANSFER)
 		cancelled = 1;
 	return FALSE;
@@ -152,11 +151,11 @@ on_btnSend_clicked(void)
 
 	lastfraction = 0;
 
-	if(ft_send(&ft, callback, fname)){
+	if(ft_send(&ft, callback, fname))
 		status("Couldn't send %s: %s", basename, ft_lasterr(&ft));
-		CLOSE();
-	}else
+	else
 		status("Sent %s", basename);
+	CLOSE();
 
 	return FALSE;
 }
@@ -229,7 +228,7 @@ void cmds()
 			gtk_widget_set_sensitive(btnListen,      TRUE);
 			gtk_widget_set_sensitive(btnFileChoice,  TRUE);
 			gtk_widget_set_sensitive(btnSend,        FALSE);
-			gtk_widget_set_sensitive(btnCancel,      FALSE);
+			gtk_widget_set_sensitive(btnClose,      FALSE);
 			gtk_widget_set_sensitive(btnFileChoice,  TRUE);
 			break;
 
@@ -239,7 +238,7 @@ void cmds()
 			gtk_widget_set_sensitive(btnListen,      FALSE);
 			gtk_widget_set_sensitive(btnFileChoice,  TRUE);
 			gtk_widget_set_sensitive(btnSend,        TRUE);
-			gtk_widget_set_sensitive(btnCancel,      TRUE);
+			gtk_widget_set_sensitive(btnClose,      TRUE);
 			gtk_widget_set_sensitive(btnFileChoice,  TRUE);
 			break;
 
@@ -249,7 +248,7 @@ void cmds()
 			gtk_widget_set_sensitive(btnListen,      FALSE);
 			gtk_widget_set_sensitive(btnFileChoice,  FALSE);
 			gtk_widget_set_sensitive(btnSend,        FALSE);
-			gtk_widget_set_sensitive(btnCancel,      TRUE);
+			gtk_widget_set_sensitive(btnClose,      TRUE);
 			gtk_widget_set_sensitive(btnFileChoice,  TRUE);
 			break;
 
@@ -259,7 +258,7 @@ void cmds()
 			gtk_widget_set_sensitive(btnListen,      FALSE);
 			gtk_widget_set_sensitive(btnFileChoice,  FALSE);
 			gtk_widget_set_sensitive(btnSend,        FALSE);
-			gtk_widget_set_sensitive(btnCancel,      TRUE);
+			gtk_widget_set_sensitive(btnClose,      TRUE);
 			gtk_widget_set_sensitive(btnFileChoice,  FALSE);
 			break;
 	}
@@ -327,7 +326,7 @@ static int getobjects(GtkBuilder *b)
 	GET_WIDGET(btnSend);
 	GET_WIDGET(btnConnect);
 	GET_WIDGET(btnListen);
-	GET_WIDGET(btnCancel);
+	GET_WIDGET(btnClose);
 	GET_WIDGET(btnFileChoice);
 	GET_WIDGET(winMain);
 	GET_WIDGET(cboHost);

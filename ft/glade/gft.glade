@@ -186,12 +186,12 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkButton" id="btnCancel">
+                      <object class="GtkButton" id="btnClose">
                         <property name="label" translatable="yes">Close</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">True</property>
-                        <signal name="clicked" handler="on_btnCancel_clicked"/>
+                        <signal name="clicked" handler="on_btnClose_clicked"/>
                       </object>
                       <packing>
                         <property name="position">1</property>
