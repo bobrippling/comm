@@ -6,12 +6,17 @@
 # include <winsock2.h>
 /* ^ getaddrinfo */
 
+# include <sys/types.h>
+# include <sys/stat.h>
+
 # define WIN_DEBUG(x) perror("WIN_DEBUG(): " x )
 
-# define os_getlasterr Win32_LastErr()
 # define PRINTF_SIZET "%ld"
 # define PRINTF_SIZET_CAST long
 # define PATH_SEPERATOR '\\'
+
+# define  os_getlasterr Win32_LastErr(1)
+# define net_getlasterr Win32_LastErr(0)
 
 #else
 # define _POSIX_C_SOURCE 200809L
@@ -26,7 +31,9 @@
 
 # define WIN_DEBUG(x)
 
-# define os_getlasterr strerror(errno)
+# define  os_getlasterr strerror(errno)
+# define net_getlasterr strerror(errno)
+
 /* needs cast to unsigned long */
 # define PRINTF_SIZET "%lu"
 # define PRINTF_SIZET_CAST unsigned long
@@ -44,12 +51,9 @@
 
 #ifdef _WIN32
 int fileno(FILE *);
-ssize_t write(int fd, const char *, ssize_t);
-ssize_t read( int fd, const char *, ssize_t);
 char *strdup(const char *);
 
-const char *Win32_LastErr(void);
-
+const char *Win32_LastErr(int skip_to_errno);
 static int WSA_Startuped = 0;
 #endif
 
@@ -81,7 +85,7 @@ static int WSA_Startuped = 0;
 		struct WSAData d; \
 		WSA_Startuped = 1; \
 		if(WSAStartup(MAKEWORD(2, 2), &d)){ \
-			ft->lasterr = os_getlasterr; \
+			ft->lasterr = net_getlasterr; \
 			return 1; \
 		} \
 	} \
@@ -112,7 +116,7 @@ int ft_listen(struct filetransfer *ft, int port)
 	DATA_INIT();
 
 	if((ft->sock = socket(PF_INET, SOCK_STREAM, 0)) == -1){
-		ft->lasterr = os_getlasterr;
+		ft->lasterr = net_getlasterr;
 		return 1;
 	}
 
@@ -125,13 +129,13 @@ int ft_listen(struct filetransfer *ft, int port)
 #endif
 
 	if(bind(ft->sock, (struct sockaddr *)&addr, sizeof addr) == -1){
-		ft->lasterr = os_getlasterr;
+		ft->lasterr = net_getlasterr;
 		close(ft->sock);
 		return 1;
 	}
 
 	if(listen(ft->sock, 1) == -1){
-		ft->lasterr = os_getlasterr;
+		ft->lasterr = net_getlasterr;
 		close(ft->sock);
 		return 1;
 	}
@@ -152,13 +156,13 @@ int ft_accept(struct filetransfer *ft, const int block)
 #ifdef _WIN32
 		u_long m = 0;
 		if(ioctlsocket(ft->sock, FIONBIO, &m) != 0){
-			ft->lasterr = os_getlasterr;
+			ft->lasterr = net_getlasterr;
 			return 1;
 		}
 #else
 		flags = fcntl(ft->sock, F_GETFL);
 		if(fcntl(ft->sock, F_SETFL, flags | O_NONBLOCK) == -1){
-			ft->lasterr = os_getlasterr;
+			ft->lasterr = net_getlasterr;
 			return 1;
 		}
 #endif
@@ -171,12 +175,12 @@ int ft_accept(struct filetransfer *ft, const int block)
 #ifdef _WIN32
 		u_long m = 1;
 		if(ioctlsocket(ft->sock, FIONBIO, &m) != 0){
-			ft->lasterr = os_getlasterr;
+			ft->lasterr = net_getlasterr;
 			return 1;
 		}
 #else
 		if(fcntl(ft->sock, F_SETFL, flags & ~O_NONBLOCK) == -1){
-			ft->lasterr = os_getlasterr;
+			ft->lasterr = net_getlasterr;
 			return 1;
 		}
 #endif
@@ -193,7 +197,7 @@ int ft_accept(struct filetransfer *ft, const int block)
 				)
 			ft->lasterr = NULL;
 		else
-			ft->lasterr = os_getlasterr;
+			ft->lasterr = net_getlasterr;
 		return 1;
 	}
 
@@ -226,7 +230,7 @@ static int ft_get_meta(struct filetransfer *ft, ft_callback callback,
 			ft->lasterr = FT_ERR_PREMATURE_CLOSE;
 			return 1;
 		}else if(thisread == -1){
-			ft->lasterr = os_getlasterr;
+			ft->lasterr = net_getlasterr;
 			return 1;
 		}
 
@@ -258,7 +262,7 @@ static int ft_get_meta(struct filetransfer *ft, ft_callback callback,
 	thisread = bufptr - buffer + 1; /* truncate to how much is left */
 
 	if(recv(ft->sock, buffer, thisread, 0) != thisread){
-		ft->lasterr = os_getlasterr;
+		ft->lasterr = net_getlasterr;
 		return 1;
 	}
 
@@ -266,7 +270,7 @@ static int ft_get_meta(struct filetransfer *ft, ft_callback callback,
 	if(!strncmp(bufptr, "FILE ", 5)){
 		*basename = strdup(buffer + 5);
 		if(!*basename){
-			ft->lasterr = os_getlasterr;
+			ft->lasterr = net_getlasterr;
 			return 1;
 		}
 		ft_fname(ft) = *basename;
@@ -350,7 +354,7 @@ int ft_recv(struct filetransfer *ft, ft_callback callback)
 		nread = recv(ft->sock, buffer, sizeof buffer, 0);
 
 		if(nread == -1){
-			ft->lasterr = os_getlasterr;
+			ft->lasterr = net_getlasterr;
 			RET(1);
 		}else if(nread == 0){
 done:
@@ -441,6 +445,9 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 		WIN_DEBUG("fstat()");
 		ft->lasterr = os_getlasterr;
 		goto bail;
+	}else if(st.st_size == 0){
+		ft->lasterr = "libft: Can't send zero-length file";
+		goto bail;
 	}
 
 	if(!basename)
@@ -452,14 +459,14 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 
 	if((nwrite = snprintf(buffer, sizeof buffer,
 					"FILE %s\nSIZE " PRINTF_SIZET "\n\n",
-			basename, st.st_size)) >= (signed)sizeof buffer){
+			basename, (PRINTF_SIZET_CAST)st.st_size)) >= (signed)sizeof buffer){
 		ft->lasterr = "libft: Shorten your darn filename";
 		goto bail;
 	}
 
 	/* less complicated to do it here than ^whileloop */
-	if(write(ft->sock, buffer, nwrite) == -1){
-		ft->lasterr = os_getlasterr;
+	if(send(ft->sock, buffer, nwrite, 0) == -1){
+		ft->lasterr = net_getlasterr;
 		goto bail;
 	}
 
@@ -472,20 +479,20 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 
 	nsent = 0;
 	while(1){
-		switch((nwrite = read(ilocal, buffer, sizeof buffer))){
+		switch((nwrite = fread(buffer, sizeof(char), sizeof buffer, local))){
 			case 0:
 				if(ferror(local)){
-					ft->lasterr = os_getlasterr;
+					ft->lasterr = net_getlasterr;
 					goto bail;
 				}
 				goto complete;
 			case -1:
-				ft->lasterr = os_getlasterr;
+				ft->lasterr = net_getlasterr;
 				goto bail;
 		}
 
-		if(write(ft->sock, buffer, nwrite) == -1){
-			ft->lasterr = os_getlasterr;
+		if(send(ft->sock, buffer, nwrite, 0) == -1){
+			ft->lasterr = net_getlasterr;
 			goto bail;
 		}
 
@@ -564,7 +571,7 @@ int ft_connect(struct filetransfer *ft, const char *host, const char *port)
 		if(connect(ft->sock, dest->ai_addr, dest->ai_addrlen) == 0)
 			break;
 
-		lastconnerr = os_getlasterr;
+		lastconnerr = net_getlasterr;
 		close(ft->sock);
 		ft->sock = -1;
 	}
@@ -598,11 +605,19 @@ int ft_close(struct filetransfer *ft)
 }
 
 #ifdef _WIN32
-const char *Win32_LastErr()
+const char *Win32_LastErr(int skip_to_errno)
 {
 	static char errbuf[256];
+	int ecode;
+
+	if(skip_to_errno)
+		ecode = errno;
+	else if(!(ecode = WSAGetLastError()))
+		ecode = errno;
+
 	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL,
-			errno, 0, errbuf, sizeof errbuf, NULL);
+			ecode, 0,
+			errbuf, sizeof errbuf, NULL);
 	return errbuf;
 }
 #endif
