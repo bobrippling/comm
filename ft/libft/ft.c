@@ -1,6 +1,7 @@
 #ifdef _WIN32
 # define _WIN32_WINNT 0x501
 # define close(x) closesocket(x)
+
 /* ws2tcpip must be first... enterprise */
 # include <ws2tcpip.h>
 # include <winsock2.h>
@@ -8,6 +9,15 @@
 
 # include <sys/types.h>
 # include <sys/stat.h>
+/*
+ * can't do this:
+ * # include <io.h>
+ * since closesocket conflicts... enterprise
+ */
+# include <errno.h>
+# define W_OK 02
+# define R_OK 04
+
 
 # define WIN_DEBUG(x) perror("WIN_DEBUG(): " x )
 
@@ -52,6 +62,7 @@
 #ifdef _WIN32
 int fileno(FILE *);
 char *strdup(const char *);
+int access(const char *, int);
 
 const char *Win32_LastErr(int skip_to_errno);
 static int WSA_Startuped = 0;
@@ -458,7 +469,8 @@ int ft_recv(struct filetransfer *ft, ft_callback callback, ft_queryback querybac
 	}
 
 	/* resuming (works with 0) */
-	snprintf(buffer, sizeof(buffer), "RESUME %ld\n", size_so_far);
+	snprintf(buffer, sizeof(buffer), "RESUME " PRINTF_SIZET "\n",
+			(PRINTF_SIZET_CAST)size_so_far);
 	if(send(ft->sock, buffer, strlen(buffer), 0) == -1){
 		ft->lasterr = net_getlasterr;
 		RET(1);
@@ -625,7 +637,8 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 			ft->lasterr = FT_ERR_PREMATURE_CLOSE;
 			goto bail;
 	}
-	if(sscanf(buffer, "RESUME %zud\n", &nsent) != 1){
+	if(sscanf(buffer, "RESUME " PRINTF_SIZET "\n",
+				(PRINTF_SIZET_CAST *)&nsent) != 1){
 		ft->lasterr = "libft: Invalid RESUME message";
 		goto bail;
 	}

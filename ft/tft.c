@@ -7,6 +7,10 @@
 
 #define MAX(x, y) (x > y ? x : y)
 
+#ifdef _WIN32
+char __progname[512];
+#endif
+
 void clrtoeol(void);
 void cleanup(void);
 int  eprintf(const char *, ...);
@@ -85,9 +89,11 @@ void cleanup()
 
 int eprintf(const char *fmt, ...)
 {
-	extern char *__progname;
 	va_list l;
 	int ret;
+#ifndef _WIN32
+	extern char *__progname;
+#endif
 
 	fprintf(stderr, "%s: ", __progname);
 	va_start(l, fmt);
@@ -100,6 +106,10 @@ int main(int argc, char **argv)
 {
 	int i, listen = 0, verbose = 0;
 	const char *fname = NULL, *host  = NULL, *port = DEFAULT_PORT;
+
+#ifdef _WIN32
+	strncpy(__progname, *argv, sizeof __progname);
+#endif
 
 	for(i = 1; i < argc; i++)
 		if(!strcmp(argv[i], "-l"))
