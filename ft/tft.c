@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdarg.h>
 
 #include "libft/ft.h"
 
@@ -8,6 +9,7 @@
 
 void clrtoeol(void);
 void cleanup(void);
+int  eprintf(const char *, ...);
 
 struct filetransfer ft;
 
@@ -20,10 +22,53 @@ int callback(struct filetransfer *ft, enum ftstate state,
 		return 0;
 	}
 
-	printf("\"%s\": %zd / %zd (%2.2f)%%\r", ft_truncname(ft, 32),
-			bytessent, bytestotal, (float)(100.0f * bytessent / bytestotal));
+	printf("\"%s\": %zd K / %zd K (%2.2f)%%\r", ft_basename(ft),
+			bytessent / 1024, bytestotal / 1024,
+			(float)(100.0f * bytessent / bytestotal));
 
 	return 0;
+}
+
+int queryback(struct filetransfer *ft, const char *msg, ...)
+{
+	va_list l;
+	int opt, c, formatargs = 0;
+	const char *percent;
+
+	(void)ft;
+
+	va_start(l, msg);
+	vprintf(msg, l);
+	va_end(l);
+
+	putchar('\n');
+
+	percent = msg-1;
+	while(1)
+		if((percent = strchr(percent+1, '%'))){
+			if(percent[1] != '%')
+				formatargs++;
+		}else
+			break;
+
+	/* walk forwards formatargs times, then we're at the option names */
+	va_start(l, msg);
+	while(formatargs --> 0)
+		va_arg(l, const char *);
+
+	formatargs = 0;
+	while((percent = va_arg(l, const char *)))
+		printf("%d: %s\n", formatargs++, percent);
+	va_end(l);
+
+	fputs("Choice: ", stdout);
+	opt = getchar();
+	if(opt == '\n')
+		opt = '0';
+	else if(opt != EOF)
+		while((c = getchar()) != EOF && c != '\n');
+
+	return opt - '0';
 }
 
 void clrtoeol()
@@ -36,6 +81,19 @@ void cleanup()
 {
 	if(ft_connected(&ft))
 		ft_close(&ft);
+}
+
+int eprintf(const char *fmt, ...)
+{
+	extern char *__progname;
+	va_list l;
+	int ret;
+
+	fprintf(stderr, "%s: ", __progname);
+	va_start(l, fmt);
+	ret = vfprintf(stderr, fmt, l);
+	va_end(l);
+	return ret;
 }
 
 int main(int argc, char **argv)
@@ -59,7 +117,7 @@ int main(int argc, char **argv)
 			fname = argv[i];
 		else{
 		usage:
-			fprintf(stderr, "Usage: %s [-p port] -l   [file]\n"
+			eprintf("Usage: %s [-p port] -l   [file]\n"
 					            "       %s [-p port] host [file]\n",
 					            *argv, *argv);
 			return 1;
@@ -75,27 +133,28 @@ int main(int argc, char **argv)
 		else if(host){
 			fname = host;
 			host = NULL;
-			printf("%s: serving %s...\n", *argv, fname);
+			if(verbose)
+				printf("%s: serving %s...\n", *argv, fname);
 		}else if(verbose)
 			printf("%s: listening for incomming files...", *argv);
 
 		if(sscanf(port, "%d", &iport) != 1){
-			fprintf(stderr, "need numeric port (\"%s\")\n", port);
+			eprintf("need numeric port (\"%s\")\n", port);
 			return 1;
 		}
 
 		if(ft_listen(&ft, iport)){
-			fprintf(stderr, "ft_listen(%d): %s\n", iport, ft_lasterr(&ft));
+			eprintf("ft_listen(%d): %s\n", iport, ft_lasterr(&ft));
 			return 1;
 		}
 
 		switch(ft_accept(&ft, 1)){
 			case FT_ERR:
-				fprintf(stderr, "ft_accept(): %s\n", ft_lasterr(&ft));
+				eprintf("ft_accept(): %s\n", ft_lasterr(&ft));
 				return 1;
 			case FT_NO:
 				/* shouldn't get here - since it blocks until a connection is made */
-				fprintf(stderr, "no incomming connections... :S\n");
+				eprintf("no incomming connections... :S\n");
 				return 1;
 			case FT_YES:
 				printf("got connection from %s\n", ft_remoteaddr(&ft));
@@ -105,8 +164,11 @@ int main(int argc, char **argv)
 		if(!host)
 			goto usage;
 
+		if(verbose)
+			printf("connecting to %s...\n", host);
+
 		if(ft_connect(&ft, host, port)){
-			fprintf(stderr, "ft_connect(\"%s\", \"%s\"): %s\n", host, port,
+			eprintf("ft_connect(\"%s\", \"%s\"): %s\n", host, port,
 					ft_lasterr(&ft));
 			return 1;
 		}
@@ -115,20 +177,20 @@ int main(int argc, char **argv)
 
 	if(fname){
 		if(verbose)
-			printf("%s: sending %s\n", *argv, fname);
+			printf("sending %s\n", fname);
 
 		if(ft_send(&ft, callback, fname)){
 			clrtoeol();
-			fprintf(stderr, "ft_send(): %s\n", ft_lasterr(&ft));
+			eprintf("ft_send(): %s\n", ft_lasterr(&ft));
 			return 1;
 		}
 	}else{
 		if(verbose)
 			printf("%s: receiving incomming file\n", *argv);
 
-		if(ft_recv(&ft, callback)){
+		if(ft_recv(&ft, callback, queryback)){
 			clrtoeol();
-			fprintf(stderr, "ft_recv(): %s\n", ft_lasterr(&ft));
+			eprintf("ft_recv(): %s\n", ft_lasterr(&ft));
 			return 1;
 		}
 	}

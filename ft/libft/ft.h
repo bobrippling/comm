@@ -3,8 +3,7 @@
 
 struct filetransfer
 {
-	const char *lasterr;
-	const char *fname;
+	const char *lasterr, *fname;
 	int sock, connected;
 	size_t lastcallback;
 	/*struct sockaddr_in addr;*/
@@ -25,6 +24,7 @@ enum ftret
 
 typedef int (*ft_callback)(struct filetransfer *, enum ftstate state,
 		size_t bytessent, size_t bytestotal);
+typedef int (*ft_queryback)(struct filetransfer *, const char *msg, ...);
 
 void ft_zero(struct filetransfer *);
 
@@ -35,11 +35,11 @@ int ft_close(  struct filetransfer *);
 enum ftret ft_accept(   struct filetransfer *, int block);
 enum ftret ft_poll_recv(struct filetransfer *);
 
-int ft_recv(     struct filetransfer *, ft_callback callback);
+int ft_recv(     struct filetransfer *, ft_callback callback, ft_queryback);
 int ft_send(     struct filetransfer *, ft_callback callback, const char *fname);
 
 const char *ft_lasterr(   struct filetransfer *);
-const char *ft_truncname( struct filetransfer *, unsigned int n);
+const char *ft_basename(  struct filetransfer *);
 const char *ft_remoteaddr(struct filetransfer *);
 
 #define ft_fname(ft)     ((ft)->fname)

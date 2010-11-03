@@ -34,6 +34,8 @@ void cmds(void);
 void status(const char *, ...);
 int callback(struct filetransfer *ft, enum ftstate state,
 		size_t bytessent, size_t bytestotal);
+int queryback(struct filetransfer *ft,
+		const char *msg, ...);
 void settimeout(int on);
 
 GtkWidget *btnSend, *btnConnect, *btnListen, *btnClose;
@@ -174,7 +176,7 @@ timeout(gpointer data)
 				 * no need for this - set in the callback straight away
 				 */
 
-				if(ft_recv(&ft, callback))
+				if(ft_recv(&ft, callback, queryback))
 					status("Couldn't recveive file: %s", ft_lasterr(&ft));
 				/* else
 				 *   // can't do this here - displayed via callback instead
@@ -288,9 +290,9 @@ int callback(struct filetransfer *ft, enum ftstate ftst,
 		case FT_SENT:
 		case FT_RECIEVED:
 			if(ftst == FT_SENT)
-				status("Sent %s", ft_truncname(ft, 32));
+				status("Sent %s", ft_basename(ft));
 			else
-				status("Recieved %s", ft_truncname(ft, 32));
+				status("Recieved %s", ft_basename(ft));
 			gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progressft), 1.0f);
 			break;
 
@@ -304,7 +306,7 @@ int callback(struct filetransfer *ft, enum ftstate ftst,
 		case FT_RECIEVING:
 		case FT_SENDING:
 			gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progressft), fraction);
-			status("%s: %dK/%dK (%2.2f%%)", ft_truncname(ft, 32),
+			status("%s: %dK/%dK (%2.2f%%)", ft_basename(ft),
 					bytessent / 1024, bytestotal / 1024, 100.0f * fraction);
 	}
 
@@ -314,6 +316,53 @@ int callback(struct filetransfer *ft, enum ftstate ftst,
 	return cancelled;
 }
 
+int queryback(struct filetransfer *ft, const char *msg, ...)
+{
+	GtkWidget *dialog = gtk_dialog_new(), *label;
+	va_list l;
+	const char *iter, *percent;
+	char *caption;
+	int i = 0, formatargs = 0;
+
+	(void)ft;
+
+	if(!dialog)
+		return 0;
+
+	va_start(l, msg);
+	caption = g_strdup_vprintf(msg, l);
+	va_end(l); /* needs reinitialising */
+
+	label = gtk_label_new(caption);
+	/*content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+	gtk_container_add(GTK_CONTAINER(content_area), label);*/
+	gtk_container_add(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), label);
+
+	/* button time */
+	percent = msg-1;
+	while(1)
+		if((percent = strchr(percent+1, '%'))){
+			if(percent[1] != '%')
+				formatargs++;
+		}else
+			break;
+
+	/* walk forwards formatargs times, then we're at the button names */
+	va_start(l, msg);
+	while(formatargs --> 0)
+		va_arg(l, const char *);
+
+	while((iter = va_arg(l, const char *)))
+		gtk_dialog_add_button(GTK_DIALOG(dialog), iter, i++);
+	va_end(l);
+
+	gtk_widget_show(label);
+	i = gtk_dialog_run(GTK_DIALOG(dialog));
+	g_free(caption);
+	gtk_widget_destroy(dialog);
+
+	return i;
+}
 
 static int getobjects(GtkBuilder *b)
 {
@@ -414,9 +463,8 @@ usage:
 	/* signal setup */
 	g_signal_connect(G_OBJECT(winMain), "destroy", G_CALLBACK(on_winMain_destroy), NULL);
 
-	gtk_widget_show(winMain);
 	cmds();
-
+	gtk_widget_show(winMain);
 	gtk_main();
 
 	return 0;

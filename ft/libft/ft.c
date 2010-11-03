@@ -63,7 +63,6 @@ static int WSA_Startuped = 0;
 #define FT_ERR_TOO_MUCH        "libft: Too much data for file size"
 
 #define BUFFER_SIZE            2048
-#define CALLBACK_BYTES_STEP    (BUFFER_SIZE * 32)
 
 
 /*
@@ -97,9 +96,20 @@ static int WSA_Startuped = 0;
 	memset(&addr, '\0', sizeof addr);
 #endif
 
-static int ft_get_meta(struct filetransfer *ft,
-		char **basename, FILE **local, size_t *size);
+static size_t ft_getcallback_step(size_t);
 
+static size_t ft_getcallback_step(size_t siz)
+{
+	size_t ret;
+	/* callback every 1% */
+	ret = ((float)siz * 2.0f / 100.0f);
+
+	if(ret < 1)
+		ret = 1;
+	else if(ret > BUFFER_SIZE * 4)
+		ret = BUFFER_SIZE * 4;
+	return ret;
+}
 
 void ft_zero(struct filetransfer *ft)
 {
@@ -214,7 +224,10 @@ enum ftret ft_accept(struct filetransfer *ft, const int block)
 }
 
 static int ft_get_meta(struct filetransfer *ft,
-		char **basename, FILE **local, size_t *size)
+		char **basename, FILE **local, size_t *size, ft_queryback queryback);
+
+static int ft_get_meta(struct filetransfer *ft,
+		char **basename, FILE **local, size_t *size, ft_queryback queryback)
 {
 #define INVALID_MSG() \
 				do{\
@@ -275,7 +288,7 @@ static int ft_get_meta(struct filetransfer *ft,
 	if(!strncmp(bufptr, "FILE ", 5)){
 		*basename = strdup(buffer + 5);
 		if(!*basename){
-			ft->lasterr = net_getlasterr;
+			ft->lasterr = os_getlasterr;
 			return 1;
 		}
 		ft_fname(ft) = *basename;
@@ -286,6 +299,7 @@ static int ft_get_meta(struct filetransfer *ft,
 	if(!strncmp(bufptr, "SIZE ", 5)){
 		if(sscanf(bufptr + 5, PRINTF_SIZET, (PRINTF_SIZET_CAST *)size) != 1){
 			ft->lasterr = "libft: Invalid SIZE recieved";
+			free(*basename);
 			return 1;
 		}
 	}else
@@ -312,12 +326,91 @@ static int ft_get_meta(struct filetransfer *ft,
 	 */
 
 	if(!bufptr[1] || bufptr[1] == '\n'){
-		/* FIXME: clobber check */
-		*local = fopen(*basename, "wb");
-		if(!*local){
+		int resume = 0;
+
+		if(access(*basename, W_OK | R_OK) == 0)
+			/* file exists - clobber/resume check */
+			switch(queryback(ft, "%s exists", *basename, "Overwrite", "Resume", "Rename", NULL)){
+				case 0: /* overwrite */
+					/* just carry on */
+					break;
+
+				case 1: /* resume */
+					resume = 1;
+					break;
+
+				case 2: /* rename */
+				{
+					int clob = 1, len = strlen(*basename) + 5;
+					char *tmp = realloc(*basename, len + 1), *dup;
+
+					if(!tmp){
+						ft->lasterr = os_getlasterr;
+						free(*basename);
+						return 1;
+					}
+					dup = strdup(*basename = tmp);
+					if(!dup){
+						ft->lasterr = os_getlasterr;
+						free(tmp);
+						return 1;
+					}
+
+					do{
+						if(snprintf(tmp, len - 1, "%s%d", dup, clob++) >= len - 1){
+							ft->lasterr = "libft: basename overflow in snprintf()";
+							free(tmp);
+							free(dup);
+							return 1;
+						}
+
+						if(access(tmp, W_OK | R_OK) == -1 && errno == ENOENT)
+							break;
+						else if(clob > 99){
+							ft->lasterr = "libft: can't find gap in filesystem";
+							free(tmp);
+							free(dup);
+							return 1;
+						}
+					}while(1);
+					/* get here on successful rename */
+					free(dup);
+					/* *basename free'd later */
+					break;
+				}
+
+				default:
+					ft->lasterr = "Invalid feedback";
+					return 1;
+			}/* switch querycallback */
+		else if(errno != ENOENT){
+			/* access error */
 			ft->lasterr = os_getlasterr;
+			free(*basename);
 			return 1;
 		}
+
+
+		{
+			char mode[4];
+			if(resume)
+				strcpy(mode, "a+b");
+			else
+				strcpy(mode, "wb");
+			*local = fopen(*basename, mode); /* truncates *basename */
+		}
+		if(!*local){
+			ft->lasterr = os_getlasterr;
+			free(*basename);
+			return 1;
+		}
+		if(resume)
+			if(fseek(*local, 0, SEEK_END)){
+				ft->lasterr = os_getlasterr;
+				free(*basename);
+				fclose(*local);
+				return 1;
+			}/* else leave fpointer at the end for ftell() below */
 	}else
 		INVALID_MSG();
 
@@ -325,7 +418,7 @@ static int ft_get_meta(struct filetransfer *ft,
 #undef INVALID_MSG
 }
 
-int ft_recv(struct filetransfer *ft, ft_callback callback)
+int ft_recv(struct filetransfer *ft, ft_callback callback, ft_queryback queryback)
 {
 #define INVALID_MSG() \
 				do{\
@@ -341,19 +434,39 @@ int ft_recv(struct filetransfer *ft, ft_callback callback)
 	 */
 	FILE *local = NULL;
 	int ret = 0;
-	char *basename = NULL; /* dynamic alloc */
-	char buffer[BUFFER_SIZE];
-	size_t size, size_so_far = 0;
+	char buffer[BUFFER_SIZE], *basename = NULL;
+	size_t size, size_so_far = 0, callback_step;
 	ssize_t nread;
 
 	ft_fname(ft) = NULL;
-
-	if(ft_get_meta(ft, &basename, &local, &size))
+	if(ft_get_meta(ft, &basename, &local, &size, queryback))
 		RET(1);
+	ft_fname(ft) = basename;
+
+	callback_step = ft_getcallback_step(size);
+
+	{
+		long tmp = ftell(local);
+		size_so_far = tmp;
+		if(tmp == -1){
+			ft->lasterr = os_getlasterr;
+			RET(1);
+		}else if(size_so_far == size){
+			ft->lasterr = "Can't resume - have full file";
+			RET(1);
+		}
+	}
+
+	/* resuming (works with 0) */
+	snprintf(buffer, sizeof(buffer), "RESUME %ld\n", size_so_far);
+	if(send(ft->sock, buffer, strlen(buffer), 0) == -1){
+		ft->lasterr = net_getlasterr;
+		RET(1);
+	}
 
 	if(callback(ft, FT_BEGIN_RECV, 0, size)){
 		ft->lasterr = "Cancelled";
-		return 1;
+		RET(1);
 	}
 
 	for(;;){
@@ -390,11 +503,17 @@ done:
 
 		/* no need to have this above, since it's only 0/-1 */
 		size_so_far += nread;
-		if(size_so_far > size)
+		if(size_so_far >= size)
+			/*
+			 * on normal operation, the == above will be true
+			 * when we've recieved the entire file,
+			 * so we won't end up blocking at the main recv()
+			 * yay
+			 */
 			goto done;
 
 		if(ft->lastcallback < size_so_far){
-			ft->lastcallback += CALLBACK_BYTES_STEP;
+			ft->lastcallback += callback_step;
 			if(callback(ft, FT_RECIEVING, size_so_far, size)){
 				/* cancelled */
 				ft->lasterr = "Cancelled";
@@ -410,10 +529,8 @@ ret:
 		local = NULL;
 	}
 	if(basename){
-		if(ret)
-			remove(basename);
 		free(basename);
-		basename = NULL;
+		ft_fname(ft) = NULL;
 	}
 	return ret;
 #undef RET
@@ -447,7 +564,7 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 	FILE *local;
 	int ilocal, cancelled = 0;
 	char buffer[BUFFER_SIZE];
-	size_t nwrite, nsent;
+	size_t nwrite, nsent, callback_step;
 	const char *basename = strrchr(fname, PATH_SEPERATOR);
 
 	ft->lastcallback = 0;
@@ -477,6 +594,8 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 		goto bail;
 	}
 
+	callback_step = ft_getcallback_step(st.st_size);
+
 	if(!basename)
 		basename = fname;
 	else
@@ -497,6 +616,26 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 		goto bail;
 	}
 
+	/* wait for RESUME reply */
+	switch((nwrite = recv(ft->sock, buffer, sizeof buffer, 0))){
+		case -1:
+			ft->lasterr = net_getlasterr;
+			goto bail;
+		case 0:
+			ft->lasterr = FT_ERR_PREMATURE_CLOSE;
+			goto bail;
+	}
+	if(sscanf(buffer, "RESUME %zud\n", &nsent) != 1){
+		ft->lasterr = "libft: Invalid RESUME message";
+		goto bail;
+	}
+
+	if(nsent)
+		if(fseek(local, nsent, SEEK_SET) == -1){
+			ft->lasterr = os_getlasterr;
+			goto bail;
+		}
+
 	if(callback(ft, FT_BEGIN_SEND, 0, st.st_size)){
 		/* cancel */
 		ft->lasterr = "Cancelled";
@@ -504,7 +643,6 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 		goto complete;
 	}
 
-	nsent = 0;
 	while(1){
 		switch((nwrite = fread(buffer, sizeof(char), sizeof buffer, local))){
 			case 0:
@@ -527,7 +665,7 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 			break; /* goto complete */
 
 		if(ft->lastcallback < nsent){
-			ft->lastcallback += CALLBACK_BYTES_STEP;
+			ft->lastcallback += callback_step;
 			if(callback(ft, FT_SENDING, nsent, st.st_size)){
 				/* cancel */
 				cancelled = 1;
@@ -658,18 +796,13 @@ const char *ft_lasterr(struct filetransfer *ft)
 	return ft->lasterr;
 }
 
-const char *ft_truncname(struct filetransfer *ft, unsigned int n)
+const char *ft_basename(struct filetransfer *ft)
 {
 	const char *fname = ft_fname(ft);
 	const char *slash = strrchr(fname, PATH_SEPERATOR);
-	unsigned int len;
 
 	if(slash)
-		fname = slash + 1;
-
-	len = strlen(fname);
-	if(len > n)
-		return fname + len - n;
+		return slash+1;
 	return fname;
 }
 
