@@ -23,7 +23,11 @@
 
 #include "../config.h"
 
-#define DEBUG 0
+#ifdef _WIN32
+# define DEBUG 1
+#else
+# define DEBUG 0
+#endif
 
 static int lookup_errno = 0;
 
@@ -45,8 +49,10 @@ int connectedsock(const char *host, const char *port)
 	hints.ai_socktype = SOCK_STREAM;
 
 	if((lookup_errno = getaddrinfo(host, port, &hints, &ret))){
+#if DEBUG
 		fprintf(stderr, "connectedsock(): getaddrinfo failed: (%d) \"%s\"\n",
 				lookup_errno, lastsockerr());
+#endif
 		return -1;
 	}
 	lookup_errno = 0;
@@ -57,7 +63,9 @@ int connectedsock(const char *host, const char *port)
 				dest->ai_protocol);
 
 		if(sock == -1){
+#if DEBUG
 			fputs("connectedsock(): socket() failed\n", stderr);
+#endif
 			continue;
 		}
 
@@ -65,8 +73,10 @@ int connectedsock(const char *host, const char *port)
 			break;
 
 		if(errno)
-			/*fprintf(stderr, "connectedsock(): connect() failed: (%d) \"%s\"\n",
-					errno, strerror(errno));*/
+#if DEBUG
+			fprintf(stderr, "connectedsock(): connect() failed: (%d) \"%s\"\n",
+					errno, strerror(errno));
+#endif
 			lastconnerr = errno;
 		close(sock);
 		sock = -1;
@@ -76,7 +86,9 @@ int connectedsock(const char *host, const char *port)
 
 	if(sock == -1){
 		errno = lastconnerr;
+#if DEBUG
 		fputs("connectedsock(): no successful connections\n", stderr);
+#endif
 		return -1;
 	}
 
