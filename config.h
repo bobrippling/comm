@@ -18,6 +18,9 @@
 #define DEFAULT_PORT     "2848"
 #define GROUP_SEPARATOR  0x1d /* ^] aka ``group separator'' */
 
+#define CFG_EXTRA        ".config/comm/"
+#define CFG_DOT          ""
+
 #define LIBCOMM_RECV_TIMEOUT 100
 
 #define LOG_DIR          "Logs"

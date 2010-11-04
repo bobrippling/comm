@@ -17,7 +17,7 @@
 #ifdef _WIN32
 # define CFG_NAME "comm.cfg"
 #else
-# define CFG_NAME "/.commrc"
+# define CFG_NAME "commrc"
 #endif
 
 static const char *config_path(void);
@@ -45,8 +45,9 @@ static const char *config_path()
 		fputs("couldn't get $HOME\n", stderr);
 		return NULL;
 	}
-	strncpy(path, home,     sizeof path);
-	strncat(path, CFG_NAME, sizeof path);
+	strncpy(path, home,             sizeof path);
+	strncat(path, "/" CFG_EXTRA,    sizeof(path) - strlen(path));
+	strncat(path, CFG_DOT CFG_NAME, sizeof(path) - strlen(path));
 
 	return path;
 #endif
@@ -56,6 +57,9 @@ int config_read()
 {
 	const char *fname = config_path();
 	FILE *f;
+
+	if(!fname)
+		return 0;
 
 	*name = *port = *lasthost = *colour = '\0';
 
@@ -118,6 +122,9 @@ int config_write()
 		return 0;
 	}
 #endif
+
+	if(!fname)
+		return 0;
 
 	f = fopen(fname, "w");
 	if(f){
