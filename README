@@ -41,6 +41,8 @@ Client -> Server:
 			informational message (INFO)
 	KICK %s
 		ROOT request to kick user
+	PRIVMSG %s^]%s
+		Send %s[1] to %s[0] ONLY
 
 Server -> Client:
 	CLIENT_CONN %s
@@ -61,6 +63,8 @@ Server -> Client:
 		client %s[0] renamed to %s[1]
 	RESTART %d
 		Server is restarting, reconnect in %d seconds (default to 10)
+	PRIVMSG %s
+		Private message
 
 
 

@@ -64,11 +64,10 @@ int connectedsock(const char *host, const char *port)
 		if(connect(sock, dest->ai_addr, dest->ai_addrlen) == 0)
 			break;
 
-		if(errno){
-			fprintf(stderr, "connectedsock(): connect() failed: (%d) \"%s\"\n",
-					errno, strerror(errno));
+		if(errno)
+			/*fprintf(stderr, "connectedsock(): connect() failed: (%d) \"%s\"\n",
+					errno, strerror(errno));*/
 			lastconnerr = errno;
-		}
 		close(sock);
 		sock = -1;
 	}

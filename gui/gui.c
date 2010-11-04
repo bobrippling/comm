@@ -33,6 +33,7 @@
 #define COLOUR_ERR     "#FF0000"
 #define COLOUR_INFO    "#00DD00"
 #define COLOUR_MSG     "#0000FF"
+#define COLOUR_PRIV    "#000000"
 
 /* prototypes */
 static int  getobjects(GtkBuilder *);
@@ -178,7 +179,19 @@ G_MODULE_EXPORT gboolean on_btnSend_clicked(GtkButton *button, gpointer data)
 					comm_su(&commt, txt+4);
 			else if(!strncmp(txt+1, "kick ", 5))
 				comm_kick(&commt, txt+6);
-			else
+			else if(!strncmp(txt+1, "msg ", 4)){
+				char *dup = alloca(strlen(txt) + 1);
+				char *name, *msg;
+				strcpy(dup, txt);
+				name = dup + 5;
+				msg = strchr(name, ' ');
+				if(!msg)
+					addtext(COLOUR_ERR, "PrivMsg: Need space and a message after the name\n");
+				else{
+					*msg++ = '\0';
+					comm_privmsg(&commt, name, msg);
+				}
+			}else
 				send = 1;
 		else
 			send = 1;
@@ -448,7 +461,9 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 			return;
 
 		case COMM_MSG:
+		case COMM_PRIVMSG:
 			logadd = 1;
+			col = COLOUR_PRIV;
 			break;
 	}
 #undef TYPE
@@ -484,6 +499,7 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 
 	switch(type){
 		case COMM_MSG:
+		case COMM_PRIVMSG:
 		case COMM_INFO:
 		case COMM_SERVER_INFO:
 		case COMM_ERR:

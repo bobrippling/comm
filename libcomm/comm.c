@@ -185,6 +185,9 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 			if(!strncmp(buffer, "MESSAGE ", 8))
 				callback(COMM_MSG, "%s", buffer + 8);
 
+			else if(!strncmp(buffer, "PRIVMSG ", 8))
+				callback(COMM_PRIVMSG, "%s", buffer + 8);
+
 			else if(!strncmp(buffer, "RENAME ", 7)){
 				char *from, *to, *sep;
 
@@ -469,6 +472,12 @@ COMM_SIMPLE(comm_su,     "SU"    )
 COMM_SIMPLE(comm_kick,   "KICK"  )
 
 #undef COMM_SIMPLE
+
+int comm_privmsg(comm_t *ct, const char *name, const char *msg)
+{
+	return TO_SERVER_F("PRIVMSG %s%c%s: %s",
+			name, GROUP_SEPARATOR, ct->name, msg);
+}
 
 int comm_colour(comm_t *ct, const char *col)
 {

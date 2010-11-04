@@ -1,11 +1,6 @@
 gtk:
-	http://gtkforums.com/viewtopic.php?t=988 (tutorial)
-	windows:
-		unknown publisher - run don't run UAC
-		win32 error code uses FormatMessage _instead_ of perror
-
-log:
-	add conn/disco and renames
+	privmsg - show in new window OPTION
+	windows - unknown publisher - run don't run UAC
 
 icon:
 	http://duckduckgo.com/?q=windows+c+compile+program+icon+resource
@@ -15,11 +10,13 @@ icon:
 		version - get from VERSION_STR
 
 protocol:
+	privmsg:
+		for term.c and fifo.c
+		change display to "%s -> %s: %s"
 	/nudge
 	file transfer
 	drawing
 	"Tim is typing"
-	privmsg
 	edit previous message (index - 1, ONLY) like Skype
 
 server:

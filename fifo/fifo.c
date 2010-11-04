@@ -174,6 +174,8 @@ void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 
 		TYPE(COMM_ERR,          file_err,  "error");
 
+		case COMM_PRIVMSG:
+			pre = "privmsg";
 		case COMM_MSG:
 			fname = file_output;
 			break;

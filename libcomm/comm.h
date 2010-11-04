@@ -38,6 +38,7 @@ typedef struct
 enum comm_callbacktype
 {
 	COMM_MSG,
+	COMM_PRIVMSG,
 	COMM_INFO,
 	COMM_SERVER_INFO,
 	COMM_ERR,
@@ -62,6 +63,7 @@ int comm_rename(comm_t *, const char *);
 int comm_recv(comm_t *, comm_callback);
 int comm_kick(comm_t *, const char *name);
 int comm_su(comm_t *, const char *pass);
+int comm_privmsg(comm_t *, const char *name, const char *msg);
 int comm_rels(comm_t *);
 int comm_colour(comm_t *, const char *col);
 

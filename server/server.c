@@ -367,6 +367,30 @@ char svr_recv(int idx)
 			if(nclients == 1)
 				TO_CLIENT(idx, "MESSAGE " LONELY_MSG);
 
+		}else if(!strncmp(in, "PRIVMSG ", 8)){
+			int i;
+			char *name = in + 8;
+			char *sep = strchr(name, GROUP_SEPARATOR);
+
+			if(!sep)
+				TO_CLIENT(idx, "ERR no separator for PRIVMSG");
+			else{
+				*sep = '\0';
+
+				for(i = 0; i < nclients; i++)
+					if(clients[i].state == ACCEPTED && idx != i &&
+							!strcmp(clients[i].name, name)){
+						toclientf(i, "PRIVMSG %s", sep + 1);
+						break;
+					}
+
+				if(i == nclients)
+					TO_CLIENT(idx, "ERR no such client");
+				else
+					/* back to origin */
+					toclientf(idx, "PRIVMSG %s", sep + 1);
+			}
+
 		}else if(!strcmp(in, "CLIENT_LIST")){
 			int i;
 

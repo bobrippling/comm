@@ -25,11 +25,12 @@ void callback(enum comm_callbacktype type, const char *fmt, ...)
 
 #define TYPE(e, s) case e: type_str = s; break
 	switch(type){
-		TYPE(COMM_MSG,  "message");
-		TYPE(COMM_INFO, "info");
-		TYPE(COMM_SERVER_INFO, "server info");
-		TYPE(COMM_ERR,  "err");
-		TYPE(COMM_RENAME,  "rename");
+		TYPE(COMM_MSG,          "message");
+		TYPE(COMM_PRIVMSG,      "privmsg");
+		TYPE(COMM_INFO,         "info");
+		TYPE(COMM_SERVER_INFO,  "server info");
+		TYPE(COMM_ERR,          "err");
+		TYPE(COMM_RENAME,       "rename");
 		TYPE(COMM_CLIENT_CONN,  "client_conn");
 		TYPE(COMM_CLIENT_DISCO, "client_disco");
 
