@@ -1,5 +1,8 @@
 #include <gtk/gtk.h>
 #include <string.h>
+#include <stdlib.h>
+#include <errno.h>
+
 #ifdef _WIN32
 # include <malloc.h>
 # include <windows.h>
@@ -27,8 +30,11 @@
 # define PATH_SEPERATOR '/'
 #endif
 
-#include "libft/ft.h"
+#define CFG_GFT_FNAME  "recent_hosts"
+
+#include "../config.h"
 #include "gladegen.h"
+#include "libft/ft.h"
 
 void cmds(void);
 void status(const char *, ...);
@@ -37,6 +43,8 @@ int callback(struct filetransfer *ft, enum ftstate state,
 int queryback(struct filetransfer *ft,
 		const char *msg, ...);
 void settimeout(int on);
+void cfg_read(void);
+void cfg_add(const char *);
 
 GtkWidget *btnSend, *btnConnect, *btnListen, *btnClose;
 GtkWidget *btnFileChoice;
@@ -75,7 +83,7 @@ on_btnClose_clicked(void)
 G_MODULE_EXPORT gboolean
 on_btnListen_clicked(void)
 {
-	const char *hostret, *port;
+	char *hostret, *port;
 	int iport;
 
 	settimeout(0);
@@ -102,6 +110,7 @@ on_btnListen_clicked(void)
 		cmds();
 	}
 
+	g_free(hostret);
 	return FALSE;
 }
 
@@ -122,6 +131,8 @@ on_btnConnect_clicked(void)
 
 	host = alloca(strlen(hostret)+1);
 	strcpy(host, hostret);
+
+	cfg_add(host);
 
 	port = strchr(host, ':');
 	if(port)
@@ -365,28 +376,6 @@ int queryback(struct filetransfer *ft, const char *msg, ...)
 	return i;
 }
 
-static int getobjects(GtkBuilder *b)
-{
-#define GET_WIDGET(x) \
-	if(!((x) = GTK_WIDGET(gtk_builder_get_object(b, #x)))){ \
-		fputs("Error: Couldn't get Gtk Widget \"" #x "\", bailing\n", stderr); \
-		return 1; \
-	}
-
-	GET_WIDGET(btnSend);
-	GET_WIDGET(btnConnect);
-	GET_WIDGET(btnListen);
-	GET_WIDGET(btnClose);
-	GET_WIDGET(btnFileChoice);
-	GET_WIDGET(winMain);
-	GET_WIDGET(cboHost);
-	GET_WIDGET(progressft);
-	GET_WIDGET(lblStatus);
-
-	return 0;
-#undef GET_WIDGET
-}
-
 void status(const char *fmt, ...)
 {
 	va_list l;
@@ -403,6 +392,100 @@ void status(const char *fmt, ...)
 	va_end(l);
 
 	gtk_label_set_text(GTK_LABEL(lblStatus), buffer);
+}
+
+void cfg_add(const char *host)
+{
+	FILE *f;
+
+#ifdef _WIN32
+	f = fopen("gft.cfg", "a");
+#else
+	char *home = getenv("HOME"), *tmp;
+
+	if(!home)
+		return;
+
+	tmp = g_strdup_printf("%s/" CFG_EXTRA "%s", home, CFG_DOT CFG_GFT_FNAME);
+	f = fopen(tmp, "a");
+	g_free(tmp);
+#endif
+
+	if(!f){
+		perror("cfg_add()");
+		return;
+	}
+
+	fprintf(f, "%s\n", host);
+	fclose(f);
+}
+
+void cfg_read()
+{
+	FILE *f;
+	char line[128];
+
+#ifdef _WIN32
+	f = fopen("gft.cfg", "r");
+#else
+	char *home = getenv("HOME"), *tmp;
+
+	if(!home){
+		fputs("couldn't get $HOME\n", stderr);
+		return;
+	}
+
+	tmp = g_strdup_printf("%s/" CFG_EXTRA "%s", home, CFG_DOT CFG_GFT_FNAME);
+	f = fopen(tmp, "r");
+	g_free(tmp);
+#endif
+
+	if(!f){
+		if(errno != ENOENT)
+			perror("cfg_read()");
+		return;
+	}
+
+	while(fgets(line, sizeof line, f)){
+		char *nl = strchr(line, '\n');
+		if(nl)
+			*nl = '\0';
+
+		gtk_combo_box_append_text(GTK_COMBO_BOX(cboHost), line);
+	}
+	gtk_entry_set_text(GTK_ENTRY(GTK_BIN(cboHost)->child), line);
+	fclose(f);
+}
+
+static int getobjects(GtkBuilder *b)
+{
+	GtkWidget *vboxTxt;
+
+#define GET_WIDGET(x) \
+	if(!((x) = GTK_WIDGET(gtk_builder_get_object(b, #x)))){ \
+		fputs("Error: Couldn't get Gtk Widget \"" #x "\", bailing\n", stderr); \
+		return 1; \
+	}
+
+	GET_WIDGET(btnSend);
+	GET_WIDGET(btnConnect);
+	GET_WIDGET(btnListen);
+	GET_WIDGET(btnClose);
+	GET_WIDGET(btnFileChoice);
+	GET_WIDGET(winMain);
+	GET_WIDGET(progressft);
+	GET_WIDGET(lblStatus);
+
+
+	GET_WIDGET(vboxTxt);
+	/* create one with text as the column stuff */
+	cboHost = gtk_combo_box_entry_new_text();
+	gtk_container_add(GTK_CONTAINER(vboxTxt), cboHost);
+	gtk_widget_set_visible(cboHost, TRUE);
+	gtk_box_reorder_child(GTK_BOX(vboxTxt), cboHost, 0);
+
+	return 0;
+#undef GET_WIDGET
 }
 
 int main(int argc, char **argv)
@@ -464,6 +547,7 @@ usage:
 	/* signal setup */
 	g_signal_connect(G_OBJECT(winMain), "destroy", G_CALLBACK(on_winMain_destroy), NULL);
 
+	cfg_read();
 	cmds();
 	gtk_widget_show(winMain);
 	gtk_main();

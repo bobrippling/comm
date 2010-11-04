@@ -47,6 +47,7 @@ const char *ft_remoteaddr(struct filetransfer *);
 #define ft_haderror(ft)  (!!(ft)->lasterr)
 
 
+#undef  DEFAULT_PORT
 #define DEFAULT_PORT "7643"
 
 /*

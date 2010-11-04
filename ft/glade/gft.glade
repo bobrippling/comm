@@ -76,14 +76,7 @@
                 <property name="visible">True</property>
                 <property name="orientation">vertical</property>
                 <child>
-                  <object class="GtkComboBoxEntry" id="cboHost">
-                    <property name="visible">True</property>
-                  </object>
-                  <packing>
-                    <property name="fill">False</property>
-                    <property name="padding">2</property>
-                    <property name="position">0</property>
-                  </packing>
+                  <placeholder/>
                 </child>
                 <child>
                   <object class="GtkFileChooserButton" id="btnFileChoice">
@@ -218,4 +211,5 @@
     </child>
   </object>
   <object class="GtkAction" id="action1"/>
+  <object class="GtkListStore" id="liststore1"/>
 </interface>
