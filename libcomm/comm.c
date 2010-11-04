@@ -475,8 +475,8 @@ COMM_SIMPLE(comm_kick,   "KICK"  )
 
 int comm_privmsg(comm_t *ct, const char *name, const char *msg)
 {
-	return TO_SERVER_F("PRIVMSG %s%c%s: %s",
-			name, GROUP_SEPARATOR, ct->name, msg);
+	return TO_SERVER_F("PRIVMSG %s%c%s -> %s: %s",
+			name, GROUP_SEPARATOR, ct->name, name, msg);
 }
 
 int comm_colour(comm_t *ct, const char *col)

@@ -122,7 +122,15 @@ int main(int argc, char **argv)
 							comm_colour(&ct, in+7);
 						else if(!strncmp(in, "su ", 3))
 							comm_su(&ct, in+3);
-						else
+						else if(!strncmp(in, "msg ", 4)){
+							char *name = in + 4, *msg = strchr(name, ' ');
+							if(!msg)
+								fputs("Need message for PrivMsg\n", stderr);
+							else{
+								*msg++ = '\0';
+								comm_privmsg(&ct, name, msg);
+							}
+						}else
 							fputs("Invalid command: use /colour, /rename, /su or /kick\n", stderr);
 					}else{
 						if((nl = strchr(buffer, '\n')))

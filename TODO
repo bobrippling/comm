@@ -1,5 +1,5 @@
 gtk:
-	privmsg - show in new window OPTION
+	privmsg - show in new window OPTIONAL
 	windows - unknown publisher - run don't run UAC
 
 icon:
@@ -10,9 +10,6 @@ icon:
 		version - get from VERSION_STR
 
 protocol:
-	privmsg:
-		for term.c and fifo.c
-		change display to "%s -> %s: %s"
 	/nudge
 	file transfer
 	drawing

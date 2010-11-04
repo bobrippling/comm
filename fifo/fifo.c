@@ -37,7 +37,7 @@ void output(const char *fname, const char *msg, va_list l);
 void outputf(const char *fname, const char *msg, ...);
 
 void commcallback(enum comm_callbacktype type, const char *fmt, ...);
-void proc_cmd(const char *buffer);
+void proc_cmd(char *buffer);
 
 int lewp(void);
 int daemonise(void);
@@ -226,7 +226,7 @@ void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 	outputf(fname, "\n");
 }
 
-void proc_cmd(const char *buffer)
+void proc_cmd(char *buffer)
 {
 	if(!strcmp(buffer, "exit"))
 		finito = 1;
@@ -236,8 +236,16 @@ void proc_cmd(const char *buffer)
 		comm_kick(&commt, buffer+5);
 	else if(!strncmp(buffer, "rename ", 7))
 		comm_rename(&commt, buffer+7);
-	else
-		outputf(file_err, "unknown command: ``%s'' (use rename, su, kick or exit)\n", buffer);
+	else if(!strncmp(buffer, "msg ", 4)){
+		char *name = buffer + 4, *msg = strchr(name, ' ');
+		if(!msg)
+			outputf(file_err, "need message for privmsg\n");
+		else{
+			*msg++ = '\0';
+			comm_privmsg(&commt, name, msg);
+		}
+	}else
+		outputf(file_err, "unknown command: ``%s'' (use exit, su, kick, rename or msg)\n", buffer);
 }
 
 int lewp()

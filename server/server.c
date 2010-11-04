@@ -377,18 +377,22 @@ char svr_recv(int idx)
 			else{
 				*sep = '\0';
 
-				for(i = 0; i < nclients; i++)
-					if(clients[i].state == ACCEPTED && idx != i &&
-							!strcmp(clients[i].name, name)){
-						toclientf(i, "PRIVMSG %s", sep + 1);
-						break;
-					}
+				if(!strcmp(clients[idx].name, name))
+					TO_CLIENT(idx, "ERR can't privmsg yourself");
+				else{
+					for(i = 0; i < nclients; i++)
+						if(clients[i].state == ACCEPTED && idx != i &&
+								!strcmp(clients[i].name, name)){
+							toclientf(i, "PRIVMSG %s", sep + 1);
+							break;
+						}
 
-				if(i == nclients)
-					TO_CLIENT(idx, "ERR no such client");
-				else
-					/* back to origin */
-					toclientf(idx, "PRIVMSG %s", sep + 1);
+					if(i == nclients)
+						TO_CLIENT(idx, "ERR no such client");
+					else
+						/* back to origin */
+						toclientf(idx, "PRIVMSG %s", sep + 1);
+				}
 			}
 
 		}else if(!strcmp(in, "CLIENT_LIST")){
