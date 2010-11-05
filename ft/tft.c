@@ -43,10 +43,10 @@ int queryback(struct filetransfer *ft, const char *msg, ...)
 	(void)ft;
 
 	va_start(l, msg);
-	vprintf(msg, l);
+	vfprintf(stderr, msg, l);
 	va_end(l);
 
-	putchar('\n');
+	fputc('\n', stderr);
 
 	percent = msg-1;
 	while(1)
@@ -63,10 +63,10 @@ int queryback(struct filetransfer *ft, const char *msg, ...)
 
 	formatargs = 0;
 	while((percent = va_arg(l, const char *)))
-		printf("%d: %s\n", formatargs++, percent);
+		fprintf(stderr, "%d: %s\n", formatargs++, percent);
 	va_end(l);
 
-	fputs("Choice: ", stdout);
+	fputs("Choice: ", stderr);
 	opt = getchar();
 	if(opt == '\n')
 		opt = '0';
