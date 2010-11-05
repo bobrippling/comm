@@ -155,7 +155,14 @@ G_MODULE_EXPORT gboolean
 on_btnSend_clicked(void)
 {
 	const char *fname = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(btnFileChoice));
-	const char *basename = strrchr(fname, PATH_SEPERATOR);
+	const char *basename;
+
+	if(!fname){
+		status("Need file");
+		return FALSE;
+	}
+
+	basename = strrchr(fname, PATH_SEPERATOR);
 
 	if(!basename++)
 		basename = fname;
