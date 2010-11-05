@@ -1,3 +1,2 @@
-host memory/cbobox
-resume mode - if it already exists, ask to resume
-ft->lastcallback depends on file size percentage, instead of fixed no.
+host memory/cbobox - `uniq`
+fix ft->lastcallback

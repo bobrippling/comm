@@ -676,7 +676,7 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 
 		nl = memchr(buffer, '\n', nwrite);
 		if(nl){
-			BUFFER_RECV(nl - buffer, 0);
+			BUFFER_RECV(nl - buffer + 1, 0);
 			break;
 		}
 		FT_SLEEP(goto bail);
@@ -750,7 +750,7 @@ complete:
 
 			nl = memchr(buffer, '\n', nwrite);
 			if(nl){
-				BUFFER_RECV(nl - buffer, 0);
+				BUFFER_RECV(nl - buffer + 1, 0);
 				break;
 			}
 			FT_SLEEP(goto bail);
