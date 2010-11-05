@@ -10,6 +10,8 @@ See poorman\'s\ tcomm.sh for a netcat example
 Seperators in messages are the character 0x1d
 "group seperator" aka ^]
 
+Standard hailing frequency: Port 2848
+
 
 Message Types
 -------------
@@ -69,7 +71,7 @@ Server -> Client:
 
 
 Initial Contact/Handshake
----------------
+-------------------------
 
 Server sends
 Comm v$VERSION Optional-Server-Desc

@@ -12,6 +12,7 @@ struct filetransfer
 
 enum ftstate
 {
+	FT_WAIT,
 	FT_BEGIN_SEND, FT_BEGIN_RECV,
 	FT_RECIEVING, FT_SENDING,
 	FT_SENT, FT_RECIEVED
@@ -47,8 +48,7 @@ const char *ft_remoteaddr(struct filetransfer *);
 #define ft_haderror(ft)  (!!(ft)->lasterr)
 
 
-#undef  DEFAULT_PORT
-#define DEFAULT_PORT "7643"
+#define FT_DEFAULT_PORT "7643"
 
 /*
  * all functions return 0 on success

@@ -298,6 +298,9 @@ int callback(struct filetransfer *ft, enum ftstate ftst,
 	const double fraction = (double)bytessent / (double)bytestotal;
 
 	switch(ftst){
+		case FT_WAIT:
+			break; /* skip straight to return */
+
 		case FT_SENT:
 		case FT_RECIEVED:
 			if(ftst == FT_SENT)

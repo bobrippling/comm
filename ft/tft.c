@@ -24,7 +24,8 @@ int callback(struct filetransfer *ft, enum ftstate state,
 		clrtoeol();
 		printf("Done: %s\n", ft_fname(ft));
 		return 0;
-	}
+	}else if(state == FT_WAIT)
+		return 0;
 
 	printf("\"%s\": %zd K / %zd K (%2.2f)%%\r", ft_basename(ft),
 			bytessent / 1024, bytestotal / 1024,
@@ -105,7 +106,7 @@ int eprintf(const char *fmt, ...)
 int main(int argc, char **argv)
 {
 	int i, listen = 0, verbose = 0;
-	const char *fname = NULL, *host  = NULL, *port = DEFAULT_PORT;
+	const char *fname = NULL, *host  = NULL, *port = FT_DEFAULT_PORT;
 
 #ifdef _WIN32
 	strncpy(__progname, *argv, sizeof __progname);

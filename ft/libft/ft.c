@@ -72,6 +72,7 @@ static int WSA_Startuped = 0;
 
 #define FT_ERR_PREMATURE_CLOSE "libft: Connection prematurely closed"
 #define FT_ERR_TOO_MUCH        "libft: Too much data for file size"
+#define FT_ERR_CANCELLED       "Cancelled"
 
 #define BUFFER_SIZE            2048
 
@@ -107,7 +108,17 @@ static int WSA_Startuped = 0;
 	memset(&addr, '\0', sizeof addr);
 #endif
 
+#define FT_SLEEP(exit_code) \
+	do{ \
+		if(callback(ft, FT_WAIT, 0, 1)){ \
+			ft->lasterr = FT_ERR_CANCELLED; \
+			exit_code; \
+		} \
+		ft_sleep(); \
+	}while(0)
+
 static size_t ft_getcallback_step(size_t);
+static void ft_sleep(void);
 
 static size_t ft_getcallback_step(size_t siz)
 {
@@ -235,10 +246,12 @@ enum ftret ft_accept(struct filetransfer *ft, const int block)
 }
 
 static int ft_get_meta(struct filetransfer *ft,
-		char **basename, FILE **local, size_t *size, ft_queryback queryback);
+		char **basename, FILE **local, size_t *size,
+		ft_callback, ft_queryback);
 
 static int ft_get_meta(struct filetransfer *ft,
-		char **basename, FILE **local, size_t *size, ft_queryback queryback)
+		char **basename, FILE **local, size_t *size,
+		ft_callback callback, ft_queryback queryback)
 {
 #define INVALID_MSG() \
 				do{\
@@ -274,17 +287,12 @@ static int ft_get_meta(struct filetransfer *ft,
 		if(nnewlines == 3)
 			break;
 		else{
-			struct timeval tv;
-
 			if((unsigned)thisread > sizeof(buffer) - 32){
 				ft->lasterr = "libft: meta data overflow (shorten your darn filename)";
 				return 1;
 			}
 
-			/* sleep while we wait */
-			tv.tv_sec  = 0;
-			tv.tv_usec = 1000000;
-			select(0, NULL, NULL, NULL, &tv);
+			FT_SLEEP(return 1);
 		}
 	}while(1);
 
@@ -450,7 +458,7 @@ int ft_recv(struct filetransfer *ft, ft_callback callback, ft_queryback querybac
 	ssize_t nread;
 
 	ft_fname(ft) = NULL;
-	if(ft_get_meta(ft, &basename, &local, &size, queryback))
+	if(ft_get_meta(ft, &basename, &local, &size, callback, queryback))
 		RET(1);
 	ft_fname(ft) = basename;
 
@@ -477,7 +485,7 @@ int ft_recv(struct filetransfer *ft, ft_callback callback, ft_queryback querybac
 	}
 
 	if(callback(ft, FT_BEGIN_RECV, 0, size)){
-		ft->lasterr = "Cancelled";
+		ft->lasterr = FT_ERR_CANCELLED;
 		RET(1);
 	}
 
@@ -498,7 +506,7 @@ done:
 				/* good so far, don't be a douche and cancel it.. */
 				if(callback(ft, FT_RECIEVED, size_so_far, size)){
 					/* ... douche */
-					ft->lasterr = "Cancelled";
+					ft->lasterr = FT_ERR_CANCELLED;
 					RET(1);
 				}
 				RET(0); /* XXX: function exit point here */
@@ -528,7 +536,7 @@ done:
 			ft->lastcallback += callback_step;
 			if(callback(ft, FT_RECIEVING, size_so_far, size)){
 				/* cancelled */
-				ft->lasterr = "Cancelled";
+				ft->lasterr = FT_ERR_CANCELLED;
 				RET(1);
 			}
 		}
@@ -568,6 +576,16 @@ enum ftret ft_poll_recv(struct filetransfer *ft)
 			return FT_NO;
 	}
 	return FD_ISSET(ft->sock, &fds) ? FT_YES : FT_NO;
+}
+
+static void ft_sleep()
+{
+	struct timeval tv;
+
+	/* sleep while we wait */
+	tv.tv_sec  = 0;
+	tv.tv_usec = 1000000;
+	select(0, NULL, NULL, NULL, &tv);
 }
 
 int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
@@ -628,15 +646,30 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 		goto bail;
 	}
 
+#define BUFFER_RECV(len, flag) \
+		switch((nwrite = recv(ft->sock, buffer, len, flag))){ \
+			case -1: \
+				ft->lasterr = net_getlasterr; \
+				goto bail; \
+			case 0: \
+				ft->lasterr = FT_ERR_PREMATURE_CLOSE; \
+				goto bail; \
+		}
+
 	/* wait for RESUME reply */
-	switch((nwrite = recv(ft->sock, buffer, sizeof buffer, 0))){
-		case -1:
-			ft->lasterr = net_getlasterr;
-			goto bail;
-		case 0:
-			ft->lasterr = FT_ERR_PREMATURE_CLOSE;
-			goto bail;
-	}
+	do{
+		char *nl;
+
+		BUFFER_RECV(sizeof(buffer), MSG_PEEK);
+
+		nl = memchr(buffer, '\n', nwrite);
+		if(nl){
+			BUFFER_RECV(nl - buffer, 0);
+			break;
+		}
+		FT_SLEEP(goto bail);
+	}while(1);
+
 	if(sscanf(buffer, "RESUME " PRINTF_SIZET "\n",
 				(PRINTF_SIZET_CAST *)&nsent) != 1){
 		ft->lasterr = "libft: Invalid RESUME message";
@@ -651,7 +684,7 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 
 	if(callback(ft, FT_BEGIN_SEND, 0, st.st_size)){
 		/* cancel */
-		ft->lasterr = "Cancelled";
+		ft->lasterr = FT_ERR_CANCELLED;
 		cancelled = 1;
 		goto complete;
 	}
@@ -682,7 +715,7 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 			if(callback(ft, FT_SENDING, nsent, st.st_size)){
 				/* cancel */
 				cancelled = 1;
-				ft->lasterr = "Cancelled";
+				ft->lasterr = FT_ERR_CANCELLED;
 				break;
 			}
 		}
@@ -700,7 +733,7 @@ complete:
 		if(callback(ft, FT_SENT, nsent, st.st_size)){
 			/* cancel */
 			cancelled = 1;
-			ft->lasterr = "Cancelled";
+			ft->lasterr = FT_ERR_CANCELLED;
 			goto complete;
 		}
 
@@ -732,7 +765,7 @@ int ft_connect(struct filetransfer *ft, const char *host, const char *port)
 	hints.ai_socktype = SOCK_STREAM;
 
 	if(!port)
-		port = DEFAULT_PORT;
+		port = FT_DEFAULT_PORT;
 
 	if((eno = getaddrinfo(host, port, &hints, &ret))){
 		ft->lasterr = gai_strerror(eno);
