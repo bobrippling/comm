@@ -69,6 +69,7 @@ static int WSA_Startuped = 0;
 
 #define FT_ERR_PREMATURE_CLOSE "libft: Connection prematurely closed"
 #define FT_ERR_TOO_MUCH        "libft: Too much data for file size"
+#define FT_ERR_INVALID_MSG     "libft: Invalid message recieved"
 #define FT_ERR_CANCELLED       "Cancelled"
 
 #define BUFFER_SIZE            2048
@@ -261,7 +262,7 @@ static int ft_get_meta(struct filetransfer *ft,
 {
 #define INVALID_MSG() \
 				do{\
-					ft->lasterr = "libft: Invalid message recieved"; \
+					ft->lasterr = FT_ERR_INVALID_MSG; \
 					return 1; \
 				}while(0)
 	char buffer[2048], *bufptr;
@@ -405,7 +406,7 @@ static int ft_get_meta(struct filetransfer *ft,
 				}
 
 				default:
-					ft->lasterr = "Invalid feedback";
+					ft->lasterr = FT_ERR_INVALID_MSG;
 					return 1;
 			}/* switch querycallback */
 		else if(errno != ENOENT){
@@ -447,7 +448,7 @@ int ft_recv(struct filetransfer *ft, ft_callback callback, ft_queryback querybac
 {
 #define INVALID_MSG() \
 				do{\
-					ft->lasterr = "libft: Invalid message recieved"; \
+					ft->lasterr = FT_ERR_INVALID_MSG; \
 					RET(1); \
 				}while(0)
 #define RET(x) do{ ret = x; goto ret; }while(0)
@@ -513,6 +514,11 @@ done:
 				if(callback(ft, FT_RECIEVED, size_so_far, size)){
 					/* ... douche */
 					ft->lasterr = FT_ERR_CANCELLED;
+					RET(1);
+				}
+				/* send OK\n */
+				if(send(ft->sock, "OK\n", 3, 0) == -1){
+					ft->lasterr = net_getlasterr();
 					RET(1);
 				}
 				RET(0); /* XXX: function exit point here */
@@ -736,11 +742,30 @@ complete:
 				", st.st_size: " PRINTF_SIZET "\n",
 				(PRINTF_SIZET_CAST)nsent, (PRINTF_SIZET_CAST)st.st_size);
 	}else{
+		/* wait until they send an OK */
+		do{
+			char *nl;
+
+			BUFFER_RECV(sizeof(buffer), MSG_PEEK);
+
+			nl = memchr(buffer, '\n', nwrite);
+			if(nl){
+				BUFFER_RECV(nl - buffer, 0);
+				break;
+			}
+			FT_SLEEP(goto bail);
+		}while(1);
+
+		if(strncmp(buffer, "OK\n", 3)){
+			ft->lasterr = FT_ERR_INVALID_MSG;
+			goto bail;
+		}
+
 		if(callback(ft, FT_SENT, nsent, st.st_size)){
 			/* cancel */
 			cancelled = 1;
 			ft->lasterr = FT_ERR_CANCELLED;
-			goto complete;
+			goto bail;
 		}
 
 		if(fclose(local)){
@@ -814,7 +839,7 @@ int ft_close(struct filetransfer *ft)
 #ifdef _WIN32
 # define SHUTDOWN_FLAG SD_SEND
 #else
-# define SHUTDOWN_FLAG SHUT_RDWR
+# define SHUTDOWN_FLAG SHUT_WR
 #endif
 		shutdown(ft->sock, SHUTDOWN_FLAG);
 

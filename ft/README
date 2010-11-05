@@ -10,6 +10,8 @@ Sender:
 	<FILE_DATA>
 Reciever:
 	RESUME %zd\n
+	*recieve data*
+	OK\n
 
 Standard hailing frequency: Port 7643
 
@@ -22,8 +24,10 @@ The reciever then sends the resume message, with the resume-offset being
 where the sender should start reading the file (usually 0 i.e. start at
 the beginning of the file).
 
+Finally, the reciever replies with "OK\n" so the sender can close() the
+connection.
+
 The connection may remain open after the file has been sent for successive
 transfers.
-
 
  vim: ft=help ts=4 sw=4
