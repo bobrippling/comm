@@ -24,17 +24,22 @@
 		cmds(); \
 	}while(0)
 
+#define URGENT(b) \
+	do \
+			if(!gtk_window_is_active(GTK_WINDOW(winMain))) \
+				gtk_window_set_urgency_hint(GTK_WINDOW(winMain), b); \
+	while(0)
+
 #ifdef _WIN32
 # define PATH_SEPERATOR '\\'
 #else
 # define PATH_SEPERATOR '/'
 #endif
 
-#define CFG_GFT_FNAME  "recent_hosts"
-
 #include "../config.h"
 #include "gladegen.h"
 #include "libft/ft.h"
+#include "gcfg.h"
 
 void cmds(void);
 void status(const char *, ...);
@@ -43,8 +48,6 @@ int callback(struct filetransfer *ft, enum ftstate state,
 int queryback(struct filetransfer *ft,
 		const char *msg, ...);
 void settimeout(int on);
-void cfg_read(void);
-void cfg_add(const char *);
 
 GtkWidget *btnSend, *btnConnect, *btnListen, *btnClose;
 GtkWidget *btnFileChoice;
@@ -92,7 +95,7 @@ on_btnListen_clicked(void)
 
 	port = strchr(hostret, ':');
 	if(!port)
-		port = DEFAULT_PORT;
+		port = FT_DEFAULT_PORT;
 	else
 		port++;
 
@@ -146,6 +149,7 @@ on_btnConnect_clicked(void)
 		gstate = STATE_CONNECTED;
 		settimeout(1);
 	}
+	URGENT(1);
 	cmds();
 
 	return FALSE;
@@ -228,6 +232,7 @@ timeout(gpointer data)
 				case FT_YES:
 					status("Got connection from %s", ft_remoteaddr(&ft));
 					gstate = STATE_CONNECTED;
+					URGENT(1);
 					cmds();
 					/* fall */
 				case FT_NO:
@@ -237,6 +242,13 @@ timeout(gpointer data)
 	}
 	/* unreachable (unless bogus enum value) */
 	return TRUE;
+}
+
+G_MODULE_EXPORT
+int on_winMain_focus_in_event(void)
+{
+	gtk_window_set_urgency_hint(GTK_WINDOW(winMain), FALSE);
+	return FALSE;
 }
 
 void cmds()
@@ -404,69 +416,6 @@ void status(const char *fmt, ...)
 	gtk_label_set_text(GTK_LABEL(lblStatus), buffer);
 }
 
-void cfg_add(const char *host)
-{
-	FILE *f;
-
-#ifdef _WIN32
-	f = fopen("gft.cfg", "a");
-#else
-	char *home = getenv("HOME"), *tmp;
-
-	if(!home)
-		return;
-
-	tmp = g_strdup_printf("%s/" CFG_EXTRA "%s", home, CFG_DOT CFG_GFT_FNAME);
-	f = fopen(tmp, "a");
-	g_free(tmp);
-#endif
-
-	if(!f){
-		perror("cfg_add()");
-		return;
-	}
-
-	fprintf(f, "%s\n", host);
-	fclose(f);
-}
-
-void cfg_read()
-{
-	FILE *f;
-	char line[128];
-
-#ifdef _WIN32
-	f = fopen("gft.cfg", "r");
-#else
-	char *home = getenv("HOME"), *tmp;
-
-	if(!home){
-		fputs("couldn't get $HOME\n", stderr);
-		return;
-	}
-
-	tmp = g_strdup_printf("%s/" CFG_EXTRA "%s", home, CFG_DOT CFG_GFT_FNAME);
-	f = fopen(tmp, "r");
-	g_free(tmp);
-#endif
-
-	if(!f){
-		if(errno != ENOENT)
-			perror("cfg_read()");
-		return;
-	}
-
-	while(fgets(line, sizeof line, f)){
-		char *nl = strchr(line, '\n');
-		if(nl)
-			*nl = '\0';
-
-		gtk_combo_box_append_text(GTK_COMBO_BOX(cboHost), line);
-	}
-	gtk_entry_set_text(GTK_ENTRY(GTK_BIN(cboHost)->child), line);
-	fclose(f);
-}
-
 static int getobjects(GtkBuilder *b)
 {
 	GtkWidget *vboxTxt;
@@ -557,10 +506,11 @@ usage:
 	/* signal setup */
 	g_signal_connect(G_OBJECT(winMain), "destroy", G_CALLBACK(on_winMain_destroy), NULL);
 
-	cfg_read();
+	cfg_read(cboHost);
 	cmds();
 	gtk_widget_show(winMain);
 	gtk_main();
+	cfg_write();
 
 	return 0;
 }

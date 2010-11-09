@@ -122,7 +122,7 @@ static void ft_sleep(void);
 static size_t ft_getcallback_step(size_t siz)
 {
 	size_t ret;
-	/* callback every 1% */
+	/* callback every 2% */
 	ret = ((float)siz * 2.0f / 100.0f);
 
 	if(ret < 1)

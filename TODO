@@ -1,6 +1,7 @@
 gtk:
 	privmsg - show in new window OPTIONAL
 	windows - unknown publisher - run don't run UAC
+	code up transfer window
 
 icon:
 	http://duckduckgo.com/?q=windows+c+compile+program+icon+resource
@@ -15,6 +16,7 @@ protocol:
 	drawing
 	"Tim is typing"
 	edit previous message (index - 1, ONLY) like Skype
+	devmode - caps lock + rename
 
 server:
 	dump last 5 lines of chat when a new client connects
