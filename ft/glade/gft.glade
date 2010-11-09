@@ -37,12 +37,7 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkComboBoxEntry" id="cboHost">
-                        <property name="visible">True</property>
-                      </object>
-                      <packing>
-                        <property name="position">1</property>
-                      </packing>
+                      <placeholder/>
                     </child>
                   </object>
                   <packing>
@@ -51,14 +46,13 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkHBox" id="vboxCmds">
+                  <object class="GtkVBox" id="vboxCmds">
                     <property name="visible">True</property>
-                    <property name="orientation">vertical</property>
-                    <property name="spacing">2</property>
                     <property name="homogeneous">True</property>
                     <child>
-                      <object class="GtkVBox" id="vboxButtansRight">
+                      <object class="GtkHBox" id="hboxButtansTop">
                         <property name="visible">True</property>
+                        <property name="homogeneous">True</property>
                         <child>
                           <object class="GtkButton" id="btnConnect">
                             <property name="label" translatable="yes">Connect</property>
@@ -97,8 +91,6 @@
                         <signal name="clicked" handler="on_btnClose_clicked"/>
                       </object>
                       <packing>
-                        <property name="expand">False</property>
-                        <property name="fill">False</property>
                         <property name="position">1</property>
                       </packing>
                     </child>
@@ -145,7 +137,7 @@
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">True</property>
-                        <signal name="clicked" handler="btnClearTransfers_clicked_cb"/>
+                        <signal name="clicked" handler="btnClearTransfers_clicked"/>
                       </object>
                     </child>
                   </object>
@@ -198,6 +190,9 @@
                         <child>
                           <object class="GtkFileChooserButton" id="btnDirChoice">
                             <property name="visible">True</property>
+                            <property name="action">select-folder</property>
+                            <property name="preview_widget_active">False</property>
+                            <property name="title" translatable="yes">Select A Directory</property>
                           </object>
                           <packing>
                             <property name="position">1</property>
@@ -240,7 +235,6 @@
                 </child>
               </object>
               <packing>
-                <property name="fill">False</property>
                 <property name="padding">2</property>
                 <property name="position">0</property>
               </packing>
@@ -309,7 +303,6 @@
                         </child>
                       </object>
                       <packing>
-                        <property name="expand">False</property>
                         <property name="fill">False</property>
                         <property name="position">1</property>
                       </packing>
@@ -345,7 +338,6 @@
                 </child>
               </object>
               <packing>
-                <property name="fill">False</property>
                 <property name="padding">2</property>
                 <property name="position">1</property>
               </packing>

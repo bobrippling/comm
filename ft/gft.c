@@ -48,12 +48,16 @@ int callback(struct filetransfer *ft, enum ftstate state,
 int queryback(struct filetransfer *ft,
 		const char *msg, ...);
 void settimeout(int on);
+const char *get_folder(void);
 
 GtkWidget *btnSend, *btnConnect, *btnListen, *btnClose;
-GtkWidget *btnFileChoice;
-GtkWidget *winMain;
+GtkWidget *btnFileChoice, *btnOpenFolder, *btnClearTransfers, *btnDirChoice;
+
 GtkWidget *progressft, *lblStatus;
 GtkWidget *cboHost;
+
+GtkWidget *winMain;
+
 
 struct filetransfer ft;
 int cancelled = 0;
@@ -65,12 +69,39 @@ enum
 
 
 /* events */
-G_MODULE_EXPORT gboolean on_winMain_destroy(void)
+G_MODULE_EXPORT gboolean
+on_winMain_destroy(void)
 {
 	CLOSE();
 	gtk_main_quit(); /* gtk exit here only */
 	return FALSE;
 }
+
+G_MODULE_EXPORT gboolean
+on_btnOpenFolder_clicked(void)
+{
+#ifdef _WIN32
+	HINSTANCE ret;
+	const char *folder = get_folder();
+
+	if(folder &&
+			(int)(ret =
+			 ShellExecute(NULL, "open", folder, NULL, NULL, SW_SHOW /* 5 */))
+			<= 32)
+		fprintf(stderr, "ShellExecute() failed: %d\n", ret);
+#else
+	fputs("TODO: btnOpenFolder()\n", stderr); /* TODO */
+#endif
+	return FALSE;
+}
+
+G_MODULE_EXPORT gboolean
+btnClearTransfers_clicked(void)
+{
+	fputs("TODO: btnClearTransfers()\n", stderr); /* TODO */
+	return FALSE;
+}
+
 
 G_MODULE_EXPORT gboolean
 on_btnClose_clicked(void)
@@ -299,6 +330,30 @@ void cmds()
 		gtk_main_iteration();
 }
 
+const char *get_folder()
+{
+	static char folder[512];
+	char *dname;
+
+	dname = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(btnDirChoice));
+
+	if(dname){
+		unsigned int len;
+
+		strncpy(folder, dname, sizeof(folder));
+
+		len = strlen(folder);
+		if(len >= sizeof(folder)-3)
+			fputs("warning: folder name too long\n", stderr);
+		else if(folder[len - 1] != PATH_SEPERATOR){
+			folder[len] = PATH_SEPERATOR;
+			folder[len+1] = '\0';
+		}
+		return folder;
+	}
+	return "./";
+}
+
 void settimeout(int on)
 {
 	static int id = -1;
@@ -418,7 +473,7 @@ void status(const char *fmt, ...)
 
 static int getobjects(GtkBuilder *b)
 {
-	GtkWidget *vboxTxt;
+	GtkWidget *hboxHost;
 
 #define GET_WIDGET(x) \
 	if(!((x) = GTK_WIDGET(gtk_builder_get_object(b, #x)))){ \
@@ -434,14 +489,17 @@ static int getobjects(GtkBuilder *b)
 	GET_WIDGET(winMain);
 	GET_WIDGET(progressft);
 	GET_WIDGET(lblStatus);
+	GET_WIDGET(btnOpenFolder);
+	GET_WIDGET(btnClearTransfers);
+	GET_WIDGET(btnDirChoice);
 
 
-	GET_WIDGET(vboxTxt);
+	GET_WIDGET(hboxHost);
 	/* create one with text as the column stuff */
 	cboHost = gtk_combo_box_entry_new_text();
-	gtk_container_add(GTK_CONTAINER(vboxTxt), cboHost);
+	gtk_container_add(GTK_CONTAINER(hboxHost), cboHost);
 	gtk_widget_set_visible(cboHost, TRUE);
-	gtk_box_reorder_child(GTK_BOX(vboxTxt), cboHost, 0);
+	/*gtk_box_reorder_child(GTK_BOX(hboxHost), cboHost, 0);*/
 
 	return 0;
 #undef GET_WIDGET

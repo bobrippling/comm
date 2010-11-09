@@ -1,7 +1,5 @@
-gtk:
-	privmsg - show in new window OPTIONAL
+windows:
 	windows - unknown publisher - run don't run UAC
-	code up transfer window
 
 icon:
 	http://duckduckgo.com/?q=windows+c+compile+program+icon+resource
@@ -12,7 +10,7 @@ icon:
 
 protocol:
 	/nudge
-	file transfer
+	integrate file transfer
 	drawing
 	"Tim is typing"
 	edit previous message (index - 1, ONLY) like Skype
