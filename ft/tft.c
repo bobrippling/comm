@@ -16,6 +16,7 @@ void cleanup(void);
 int  eprintf(const char *, ...);
 
 struct filetransfer ft;
+enum { OVERWRITE, RESUME, RENAME, ASK } clobber_mode = ASK;
 
 int callback(struct filetransfer *ft, enum ftstate state,
 		size_t bytessent, size_t bytestotal)
@@ -41,6 +42,13 @@ int queryback(struct filetransfer *ft, const char *msg, ...)
 	const char *percent;
 
 	(void)ft;
+
+	switch(clobber_mode){
+		case ASK: break;
+		case OVERWRITE: return 0;
+		case RESUME:    return 1;
+		case RENAME:    return 2;
+	}
 
 	va_start(l, msg);
 	vfprintf(stderr, msg, l);
@@ -115,25 +123,37 @@ int main(int argc, char **argv)
 	strncpy(__progname, *argv, sizeof __progname);
 #endif
 
+#define ARG(c) !strcmp(argv[i], "-" c)
+
 	for(i = 1; i < argc; i++)
-		if(!strcmp(argv[i], "-l"))
+		if(ARG("l"))
 			listen = 1;
-		else if(!strcmp(argv[i], "-p"))
+		else if(ARG("p"))
 			if(++i < argc)
 				port = argv[i];
 			else
 				goto usage;
-		else if(!strcmp(argv[i], "-v"))
+		else if(ARG("v"))
 			verbose = 1;
+		else if(ARG("o"))
+			clobber_mode = OVERWRITE;
+		else if(ARG("n"))
+			clobber_mode = RENAME;
+		else if(ARG("r"))
+			clobber_mode = RESUME;
 		else if(!host)
 			host = argv[i];
 		else if(!fname)
 			fname = argv[i];
 		else{
 		usage:
-			eprintf("Usage: %s [-p port] -l   [file]\n"
-					            "       %s [-p port] host [file]\n",
-					            *argv, *argv);
+			eprintf("Usage: %s [-p port] [OPTS] [-l | host] [file]\n"
+							"  -l: listen\n"
+							" If file exists:\n"
+							"  -o: overwrite\n"
+							"  -n: rename incoming\n"
+							"  -r: resume transfer\n"
+					    , *argv, *argv);
 			return 1;
 		}
 
