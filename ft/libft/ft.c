@@ -139,9 +139,7 @@ void ft_zero(struct filetransfer *ft)
 
 int ft_listen(struct filetransfer *ft, int port)
 {
-#ifndef _WIN32
 	int save;
-#endif
 	struct sockaddr_in addr;
 	struct linger l;
 
@@ -155,13 +153,19 @@ int ft_listen(struct filetransfer *ft, int port)
 	addr.sin_port = htons(port);
 	addr.sin_family = AF_INET;
 
+#ifdef _WIN32
+# define CAST const char *
+#else
+# define CAST
+#endif
+
 	save = 1;
-	setsockopt(ft->sock, SOL_SOCKET, SO_REUSEADDR, &save, sizeof save);
+	setsockopt(ft->sock, SOL_SOCKET, SO_REUSEADDR, (CAST)&save, sizeof save);
 	/* discard ret */
 
 	l.l_onoff  = 1; /* do linger, G */
 	l.l_linger = LINGER_TIME; /* time (seconds) */
-	if(setsockopt(ft->sock, SOL_SOCKET, SO_LINGER, &l, sizeof l)){
+	if(setsockopt(ft->sock, SOL_SOCKET, SO_LINGER, (CAST)&l, sizeof l)){
 		ft->lasterr = net_getlasterr();
 		close(ft->sock);
 		return 1;
