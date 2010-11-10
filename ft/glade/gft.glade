@@ -2,177 +2,81 @@
 <interface>
   <requires lib="gtk+" version="2.16"/>
   <!-- interface-naming-policy project-wide -->
+  <object class="GtkListStore" id="lstTransfers">
+    <columns>
+      <!-- column-name Transfers -->
+      <column type="gchar"/>
+    </columns>
+  </object>
   <object class="GtkWindow" id="winMain">
     <property name="title" translatable="yes">GFT v1.0</property>
-    <property name="default_width">300</property>
-    <property name="default_height">21</property>
+    <signal name="focus_in_event" handler="on_winMain_focus_in_event"/>
     <child>
       <object class="GtkHBox" id="hboxMain">
         <property name="visible">True</property>
+        <property name="homogeneous">True</property>
         <child>
-          <object class="GtkVBox" id="vboxLeft">
-            <property name="width_request">80</property>
+          <object class="GtkFrame" id="frmConnect">
             <property name="visible">True</property>
-            <property name="orientation">vertical</property>
-            <property name="homogeneous">True</property>
+            <property name="label_xalign">0</property>
+            <property name="shadow_type">in</property>
             <child>
-              <object class="GtkVBox" id="vboxTxtLbl">
+              <object class="GtkVBox" id="vboxConnect">
                 <property name="visible">True</property>
                 <property name="orientation">vertical</property>
                 <child>
-                  <object class="GtkLabel" id="lblHost">
+                  <object class="GtkHBox" id="hboxHost">
                     <property name="visible">True</property>
-                    <property name="label" translatable="yes">Host:</property>
-                  </object>
-                  <packing>
-                    <property name="position">0</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkLabel" id="lblFile">
-                    <property name="visible">True</property>
-                    <property name="label" translatable="yes">File:</property>
-                  </object>
-                  <packing>
-                    <property name="position">1</property>
-                  </packing>
-                </child>
-              </object>
-              <packing>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkLabel" id="lblProgress">
-                <property name="visible">True</property>
-                <property name="label" translatable="yes">Progress:</property>
-              </object>
-              <packing>
-                <property name="position">1</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkLabel" id="lblButtans">
-                <property name="visible">True</property>
-                <property name="label" translatable="yes">Command:</property>
-              </object>
-              <packing>
-                <property name="position">2</property>
-              </packing>
-            </child>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="position">0</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkVBox" id="vboxRight">
-            <property name="visible">True</property>
-            <property name="orientation">vertical</property>
-            <property name="homogeneous">True</property>
-            <child>
-              <object class="GtkVBox" id="vboxTxt">
-                <property name="visible">True</property>
-                <property name="orientation">vertical</property>
-                <child>
-                  <placeholder/>
-                </child>
-                <child>
-                  <object class="GtkFileChooserButton" id="btnFileChoice">
-                    <property name="visible">True</property>
-                    <property name="title" translatable="yes">File to Send</property>
-                  </object>
-                  <packing>
-                    <property name="position">1</property>
-                  </packing>
-                </child>
-              </object>
-              <packing>
-                <property name="padding">2</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkVBox" id="vboxStatus">
-                <property name="visible">True</property>
-                <property name="orientation">vertical</property>
-                <child>
-                  <object class="GtkLabel" id="lblStatus">
-                    <property name="visible">True</property>
-                    <property name="label" translatable="yes">Not much going on...</property>
-                    <property name="justify">center</property>
-                    <property name="ellipsize">end</property>
-                  </object>
-                  <packing>
-                    <property name="position">0</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkProgressBar" id="progressft">
-                    <property name="visible">True</property>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">False</property>
-                    <property name="position">1</property>
-                  </packing>
-                </child>
-              </object>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">False</property>
-                <property name="position">1</property>
-              </packing>
-            </child>
-            <child>
-              <object class="GtkHBox" id="hboxCmds">
-                <property name="visible">True</property>
-                <property name="spacing">2</property>
-                <child>
-                  <object class="GtkVBox" id="vboxButtansLeft">
-                    <property name="visible">True</property>
-                    <property name="orientation">vertical</property>
                     <child>
-                      <object class="GtkButton" id="btnListen">
-                        <property name="label" translatable="yes">Listen</property>
+                      <object class="GtkLabel" id="lblHost">
                         <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="receives_default">True</property>
-                        <signal name="clicked" handler="on_btnListen_clicked"/>
+                        <property name="label" translatable="yes">IP Address/Host:</property>
                       </object>
                       <packing>
                         <property name="position">0</property>
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkButton" id="btnSend">
-                        <property name="label" translatable="yes">Send</property>
-                        <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="receives_default">True</property>
-                        <signal name="clicked" handler="on_btnSend_clicked"/>
-                      </object>
-                      <packing>
-                        <property name="position">1</property>
-                      </packing>
+                      <placeholder/>
                     </child>
                   </object>
                   <packing>
+                    <property name="expand">False</property>
                     <property name="position">0</property>
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkVBox" id="vboxButtansRight">
+                  <object class="GtkVBox" id="vboxCmds">
                     <property name="visible">True</property>
-                    <property name="orientation">vertical</property>
+                    <property name="homogeneous">True</property>
                     <child>
-                      <object class="GtkButton" id="btnConnect">
-                        <property name="label" translatable="yes">Connect</property>
+                      <object class="GtkHBox" id="hboxButtansTop">
                         <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="receives_default">True</property>
-                        <signal name="clicked" handler="on_btnConnect_clicked"/>
+                        <property name="homogeneous">True</property>
+                        <child>
+                          <object class="GtkButton" id="btnConnect">
+                            <property name="label" translatable="yes">Connect</property>
+                            <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="receives_default">True</property>
+                            <signal name="clicked" handler="on_btnConnect_clicked"/>
+                          </object>
+                          <packing>
+                            <property name="position">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkButton" id="btnListen">
+                            <property name="label" translatable="yes">Listen</property>
+                            <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="receives_default">True</property>
+                            <signal name="clicked" handler="on_btnListen_clicked"/>
+                          </object>
+                          <packing>
+                            <property name="position">1</property>
+                          </packing>
+                        </child>
                       </object>
                       <packing>
                         <property name="position">0</property>
@@ -192,24 +96,258 @@
                     </child>
                   </object>
                   <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">False</property>
                     <property name="position">1</property>
                   </packing>
                 </child>
+                <child>
+                  <object class="GtkLabel" id="lblTransfers">
+                    <property name="visible">True</property>
+                    <property name="label" translatable="yes">Transfers</property>
+                    <attributes>
+                      <attribute name="underline" value="True"/>
+                    </attributes>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="padding">2</property>
+                    <property name="position">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkTreeView" id="treeTransfers">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="model">lstTransfers</property>
+                  </object>
+                  <packing>
+                    <property name="padding">3</property>
+                    <property name="position">3</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkAlignment" id="alignClearTransfers">
+                    <property name="visible">True</property>
+                    <property name="xalign">1</property>
+                    <property name="left_padding">183</property>
+                    <child>
+                      <object class="GtkButton" id="btnClearTransfers">
+                        <property name="label" translatable="yes">Clear</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="receives_default">True</property>
+                        <signal name="clicked" handler="btnClearTransfers_clicked"/>
+                      </object>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="position">4</property>
+                  </packing>
+                </child>
               </object>
-              <packing>
-                <property name="fill">False</property>
-                <property name="position">2</property>
-              </packing>
+            </child>
+            <child type="label">
+              <object class="GtkLabel" id="frmConnectLbl">
+                <property name="visible">True</property>
+                <property name="label" translatable="yes">Connectage</property>
+              </object>
             </child>
           </object>
           <packing>
             <property name="padding">2</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkVBox" id="vboxRight">
+            <property name="visible">True</property>
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkFrame" id="frmFolder">
+                <property name="visible">True</property>
+                <property name="label_xalign">0</property>
+                <property name="shadow_type">in</property>
+                <child>
+                  <object class="GtkVBox" id="vboxSaveDir">
+                    <property name="visible">True</property>
+                    <property name="orientation">vertical</property>
+                    <child>
+                      <object class="GtkHBox" id="hboxDir">
+                        <property name="visible">True</property>
+                        <child>
+                          <object class="GtkLabel" id="lblDir">
+                            <property name="visible">True</property>
+                            <property name="label" translatable="yes">Directory:</property>
+                          </object>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">False</property>
+                            <property name="position">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkFileChooserButton" id="btnDirChoice">
+                            <property name="visible">True</property>
+                            <property name="action">select-folder</property>
+                            <property name="preview_widget_active">False</property>
+                            <property name="title" translatable="yes">Select A Directory</property>
+                          </object>
+                          <packing>
+                            <property name="position">1</property>
+                          </packing>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="fill">False</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkAlignment" id="alignOpenFolder">
+                        <property name="visible">True</property>
+                        <property name="left_padding">115</property>
+                        <child>
+                          <object class="GtkButton" id="btnOpenFolder">
+                            <property name="label" translatable="yes">Open Folder</property>
+                            <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="receives_default">True</property>
+                            <signal name="clicked" handler="on_btnOpenFolder_clicked"/>
+                          </object>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">False</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                  </object>
+                </child>
+                <child type="label">
+                  <object class="GtkLabel" id="frmFolderLbl">
+                    <property name="visible">True</property>
+                    <property name="label" translatable="yes">Save Folder</property>
+                    <property name="use_markup">True</property>
+                  </object>
+                </child>
+              </object>
+              <packing>
+                <property name="padding">2</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkFrame" id="frmSend">
+                <property name="visible">True</property>
+                <property name="label_xalign">0</property>
+                <property name="shadow_type">in</property>
+                <child>
+                  <object class="GtkVBox" id="vboxSend">
+                    <property name="visible">True</property>
+                    <property name="orientation">vertical</property>
+                    <child>
+                      <object class="GtkHBox" id="hboxFile">
+                        <property name="visible">True</property>
+                        <child>
+                          <object class="GtkLabel" id="lblFile">
+                            <property name="visible">True</property>
+                            <property name="label" translatable="yes">File:</property>
+                          </object>
+                          <packing>
+                            <property name="position">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkFileChooserButton" id="btnFileChoice">
+                            <property name="visible">True</property>
+                            <property name="title" translatable="yes">File to Send</property>
+                          </object>
+                          <packing>
+                            <property name="position">1</property>
+                          </packing>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkVBox" id="vboxStatus">
+                        <property name="visible">True</property>
+                        <property name="orientation">vertical</property>
+                        <child>
+                          <object class="GtkLabel" id="lblStatus">
+                            <property name="visible">True</property>
+                            <property name="label" translatable="yes">Not much going on...</property>
+                            <property name="justify">center</property>
+                            <property name="wrap">True</property>
+                            <property name="ellipsize">end</property>
+                          </object>
+                          <packing>
+                            <property name="position">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkProgressBar" id="progressft">
+                            <property name="visible">True</property>
+                          </object>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">False</property>
+                            <property name="position">1</property>
+                          </packing>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="fill">False</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkAlignment" id="alignSend">
+                        <property name="visible">True</property>
+                        <property name="left_padding">203</property>
+                        <child>
+                          <object class="GtkButton" id="btnSend">
+                            <property name="label" translatable="yes">Send</property>
+                            <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="receives_default">True</property>
+                            <signal name="clicked" handler="on_btnSend_clicked"/>
+                          </object>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">False</property>
+                        <property name="position">2</property>
+                      </packing>
+                    </child>
+                  </object>
+                </child>
+                <child type="label">
+                  <object class="GtkLabel" id="frmSendLbl">
+                    <property name="visible">True</property>
+                    <property name="label" translatable="yes">Sendage</property>
+                    <property name="use_markup">True</property>
+                  </object>
+                </child>
+              </object>
+              <packing>
+                <property name="padding">2</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
             <property name="position">1</property>
           </packing>
         </child>
       </object>
     </child>
   </object>
-  <object class="GtkAction" id="action1"/>
-  <object class="GtkListStore" id="liststore1"/>
 </interface>

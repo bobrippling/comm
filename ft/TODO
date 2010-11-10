@@ -1,2 +1,4 @@
-host memory/cbobox - `uniq`
-fix ft->lastcallback
+fix ft->lastcallback?
+libft - specify save directory
+code up transfer window
+privmsg - show in new window OPTIONAL

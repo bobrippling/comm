@@ -24,17 +24,22 @@
 		cmds(); \
 	}while(0)
 
+#define URGENT(b) \
+	do \
+			if(!gtk_window_is_active(GTK_WINDOW(winMain))) \
+				gtk_window_set_urgency_hint(GTK_WINDOW(winMain), b); \
+	while(0)
+
 #ifdef _WIN32
 # define PATH_SEPERATOR '\\'
 #else
 # define PATH_SEPERATOR '/'
 #endif
 
-#define CFG_GFT_FNAME  "recent_hosts"
-
 #include "../config.h"
 #include "gladegen.h"
 #include "libft/ft.h"
+#include "gcfg.h"
 
 void cmds(void);
 void status(const char *, ...);
@@ -43,14 +48,16 @@ int callback(struct filetransfer *ft, enum ftstate state,
 int queryback(struct filetransfer *ft,
 		const char *msg, ...);
 void settimeout(int on);
-void cfg_read(void);
-void cfg_add(const char *);
+const char *get_folder(void);
 
 GtkWidget *btnSend, *btnConnect, *btnListen, *btnClose;
-GtkWidget *btnFileChoice;
-GtkWidget *winMain;
+GtkWidget *btnFileChoice, *btnOpenFolder, *btnClearTransfers, *btnDirChoice;
+
 GtkWidget *progressft, *lblStatus;
 GtkWidget *cboHost;
+
+GtkWidget *winMain;
+
 
 struct filetransfer ft;
 int cancelled = 0;
@@ -62,12 +69,39 @@ enum
 
 
 /* events */
-G_MODULE_EXPORT gboolean on_winMain_destroy(void)
+G_MODULE_EXPORT gboolean
+on_winMain_destroy(void)
 {
 	CLOSE();
 	gtk_main_quit(); /* gtk exit here only */
 	return FALSE;
 }
+
+G_MODULE_EXPORT gboolean
+on_btnOpenFolder_clicked(void)
+{
+#ifdef _WIN32
+	HINSTANCE ret;
+	const char *folder = get_folder();
+
+	if(folder &&
+			(int)(ret =
+			 ShellExecute(NULL, "open", folder, NULL, NULL, SW_SHOW /* 5 */))
+			<= 32)
+		fprintf(stderr, "ShellExecute() failed: %d\n", ret);
+#else
+	fputs("TODO: btnOpenFolder()\n", stderr); /* TODO */
+#endif
+	return FALSE;
+}
+
+G_MODULE_EXPORT gboolean
+btnClearTransfers_clicked(void)
+{
+	fputs("TODO: btnClearTransfers()\n", stderr); /* TODO */
+	return FALSE;
+}
+
 
 G_MODULE_EXPORT gboolean
 on_btnClose_clicked(void)
@@ -92,7 +126,7 @@ on_btnListen_clicked(void)
 
 	port = strchr(hostret, ':');
 	if(!port)
-		port = DEFAULT_PORT;
+		port = FT_DEFAULT_PORT;
 	else
 		port++;
 
@@ -146,6 +180,7 @@ on_btnConnect_clicked(void)
 		gstate = STATE_CONNECTED;
 		settimeout(1);
 	}
+	URGENT(1);
 	cmds();
 
 	return FALSE;
@@ -228,6 +263,7 @@ timeout(gpointer data)
 				case FT_YES:
 					status("Got connection from %s", ft_remoteaddr(&ft));
 					gstate = STATE_CONNECTED;
+					URGENT(1);
 					cmds();
 					/* fall */
 				case FT_NO:
@@ -237,6 +273,13 @@ timeout(gpointer data)
 	}
 	/* unreachable (unless bogus enum value) */
 	return TRUE;
+}
+
+G_MODULE_EXPORT
+int on_winMain_focus_in_event(void)
+{
+	gtk_window_set_urgency_hint(GTK_WINDOW(winMain), FALSE);
+	return FALSE;
 }
 
 void cmds()
@@ -285,6 +328,30 @@ void cmds()
 
 	if(gtk_events_pending())
 		gtk_main_iteration();
+}
+
+const char *get_folder()
+{
+	static char folder[512];
+	char *dname;
+
+	dname = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(btnDirChoice));
+
+	if(dname){
+		unsigned int len;
+
+		strncpy(folder, dname, sizeof(folder));
+
+		len = strlen(folder);
+		if(len >= sizeof(folder)-3)
+			fputs("warning: folder name too long\n", stderr);
+		else if(folder[len - 1] != PATH_SEPERATOR){
+			folder[len] = PATH_SEPERATOR;
+			folder[len+1] = '\0';
+		}
+		return folder;
+	}
+	return "./";
 }
 
 void settimeout(int on)
@@ -404,72 +471,9 @@ void status(const char *fmt, ...)
 	gtk_label_set_text(GTK_LABEL(lblStatus), buffer);
 }
 
-void cfg_add(const char *host)
-{
-	FILE *f;
-
-#ifdef _WIN32
-	f = fopen("gft.cfg", "a");
-#else
-	char *home = getenv("HOME"), *tmp;
-
-	if(!home)
-		return;
-
-	tmp = g_strdup_printf("%s/" CFG_EXTRA "%s", home, CFG_DOT CFG_GFT_FNAME);
-	f = fopen(tmp, "a");
-	g_free(tmp);
-#endif
-
-	if(!f){
-		perror("cfg_add()");
-		return;
-	}
-
-	fprintf(f, "%s\n", host);
-	fclose(f);
-}
-
-void cfg_read()
-{
-	FILE *f;
-	char line[128];
-
-#ifdef _WIN32
-	f = fopen("gft.cfg", "r");
-#else
-	char *home = getenv("HOME"), *tmp;
-
-	if(!home){
-		fputs("couldn't get $HOME\n", stderr);
-		return;
-	}
-
-	tmp = g_strdup_printf("%s/" CFG_EXTRA "%s", home, CFG_DOT CFG_GFT_FNAME);
-	f = fopen(tmp, "r");
-	g_free(tmp);
-#endif
-
-	if(!f){
-		if(errno != ENOENT)
-			perror("cfg_read()");
-		return;
-	}
-
-	while(fgets(line, sizeof line, f)){
-		char *nl = strchr(line, '\n');
-		if(nl)
-			*nl = '\0';
-
-		gtk_combo_box_append_text(GTK_COMBO_BOX(cboHost), line);
-	}
-	gtk_entry_set_text(GTK_ENTRY(GTK_BIN(cboHost)->child), line);
-	fclose(f);
-}
-
 static int getobjects(GtkBuilder *b)
 {
-	GtkWidget *vboxTxt;
+	GtkWidget *hboxHost;
 
 #define GET_WIDGET(x) \
 	if(!((x) = GTK_WIDGET(gtk_builder_get_object(b, #x)))){ \
@@ -485,14 +489,17 @@ static int getobjects(GtkBuilder *b)
 	GET_WIDGET(winMain);
 	GET_WIDGET(progressft);
 	GET_WIDGET(lblStatus);
+	GET_WIDGET(btnOpenFolder);
+	GET_WIDGET(btnClearTransfers);
+	GET_WIDGET(btnDirChoice);
 
 
-	GET_WIDGET(vboxTxt);
+	GET_WIDGET(hboxHost);
 	/* create one with text as the column stuff */
 	cboHost = gtk_combo_box_entry_new_text();
-	gtk_container_add(GTK_CONTAINER(vboxTxt), cboHost);
+	gtk_container_add(GTK_CONTAINER(hboxHost), cboHost);
 	gtk_widget_set_visible(cboHost, TRUE);
-	gtk_box_reorder_child(GTK_BOX(vboxTxt), cboHost, 0);
+	/*gtk_box_reorder_child(GTK_BOX(hboxHost), cboHost, 0);*/
 
 	return 0;
 #undef GET_WIDGET
@@ -557,10 +564,11 @@ usage:
 	/* signal setup */
 	g_signal_connect(G_OBJECT(winMain), "destroy", G_CALLBACK(on_winMain_destroy), NULL);
 
-	cfg_read();
+	cfg_read(cboHost);
 	cmds();
 	gtk_widget_show(winMain);
 	gtk_main();
+	cfg_write();
 
 	return 0;
 }

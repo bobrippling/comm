@@ -78,7 +78,10 @@ int queryback(struct filetransfer *ft, const char *msg, ...)
 
 void clrtoeol()
 {
-	static const char esc[] = { 0x1b, '[', '2', 'K', 0 };
+	static const char esc[] = {
+		'\r',                      /* mv(0, y) */
+		0x1b, '[', '2', 'K', '\0', /* clear */
+	};
 	fputs(esc, stdout);
 }
 
@@ -193,7 +196,7 @@ int main(int argc, char **argv)
 		if(ft_send(&ft, callback, fname)){
 			clrtoeol();
 			eprintf("ft_send(): %s\n", ft_lasterr(&ft));
-			return 1;
+			goto bail;
 		}
 	}else{
 		if(verbose)
@@ -202,11 +205,14 @@ int main(int argc, char **argv)
 		if(ft_recv(&ft, callback, queryback)){
 			clrtoeol();
 			eprintf("ft_recv(): %s\n", ft_lasterr(&ft));
-			return 1;
+			goto bail;
 		}
 	}
 
 	ft_close(&ft);
 
 	return 0;
+bail:
+	ft_close(&ft);
+	return 1;
 }

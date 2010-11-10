@@ -15,12 +15,15 @@ tft: tft.o libft/ft.o
 	@echo LD $@
 	$Q${CC} -o $@ $^ ${LDFLAGS}
 
-gft: gft.o libft/ft.o gladegen.o
+gft: gft.o libft/ft.o gladegen.o gcfg.o
 	@echo LD $@
 	$Q${CC} -o $@ $^ ${LDFLAGS_G}
 
 gft.o: gft.c
-	@echo CC $@
+	@echo CC_GTK $@
+	$Q${CC} ${CFLAGS_G} -c -o $@ $<
+gcfg.o: gcfg.c
+	@echo CC_GTK $@
 	$Q${CC} ${CFLAGS_G} -c -o $@ $<
 
 gladegen.c: glade/gft.glade

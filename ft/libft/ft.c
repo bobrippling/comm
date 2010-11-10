@@ -72,7 +72,7 @@ static int WSA_Startuped = 0;
 #define FT_ERR_INVALID_MSG     "libft: Invalid message recieved"
 #define FT_ERR_CANCELLED       "Cancelled"
 
-#define BUFFER_SIZE            2048
+#define BUFFER_SIZE            512
 #define LINGER_TIME            20
 
 
@@ -122,7 +122,7 @@ static void ft_sleep(void);
 static size_t ft_getcallback_step(size_t siz)
 {
 	size_t ret;
-	/* callback every 1% */
+	/* callback every 2% */
 	ret = ((float)siz * 2.0f / 100.0f);
 
 	if(ret < 1)
