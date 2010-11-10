@@ -154,18 +154,18 @@ int ft_listen(struct filetransfer *ft, int port)
 	addr.sin_family = AF_INET;
 
 #ifdef _WIN32
-# define CAST const char *
+# define CAST (const char *)
 #else
 # define CAST
 #endif
 
 	save = 1;
-	setsockopt(ft->sock, SOL_SOCKET, SO_REUSEADDR, (CAST)&save, sizeof save);
+	setsockopt(ft->sock, SOL_SOCKET, SO_REUSEADDR, CAST &save, sizeof save);
 	/* discard ret */
 
 	l.l_onoff  = 1; /* do linger, G */
 	l.l_linger = LINGER_TIME; /* time (seconds) */
-	if(setsockopt(ft->sock, SOL_SOCKET, SO_LINGER, (CAST)&l, sizeof l)){
+	if(setsockopt(ft->sock, SOL_SOCKET, SO_LINGER, CAST &l, sizeof l)){
 		ft->lasterr = net_getlasterr();
 		close(ft->sock);
 		return 1;
