@@ -7,6 +7,10 @@
 #include "gcfg.h"
 #include "../config.h"
 
+#ifdef _WIN32
+char *strdup(const char *);
+#endif
+
 #define CFG_GFT_FNAME  "recent_hosts"
 
 #define ITER_HOSTS(i, code) \
