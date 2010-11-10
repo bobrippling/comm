@@ -72,7 +72,7 @@ static int WSA_Startuped = 0;
 #define FT_ERR_INVALID_MSG     "libft: Invalid message recieved"
 #define FT_ERR_CANCELLED       "Cancelled"
 
-#define BUFFER_SIZE            2048
+#define BUFFER_SIZE            512
 #define LINGER_TIME            20
 
 
