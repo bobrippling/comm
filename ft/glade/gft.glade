@@ -19,7 +19,7 @@
           <object class="GtkFrame" id="frmConnect">
             <property name="visible">True</property>
             <property name="label_xalign">0</property>
-            <property name="shadow_type">in</property>
+            <property name="shadow_type">out</property>
             <child>
               <object class="GtkVBox" id="vboxConnect">
                 <property name="visible">True</property>
@@ -33,6 +33,8 @@
                         <property name="label" translatable="yes">IP Address/Host:</property>
                       </object>
                       <packing>
+                        <property name="expand">False</property>
+                        <property name="padding">4</property>
                         <property name="position">0</property>
                       </packing>
                     </child>
@@ -48,6 +50,7 @@
                 <child>
                   <object class="GtkVBox" id="vboxCmds">
                     <property name="visible">True</property>
+                    <property name="orientation">vertical</property>
                     <property name="homogeneous">True</property>
                     <child>
                       <object class="GtkHBox" id="hboxButtansTop">
@@ -59,6 +62,7 @@
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">True</property>
+                            <property name="border_width">3</property>
                             <signal name="clicked" handler="on_btnConnect_clicked"/>
                           </object>
                           <packing>
@@ -71,6 +75,7 @@
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">True</property>
+                            <property name="border_width">3</property>
                             <signal name="clicked" handler="on_btnListen_clicked"/>
                           </object>
                           <packing>
@@ -83,12 +88,20 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkButton" id="btnClose">
-                        <property name="label" translatable="yes">Close</property>
+                      <object class="GtkAlignment" id="alignmentClose">
                         <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="receives_default">True</property>
-                        <signal name="clicked" handler="on_btnClose_clicked"/>
+                        <property name="left_padding">60</property>
+                        <property name="right_padding">60</property>
+                        <child>
+                          <object class="GtkButton" id="btnClose">
+                            <property name="label" translatable="yes">Close</property>
+                            <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="receives_default">True</property>
+                            <property name="border_width">3</property>
+                            <signal name="clicked" handler="on_btnClose_clicked"/>
+                          </object>
+                        </child>
                       </object>
                       <packing>
                         <property name="position">1</property>
@@ -97,7 +110,6 @@
                   </object>
                   <packing>
                     <property name="expand">False</property>
-                    <property name="fill">False</property>
                     <property name="position">1</property>
                   </packing>
                 </child>
@@ -137,6 +149,7 @@
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">True</property>
+                        <property name="border_width">3</property>
                         <signal name="clicked" handler="btnClearTransfers_clicked"/>
                       </object>
                     </child>
@@ -168,7 +181,7 @@
               <object class="GtkFrame" id="frmFolder">
                 <property name="visible">True</property>
                 <property name="label_xalign">0</property>
-                <property name="shadow_type">in</property>
+                <property name="shadow_type">out</property>
                 <child>
                   <object class="GtkVBox" id="vboxSaveDir">
                     <property name="visible">True</property>
@@ -184,6 +197,7 @@
                           <packing>
                             <property name="expand">False</property>
                             <property name="fill">False</property>
+                            <property name="padding">4</property>
                             <property name="position">0</property>
                           </packing>
                         </child>
@@ -214,6 +228,7 @@
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">True</property>
+                            <property name="border_width">3</property>
                             <signal name="clicked" handler="on_btnOpenFolder_clicked"/>
                           </object>
                         </child>
@@ -243,7 +258,7 @@
               <object class="GtkFrame" id="frmSend">
                 <property name="visible">True</property>
                 <property name="label_xalign">0</property>
-                <property name="shadow_type">in</property>
+                <property name="shadow_type">out</property>
                 <child>
                   <object class="GtkVBox" id="vboxSend">
                     <property name="visible">True</property>
@@ -257,6 +272,8 @@
                             <property name="label" translatable="yes">File:</property>
                           </object>
                           <packing>
+                            <property name="expand">False</property>
+                            <property name="padding">4</property>
                             <property name="position">0</property>
                           </packing>
                         </child>
@@ -317,6 +334,7 @@
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">True</property>
+                            <property name="border_width">3</property>
                             <signal name="clicked" handler="on_btnSend_clicked"/>
                           </object>
                         </child>
