@@ -23,7 +23,6 @@ static void insert_with_links(GtkTextBuffer *buffa, GtkTextIter *iter, const cha
 
 /* funcs */
 extern GtkWidget    *txtMain;
-extern GtkWidget    *treeClients;
 static GtkListStore *treeStore;
 
 static void addtag(const char *name, const char *col)
@@ -230,8 +229,9 @@ void addtextf(const char *col, const char *fmt, ...)
 
 void clientlist_init()
 {
-	GtkTreeModel    *model;
-	GtkCellRenderer *renderer;
+	GtkTreeModel     *model;
+	GtkCellRenderer  *renderer;
+	extern GtkWidget *treeClients;
 
 	treeStore = gtk_list_store_new(1, G_TYPE_STRING);
 	model = GTK_TREE_MODEL(treeStore);

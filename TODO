@@ -1,5 +1,6 @@
 windows:
 	windows - unknown publisher - run don't run UAC
+	privmsg - show in new window OPTIONAL
 
 icon:
 	http://duckduckgo.com/?q=windows+c+compile+program+icon+resource
