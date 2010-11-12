@@ -2,6 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+# define SIZEOF_CAST "%d"
+#else
+# define SIZEOF_CAST "%ld"
+#endif
 
 #include "gtransfers.h"
 
@@ -50,7 +55,7 @@ void transfers_add(const char *title, const char *data)
 
 	t = malloc(sizeof(*t));
 	if(!t)
-		g_error("couldn't allocate %ld bytes", sizeof(*t));
+		g_error("couldn't allocate " SIZEOF_CAST " bytes", sizeof(*t));
 
 	t->fname = g_strdup(title);
 	t->data  = g_strdup(data);
