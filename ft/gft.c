@@ -148,20 +148,20 @@ on_btnListen_clicked(void)
 G_MODULE_EXPORT gboolean
 on_btnConnect_clicked(void)
 {
-	const char *hostret;
 	char *host, *port;
 
 	settimeout(0);
 
-	hostret = gtk_combo_box_get_active_text(GTK_COMBO_BOX(cboHost));
+	/* alloced */
+	host = gtk_combo_box_get_active_text(GTK_COMBO_BOX(cboHost));
 
-	if(!*hostret){
+	if(!host){
+		status("Couldn't get host");
+		return FALSE;
+	}else if(!*host){
 		status("Need host");
 		return FALSE;
 	}
-
-	host = alloca(strlen(hostret)+1);
-	strcpy(host, hostret);
 
 	cfg_add(host);
 
@@ -179,6 +179,8 @@ on_btnConnect_clicked(void)
 	}
 	URGENT(1);
 	cmds();
+
+	g_free(host);
 
 	return FALSE;
 }
@@ -216,45 +218,27 @@ G_MODULE_EXPORT gboolean
 on_treeTransfers_row_activated(GtkTreeView *tree_view,
 		GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data)
 {
-	const char *fpath;
-#ifdef SELECT_NAME
-	GtkTreeIter   iter;
-	GtkTreeModel *model;
-	char         *fname = NULL;
-
-	if(gtk_tree_selection_get_selected(gtk_tree_view_get_selection(tree_view), &model, &iter)){
-		gtk_tree_model_get(model, &iter, 0, &fname, -1);
-
-		if(fname){
-			fpath = transfers_get(fname);
-			if(fpath){
-				status("Path: %s", fpath);
-				shelldir(fpath);
-			}else
-				status("Couldn't get path for %s");
-
-			g_free(fname);
-		}else
-			status("Couldn't get filename!");
-	}
-#else
+	struct transfer *transfer;
 	gint *indices;
+
+	(void)tree_view;
+	(void)column;
+	(void)user_data;
 
 	indices = gtk_tree_path_get_indices(path);
 
-	fpath = transfers_get(*indices);
-	if(fpath){
-		status("Path: %s", fpath);
-		shelldir(fpath);
-	}else
-		status("Couldn't get path for %s");
+	if(indices){
+		transfer = transfers_get(*indices);
+		if(transfer){
+			if(transfer->is_recv)
+				status("Recieved %s", transfer->fname);
+			else
+				status("Sent %s", transfer->fname);
+			shelldir(transfer->path);
+		}else
+			status("Couldn't get path for %s");
+	}
 
-	(void)tree_view;
-#endif
-
-	(void)path;
-	(void)column;
-	(void)user_data;
 	return FALSE;
 }
 
@@ -392,6 +376,8 @@ const char *get_openfolder()
 			folder[len] = PATH_SEPERATOR;
 			folder[len+1] = '\0';
 		}
+
+		g_free(dname);
 		return folder;
 	}
 	return NULL;
@@ -457,7 +443,7 @@ int callback(struct filetransfer *ft, enum ftstate ftst,
 			else
 				status("Recieved %s", ft_basename(ft));
 			gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progressft), 1.0f);
-			transfers_add(ft_basename(ft), ft_fname(ft));
+			transfers_add(ft_basename(ft), ft_fname(ft), ftst == FT_RECIEVED);
 			break;
 
 		case FT_BEGIN_SEND:
@@ -570,7 +556,7 @@ static int getobjects(GtkBuilder *b)
 	GET_WIDGET(btnDirChoice);
 	GET_WIDGET(treeTransfers);
 
-	GET_WIDGET(hboxHost);
+	GET_WIDGET(hboxHost); /* FIXME: memleak? */
 	/* create one with text as the column stuff */
 	cboHost = gtk_combo_box_entry_new_text();
 	gtk_container_add(GTK_CONTAINER(hboxHost), cboHost);

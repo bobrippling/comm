@@ -12,13 +12,7 @@
 
 
 GtkListStore *treeStore = NULL;
-
-struct transfer
-{
-	char *fname, *data; // heap
-	struct transfer *next;
-} *transfers = NULL;
-
+struct transfer *transfers = NULL;
 
 void transfers_init(void)
 {
@@ -43,35 +37,47 @@ void transfers_init(void)
 	/* don't do this: g_object_unref(renderer);*/
 }
 
-void transfers_add(const char *title, const char *data)
+void transfers_add(const char *title,
+		const char *data, int is_recv)
 {
 	GtkTreeIter iter;
-	struct transfer *t;
+	struct transfer *t, *last;
+	char *tmp;
 
 	gtk_list_store_append(treeStore, &iter);
 
+	tmp = alloca(strlen(title) + 8); /* should be 7 but oh well */
+	strcpy(tmp, is_recv ? "Recv: " : "Sent: ");
+	strcat(tmp, title);
+
 	gtk_list_store_set(treeStore, &iter,
-			0, title, -1); /* FIXME: data */
+			0, tmp, -1);
 
 	t = malloc(sizeof(*t));
 	if(!t)
 		g_error("couldn't allocate " SIZEOF_CAST " bytes", sizeof(*t));
 
 	t->fname = g_strdup(title);
-	t->data  = g_strdup(data);
-	t->next = transfers;
-	transfers = t;
+	t->path  = g_strdup(data);
+	t->is_recv = is_recv;
+	t->next = NULL;
+
+	/* have to add to the end for transfers_get() */
+	if(!transfers)
+		transfers = t;
+	else{
+		for(last = transfers; last->next; last = last->next);
+		last->next = t;
+	}
 }
 
-const char *transfers_get(int n)
+struct transfer *transfers_get(int n)
 {
 	struct transfer *t;
 
 	for(t = transfers; n-- && t; t = t->next);
 
-	if(t)
-		return t->data;
-	return NULL;
+	return t;
 }
 
 void transfers_clear(void)
