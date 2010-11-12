@@ -40,21 +40,29 @@
 #include "gladegen.h"
 #include "libft/ft.h"
 #include "gcfg.h"
+#include "gtransfers.h"
 
 void cmds(void);
 void status(const char *, ...);
+void settimeout(int on);
+
+const char *get_openfolder(void);
+void shelldir(const char *d);
+
 int callback(struct filetransfer *ft, enum ftstate state,
 		size_t bytessent, size_t bytestotal);
 int queryback(struct filetransfer *ft,
 		const char *msg, ...);
-void settimeout(int on);
-const char *get_folder(void);
+char *fnameback(struct filetransfer *ft,
+		char *fname);
+
 
 GtkWidget *btnSend, *btnConnect, *btnListen, *btnClose;
 GtkWidget *btnFileChoice, *btnOpenFolder, *btnClearTransfers, *btnDirChoice;
 
 GtkWidget *progressft, *lblStatus;
 GtkWidget *cboHost;
+GtkWidget *treeTransfers;
 
 GtkWidget *winMain;
 
@@ -80,25 +88,14 @@ on_winMain_destroy(void)
 G_MODULE_EXPORT gboolean
 on_btnOpenFolder_clicked(void)
 {
-#ifdef _WIN32
-	HINSTANCE ret;
-	const char *folder = get_folder();
-
-	if(folder &&
-			(int)(ret =
-			 ShellExecute(NULL, "open", folder, NULL, NULL, SW_SHOW /* 5 */))
-			<= 32)
-		fprintf(stderr, "ShellExecute() failed: %d\n", ret);
-#else
-	fputs("TODO: btnOpenFolder()\n", stderr); /* TODO */
-#endif
+	shelldir(get_openfolder());
 	return FALSE;
 }
 
 G_MODULE_EXPORT gboolean
 btnClearTransfers_clicked(void)
 {
-	fputs("TODO: btnClearTransfers()\n", stderr); /* TODO */
+	transfers_clear();
 	return FALSE;
 }
 
@@ -216,6 +213,52 @@ on_btnSend_clicked(void)
 }
 
 G_MODULE_EXPORT gboolean
+on_treeTransfers_row_activated(GtkTreeView *tree_view,
+		GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data)
+{
+	const char *fpath;
+#ifdef SELECT_NAME
+	GtkTreeIter   iter;
+	GtkTreeModel *model;
+	char         *fname = NULL;
+
+	if(gtk_tree_selection_get_selected(gtk_tree_view_get_selection(tree_view), &model, &iter)){
+		gtk_tree_model_get(model, &iter, 0, &fname, -1);
+
+		if(fname){
+			fpath = transfers_get(fname);
+			if(fpath){
+				status("Path: %s", fpath);
+				shelldir(fpath);
+			}else
+				status("Couldn't get path for %s");
+
+			g_free(fname);
+		}else
+			status("Couldn't get filename!");
+	}
+#else
+	gint *indices;
+
+	indices = gtk_tree_path_get_indices(path);
+
+	fpath = transfers_get(*indices);
+	if(fpath){
+		status("Path: %s", fpath);
+		shelldir(fpath);
+	}else
+		status("Couldn't get path for %s");
+
+	(void)tree_view;
+#endif
+
+	(void)path;
+	(void)column;
+	(void)user_data;
+	return FALSE;
+}
+
+G_MODULE_EXPORT gboolean
 timeout(gpointer data)
 {
 	(void)data;
@@ -229,7 +272,7 @@ timeout(gpointer data)
 				 * no need for this - set in the callback straight away
 				 */
 
-				if(ft_recv(&ft, callback, queryback))
+				if(ft_recv(&ft, callback, queryback, fnameback))
 					status("Couldn't recieve file: %s", ft_lasterr(&ft));
 				/* else
 				 *   // can't do this here - displayed via callback instead
@@ -330,7 +373,7 @@ void cmds()
 		gtk_main_iteration();
 }
 
-const char *get_folder()
+const char *get_openfolder()
 {
 	static char folder[512];
 	char *dname;
@@ -351,7 +394,25 @@ const char *get_folder()
 		}
 		return folder;
 	}
-	return "./";
+	return NULL;
+}
+
+void shelldir(const char *d)
+{
+#ifdef _WIN32
+	HINSTANCE ret;
+
+	if(!d)
+		d = ".";
+
+	if(d &&
+			(int)(ret =
+			 ShellExecute(NULL, "open", d, NULL, NULL, SW_SHOW /* 5 */))
+			<= 32)
+		fprintf(stderr, "ShellExecute(\"%s\") failed: %d\n", d, ret);
+#else
+	fprintf(stderr, "TODO: btnOpenFolder(\"%s\")\n", d); /* TODO */
+#endif
 }
 
 void settimeout(int on)
@@ -364,6 +425,20 @@ void settimeout(int on)
 		g_source_remove(id);
 		id = -1;
 	}
+}
+
+char *fnameback(struct filetransfer *ft, char *fname)
+{
+	const char *folder = get_openfolder();
+
+	(void)ft;
+
+	if(!folder)
+		return fname;
+
+	return g_strdup_printf("%s%s%s", folder,
+			folder[strlen(folder)-1] == PATH_SEPERATOR ? "" : "/",
+			fname);
 }
 
 int callback(struct filetransfer *ft, enum ftstate ftst,
@@ -382,6 +457,7 @@ int callback(struct filetransfer *ft, enum ftstate ftst,
 			else
 				status("Recieved %s", ft_basename(ft));
 			gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progressft), 1.0f);
+			transfers_add(ft_basename(ft), ft_fname(ft));
 			break;
 
 		case FT_BEGIN_SEND:
@@ -492,7 +568,7 @@ static int getobjects(GtkBuilder *b)
 	GET_WIDGET(btnOpenFolder);
 	GET_WIDGET(btnClearTransfers);
 	GET_WIDGET(btnDirChoice);
-
+	GET_WIDGET(treeTransfers);
 
 	GET_WIDGET(hboxHost);
 	/* create one with text as the column stuff */
@@ -565,6 +641,7 @@ usage:
 	g_signal_connect(G_OBJECT(winMain), "destroy", G_CALLBACK(on_winMain_destroy), NULL);
 
 	cfg_read(cboHost);
+	transfers_init();
 	cmds();
 	gtk_widget_show(winMain);
 	gtk_main();

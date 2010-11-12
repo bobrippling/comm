@@ -84,6 +84,12 @@ int queryback(struct filetransfer *ft, const char *msg, ...)
 	return opt - '0';
 }
 
+char *fnameback(struct filetransfer *ft, char *name)
+{
+	(void)ft;
+	return name;
+}
+
 void clrtoeol()
 {
 	static const char esc[] = {
@@ -222,7 +228,7 @@ int main(int argc, char **argv)
 		if(verbose)
 			printf("%s: receiving incomming file\n", *argv);
 
-		if(ft_recv(&ft, callback, queryback)){
+		if(ft_recv(&ft, callback, queryback, fnameback)){
 			clrtoeol();
 			eprintf("ft_recv(): %s\n", ft_lasterr(&ft));
 			goto bail;

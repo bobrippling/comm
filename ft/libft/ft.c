@@ -258,11 +258,13 @@ enum ftret ft_accept(struct filetransfer *ft, const int block)
 
 static int ft_get_meta(struct filetransfer *ft,
 		char **basename, FILE **local, size_t *size,
-		ft_callback, ft_queryback);
+		ft_callback, ft_queryback,
+		ft_fnameback fnameback);
 
 static int ft_get_meta(struct filetransfer *ft,
 		char **basename, FILE **local, size_t *size,
-		ft_callback callback, ft_queryback queryback)
+		ft_callback callback, ft_queryback queryback,
+		ft_fnameback fnameback)
 {
 #define INVALID_MSG() \
 				do{\
@@ -357,6 +359,16 @@ static int ft_get_meta(struct filetransfer *ft,
 
 	if(!bufptr[1] || bufptr[1] == '\n'){
 		int resume = 0;
+		char *newfname = fnameback(ft, *basename);
+
+		if(!newfname){
+			free(*basename);
+			ft->lasterr = FT_ERR_CANCELLED;
+			return 1;
+		}else if(newfname != *basename){
+			free(*basename);
+			ft_fname(ft) = *basename = newfname;
+		}
 
 		if(access(*basename, W_OK | R_OK) == 0)
 			/* file exists - clobber/resume check */
@@ -448,7 +460,10 @@ static int ft_get_meta(struct filetransfer *ft,
 #undef INVALID_MSG
 }
 
-int ft_recv(struct filetransfer *ft, ft_callback callback, ft_queryback queryback)
+int ft_recv(struct filetransfer *ft,
+		ft_callback callback,
+		ft_queryback queryback,
+		ft_fnameback fnameback)
 {
 #define INVALID_MSG() \
 				do{\
@@ -469,8 +484,10 @@ int ft_recv(struct filetransfer *ft, ft_callback callback, ft_queryback querybac
 	ssize_t nread;
 
 	ft_fname(ft) = NULL;
-	if(ft_get_meta(ft, &basename, &local, &size, callback, queryback))
+	if(ft_get_meta(ft, &basename, &local, &size,
+				callback, queryback, fnameback))
 		RET(1);
+
 	ft_fname(ft) = basename;
 
 	callback_step = ft_getcallback_step(size);

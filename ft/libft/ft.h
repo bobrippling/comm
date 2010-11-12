@@ -26,6 +26,7 @@ enum ftret
 typedef int (*ft_callback)(struct filetransfer *, enum ftstate state,
 		size_t bytessent, size_t bytestotal);
 typedef int (*ft_queryback)(struct filetransfer *, const char *msg, ...);
+typedef char *(*ft_fnameback)(struct filetransfer *, char *);
 
 void ft_zero(struct filetransfer *);
 
@@ -36,7 +37,7 @@ int ft_close(  struct filetransfer *);
 enum ftret ft_accept(   struct filetransfer *, int block);
 enum ftret ft_poll_recv(struct filetransfer *);
 
-int ft_recv(     struct filetransfer *, ft_callback callback, ft_queryback);
+int ft_recv(     struct filetransfer *, ft_callback callback, ft_queryback, ft_fnameback);
 int ft_send(     struct filetransfer *, ft_callback callback, const char *fname);
 
 const char *ft_lasterr(   struct filetransfer *);

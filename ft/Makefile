@@ -15,14 +15,11 @@ tft: tft.o libft/ft.o
 	@echo LD $@
 	$Q${CC} -o $@ $^ ${LDFLAGS}
 
-gft: gft.o libft/ft.o gladegen.o gcfg.o
+gft: gft.o libft/ft.o gladegen.o gcfg.o gtransfers.o
 	@echo LD $@
 	$Q${CC} -o $@ $^ ${LDFLAGS_G}
 
-gft.o: gft.c
-	@echo CC_GTK $@
-	$Q${CC} ${CFLAGS_G} -c -o $@ $<
-gcfg.o: gcfg.c
+g%.o: g%.c
 	@echo CC_GTK $@
 	$Q${CC} ${CFLAGS_G} -c -o $@ $<
 
@@ -35,7 +32,8 @@ clean:
 
 include ../config.mk
 
-gft.o: gft.c libft/ft.h gladegen.h
+gcfg.o: gcfg.c gcfg.h ../config.h
+gft.o: gft.c ../config.h gladegen.h libft/ft.h gcfg.h gtransfers.h
 gladegen.o: gladegen.c gladegen.h
+gtransfers.o: gtransfers.c gtransfers.h
 tft.o: tft.c libft/ft.h
-libft/ft.o: libft/ft.c libft/ft.h
