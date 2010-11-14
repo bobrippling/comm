@@ -10,7 +10,8 @@ guicomm: ${GUI_DEPS}
 	$Q${CC} ${LDFLAGS} -o $@ $^
 
 comm.exe: ${GUI_DEPS} ../common/sockprintf.o comm.res
-	${CC} ${CFLAGS} -o $@ $^ ${LDFLAGS} -lws2_32 -lole32
+	@echo LD $@
+	@${CC} ${CFLAGS} -o $@ $^ ${LDFLAGS} -lws2_32 -lole32
 
 clean: mostlyclean
 	$Qrm -f guicomm comm.exe gladegen.c
