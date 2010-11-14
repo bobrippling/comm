@@ -24,6 +24,13 @@
 		cmds(); \
 	}while(0)
 
+#define STAY_OPEN() \
+	do{ \
+		gstate = STATE_CONNECTED; \
+		cmds(); \
+		settimeout(1); \
+	}while(0)
+
 #define URGENT(b) \
 	do \
 			if(!gtk_window_is_active(GTK_WINDOW(winMain))) \
@@ -205,11 +212,13 @@ on_btnSend_clicked(void)
 
 	lastfraction = 0;
 
-	if(ft_send(&ft, callback, fname))
+	if(ft_send(&ft, callback, fname)){
 		status("Couldn't send %s: %s", basename, ft_lasterr(&ft));
-	else
+		CLOSE();
+	}else{
 		status("Sent %s", basename);
-	CLOSE();
+		STAY_OPEN();
+	}
 
 	return FALSE;
 }
@@ -256,13 +265,16 @@ timeout(gpointer data)
 				 * no need for this - set in the callback straight away
 				 */
 
-				if(ft_recv(&ft, callback, queryback, fnameback))
+				if(ft_recv(&ft, callback, queryback, fnameback)){
 					status("Couldn't recieve file: %s", ft_lasterr(&ft));
-				/* else
-				 *   // can't do this here - displayed via callback instead
-				 *   status("Recieved %s", ft_truncname(&ft, 32));
-				 */
-				CLOSE();
+					CLOSE();
+				}else{
+					/*
+					 * status("Recieved %s", ft_truncname(&ft, 32));
+					 * don't do ^ here, it's done in the callback
+					 */
+					STAY_OPEN();
+				}
 				return FALSE; /* kill timer */
 
 			case FT_ERR:
