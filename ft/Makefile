@@ -3,7 +3,8 @@ GTKINC     = gtk+-2.0 gmodule-2.0
 CFLAGS    += -Wall -Wextra -pedantic -std=c99
 
 ifeq ($(shell uname -o),Msys)
-LDFLAGS += -lws2_32
+GFT_DEPS +=  gft.res
+LDFLAGS  += -lws2_32
 endif
 
 CFLAGS_G  += ${CFLAGS}  `pkg-config --cflags ${GTKINC}`
@@ -15,7 +16,7 @@ tft: tft.o libft/ft.o
 	@echo LD $@
 	$Q${CC} -o $@ $^ ${LDFLAGS}
 
-gft: gft.o libft/ft.o gladegen.o gcfg.o gtransfers.o
+gft: gft.o libft/ft.o gladegen.o gcfg.o gtransfers.o ${GFT_DEPS}
 	@echo LD $@
 	$Q${CC} -o $@ $^ ${LDFLAGS_G}
 

@@ -9,8 +9,7 @@ guicomm: ${GUI_DEPS}
 	@echo LD $@
 	$Q${CC} ${LDFLAGS} -o $@ $^
 
-comm.exe: ${GUI_DEPS} ../common/sockprintf.o
-	@#${CC} ${CFLAGS} -o $@ $^ ${LDFLAGS} -LC:/MinGW/lib
+comm.exe: ${GUI_DEPS} ../common/sockprintf.o comm.res
 	${CC} ${CFLAGS} -o $@ $^ ${LDFLAGS} -lws2_32 -lole32
 
 clean: mostlyclean

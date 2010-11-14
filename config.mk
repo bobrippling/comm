@@ -23,6 +23,10 @@ Q         = @
 	@echo CC $<
 	$Q${CC} -c ${CFLAGS} -o $@ $<
 
+%.res: %.rc ../icons/%.ico
+	@echo RC $^
+	@windres -O coff -o $@ $<
+
 mostlyclean:
 	$Qrm -f *.o
 
