@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 200809
+#define _POSIX_C_SOURCE 200809L
 #include <gtk/gtk.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,7 +7,7 @@
 #include "gcfg.h"
 #include "../config.h"
 
-#ifdef _WIN32
+#ifndef strdup
 char *strdup(const char *);
 #endif
 
