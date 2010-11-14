@@ -7,7 +7,7 @@
 #include "gcfg.h"
 #include "../config.h"
 
-#ifdef _WIN32
+#ifndef strdup
 char *strdup(const char *);
 #endif
 
