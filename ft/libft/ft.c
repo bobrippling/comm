@@ -590,7 +590,7 @@ ret:
 #undef INVALID_MSG
 }
 
-enum ftret ft_poll_recv(struct filetransfer *ft)
+enum ftret ft_poll_recv_or_close(struct filetransfer *ft)
 {
 	struct timeval tv;
 	fd_set fds;
@@ -922,4 +922,14 @@ const char *ft_remoteaddr(struct filetransfer *ft)
 			0 /* flags */))
 		return NULL;
 	return buf;
+}
+
+int ft_poll_connected(struct filetransfer *ft)
+{
+	char dummy;
+
+	if(recv(ft->sock, &dummy, sizeof dummy, MSG_PEEK) == 0)
+		return 0;
+
+	return 1;
 }

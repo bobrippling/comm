@@ -35,7 +35,7 @@ int ft_listen( struct filetransfer *, int port);
 int ft_close(  struct filetransfer *);
 
 enum ftret ft_accept(   struct filetransfer *, int block);
-enum ftret ft_poll_recv(struct filetransfer *);
+enum ftret ft_poll_recv_or_close(struct filetransfer *);
 
 int ft_recv(     struct filetransfer *, ft_callback callback, ft_queryback, ft_fnameback);
 int ft_send(     struct filetransfer *, ft_callback callback, const char *fname);
@@ -43,6 +43,8 @@ int ft_send(     struct filetransfer *, ft_callback callback, const char *fname)
 const char *ft_lasterr(   struct filetransfer *);
 const char *ft_basename(  struct filetransfer *);
 const char *ft_remoteaddr(struct filetransfer *);
+
+int         ft_poll_connected( struct filetransfer *);
 
 #define ft_fname(ft)     ((ft)->fname)
 #define ft_connected(ft) ((ft)->connected)
