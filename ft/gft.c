@@ -144,7 +144,7 @@ on_btnListen_clicked(void)
 		port++;
 
 	if(sscanf(port, "%d", &iport) != 1)
-		status("Invalid port number");
+		status("Port _number_ ya fool...");
 	else{
 		if(ft_listen(&ft, iport)){
 			status("Couldn't listen: %s", ft_lasterr(&ft));
@@ -175,7 +175,7 @@ on_btnConnect_clicked(void)
 		status("Couldn't get host");
 		return FALSE;
 	}else if(!*host){
-		status("Need host");
+		status("To where am I to connect? Timbuktu?");
 		return FALSE;
 	}
 
@@ -208,7 +208,7 @@ on_btnDequeue_clicked(void)
 	char *sel = glist_selected(GTK_TREE_VIEW(treeTransfers));
 
 	if(!sel){
-		status("Select a queue'd file");
+		status("Uh... select a queue'd file if you please");
 		return FALSE;
 	}
 
@@ -230,7 +230,7 @@ on_btnQueue_clicked(void)
 	const char *fname = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(btnFileChoice));
 
 	if(!fname){
-		status("Need file to queue");
+		status("Need file to queue ya crazy man");
 		return FALSE;
 	}
 
@@ -246,6 +246,11 @@ G_MODULE_EXPORT gboolean
 on_btnSend_clicked(void)
 {
 	char *item;
+
+	if(!ft_connected(&ft)){
+		status("Not connected ya fool!");
+		return FALSE;
+	}
 
 	settimeout(0);
 	lastfraction = 0;
@@ -373,8 +378,6 @@ int on_winMain_focus_in_event(void)
 
 void cmds()
 {
-	gtk_widget_set_sensitive(btnSend, FALSE);
-
 	switch(gstate){
 		case STATE_DISCO:
 			gtk_widget_set_sensitive(cboHost,        TRUE);
@@ -684,6 +687,7 @@ usage:
 
 	cfg_read(cboHost);
 	transfers_init(&listDone, treeDone);
+	gtk_widget_set_sensitive(btnSend, FALSE);
 	cmds();
 	gtk_widget_show(winMain);
 	gtk_main();
