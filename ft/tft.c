@@ -258,7 +258,7 @@ int main(int argc, char **argv)
 						tv.tv_sec = 0;
 						tv.tv_usec = 250000; /* 1/4 sec */
 						select(0, NULL, NULL, NULL, &tv);
-						break;
+						continue;
 					}
 				}
 

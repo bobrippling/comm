@@ -218,6 +218,9 @@ on_btnDequeue_clicked(void)
 	/* internal linked list */
 	queue_rem(&file_queue, sel);
 
+	if(queue_len(file_queue) == 0)
+		gtk_widget_set_sensitive(btnSend, FALSE);
+
 	return FALSE;
 }
 
@@ -233,6 +236,8 @@ on_btnQueue_clicked(void)
 
 	glist_add(listTransfers, fname);
 	queue_add(&file_queue,    fname);
+
+	gtk_widget_set_sensitive(btnSend, TRUE);
 
 	return FALSE;
 }
@@ -262,6 +267,8 @@ on_btnSend_clicked(void)
 			STAY_OPEN();
 		}
 	}
+
+	gtk_widget_set_sensitive(btnSend, FALSE);
 
 	return FALSE;
 }
@@ -366,45 +373,35 @@ int on_winMain_focus_in_event(void)
 
 void cmds()
 {
+	gtk_widget_set_sensitive(btnSend, FALSE);
+
 	switch(gstate){
 		case STATE_DISCO:
 			gtk_widget_set_sensitive(cboHost,        TRUE);
 			gtk_widget_set_sensitive(btnConnect,     TRUE);
 			gtk_widget_set_sensitive(btnListen,      TRUE);
-			gtk_widget_set_sensitive(btnFileChoice,  TRUE);
-			gtk_widget_set_sensitive(btnSend,        FALSE);
-			gtk_widget_set_sensitive(btnClose,      FALSE);
-			gtk_widget_set_sensitive(btnFileChoice,  TRUE);
+			gtk_widget_set_sensitive(btnClose,       FALSE);
 			break;
 
 		case STATE_CONNECTED:
 			gtk_widget_set_sensitive(cboHost,        FALSE);
 			gtk_widget_set_sensitive(btnConnect,     FALSE);
 			gtk_widget_set_sensitive(btnListen,      FALSE);
-			gtk_widget_set_sensitive(btnFileChoice,  TRUE);
-			gtk_widget_set_sensitive(btnSend,        TRUE);
-			gtk_widget_set_sensitive(btnClose,      TRUE);
-			gtk_widget_set_sensitive(btnFileChoice,  TRUE);
+			gtk_widget_set_sensitive(btnClose,       TRUE);
 			break;
 
 		case STATE_LISTEN:
 			gtk_widget_set_sensitive(cboHost,        FALSE);
 			gtk_widget_set_sensitive(btnConnect,     FALSE);
 			gtk_widget_set_sensitive(btnListen,      FALSE);
-			gtk_widget_set_sensitive(btnFileChoice,  FALSE);
-			gtk_widget_set_sensitive(btnSend,        FALSE);
-			gtk_widget_set_sensitive(btnClose,      TRUE);
-			gtk_widget_set_sensitive(btnFileChoice,  TRUE);
+			gtk_widget_set_sensitive(btnClose,       TRUE);
 			break;
 
 		case STATE_TRANSFER:
 			gtk_widget_set_sensitive(cboHost,        FALSE);
 			gtk_widget_set_sensitive(btnConnect,     FALSE);
 			gtk_widget_set_sensitive(btnListen,      FALSE);
-			gtk_widget_set_sensitive(btnFileChoice,  FALSE);
-			gtk_widget_set_sensitive(btnSend,        FALSE);
-			gtk_widget_set_sensitive(btnClose,      TRUE);
-			gtk_widget_set_sensitive(btnFileChoice,  FALSE);
+			gtk_widget_set_sensitive(btnClose,       TRUE);
 			break;
 	}
 
