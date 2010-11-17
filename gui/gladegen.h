@@ -1,7 +1,7 @@
 #ifndef GLADEGEN_H
 #define GLADEGEN_H
 
-#define COMM_GLADE "glade.xml"
+#define GLADE_XML_FILE "glade.xml"
 
 int  gladegen_init(void);
 void gladegen_term(void);

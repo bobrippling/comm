@@ -23,6 +23,7 @@
 #include "../log/log.h"
 #include "../cfg/cfg.h"
 #include "../libcomm/comm.h"
+#include "priv.h"
 #include "../config.h"
 
 #define WIN_MAIN   "winMain"
@@ -55,16 +56,17 @@ G_MODULE_EXPORT gboolean timeout                      (gpointer data);
 
 
 /* vars */
-GtkWidget *winMain, *colorseldiag;
-GtkWidget *entryHost, *entryIn, *entryName; /* Gtk_Entry */
+static GtkWidget *winMain, *colorseldiag;
+static GtkWidget *entryHost, *entryIn, *entryName; /* Gtk_Entry */
+static GtkWidget *btnConnect, *btnDisconnect, *btnSend;
+static GtkWidget *colorsel;
+
+static comm_t   commt;
+static GdkColor var_color;
+
+/* extern'd */
 GtkWidget *txtMain; /* GtkTextView */
-GtkWidget *btnConnect, *btnDisconnect, *btnSend;
 GtkWidget *treeClients;
-GtkWidget *colorsel;
-
-comm_t   commt;
-
-GdkColor var_color;
 
 
 /* events */
@@ -477,7 +479,7 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 	else
 		insertme = g_strconcat(insertmel, "\n", NULL);
 
-	if(type == COMM_MSG){
+	if(type == COMM_MSG || type == COMM_PRIVMSG){
 		char *colon = strchr(insertmel, ':');
 		if(colon){
 			*colon = '\0';
@@ -487,12 +489,18 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 			*colon = ':';
 		}
 	}
+
 	if(!col)
 		col = COLOUR_UNKNOWN;
-	addtext(col, insertme);
 
-	if(logadd)
-		log_add(insertmel);
+	if(type == COMM_PRIVMSG && config_priv_win){
+		struct privchat *p = pri // TODO
+	}else{
+		addtext(col, insertme);
+
+		if(logadd)
+			log_add(insertmel);
+	}
 
 	g_free(insertme);
 	g_free(insertmel);
@@ -571,6 +579,7 @@ static int getobjects(GtkBuilder *b)
 		fputs("Error: Couldn't get Gtk Widget \"" #x "\", bailing\n", stderr); \
 		return 1; \
 	}
+
 	/*(GtkWidget *)g_object_get_data(G_OBJECT(winMain), "entryIn");*/
 	GET_WIDGET(entryHost);
 	GET_WIDGET(entryIn);
@@ -685,7 +694,7 @@ int main(int argc, char **argv)
 	if(gladegen_init())
 		return 1;
 
-	if(!gtk_builder_add_from_file(builder, COMM_GLADE, &error)){
+	if(!gtk_builder_add_from_file(builder, GLADE_XML_FILE, &error)){
 		g_warning("%s", error->message);
 		/*g_free(error);*/
 		return 1;
