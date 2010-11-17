@@ -2,7 +2,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <sys/select.h>
+#ifdef _WIN32
+# include <winsock2.h>
+/* wtf */
+#else
+# include <sys/select.h>
+#endif
 
 #include "libft/ft.h"
 

@@ -14,7 +14,8 @@ static struct queue *queue_new(const char *item)
 {
 	struct queue *q = malloc(sizeof *q);
 	if(!q)
-		g_error("couldn't allocate %ld bytes", sizeof *q);
+		g_error("couldn't allocate %ld bytes",
+				(unsigned long)sizeof *q);
 
 	q->item = g_strdup(item);
 	q->next = NULL;
