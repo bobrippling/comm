@@ -37,7 +37,7 @@ Client -> Server:
 			server replies with ERR if unsuccessful
 			(otherwise RENAME %s %s is sent)
 	SU %s
-		_request_ root-control of server with md5'd password
+		_request_ root-control of server with password %s
 			if unsuccessful, an ERR message is returned
 			otherwise, the server may optionally send an
 			informational message (INFO)
