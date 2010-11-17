@@ -355,11 +355,12 @@
                           <object class="GtkLabel" id="lblStatus">
                             <property name="visible">True</property>
                             <property name="label" translatable="yes">Not much going on...</property>
-                            <property name="justify">center</property>
+                            <property name="justify">fill</property>
                             <property name="wrap">True</property>
-                            <property name="ellipsize">end</property>
+                            <property name="wrap_mode">word-char</property>
                           </object>
                           <packing>
+                            <property name="padding">2</property>
                             <property name="position">0</property>
                           </packing>
                         </child>
