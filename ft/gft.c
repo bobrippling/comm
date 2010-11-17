@@ -312,13 +312,20 @@ timeout(gpointer data)
 	(void)data;
 
 	if(gstate == STATE_CONNECTED){
-		switch(ft_poll_recv(&ft)){
+		switch(ft_poll_recv_or_close(&ft)){
 			case FT_YES:
 				/*
 				 * state = STATE_TRANSFER;
 				 * cmds();
 				 * no need for this - set in the callback straight away
 				 */
+
+				if(!ft_poll_connected(&ft)){
+					/* connection closed */
+					status("Connection closed");
+					CLOSE();
+					return FALSE; /* timer death */
+				}
 
 				if(ft_recv(&ft, callback, queryback, fnameback)){
 					status("Couldn't recieve file: %s", ft_lasterr(&ft));

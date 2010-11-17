@@ -129,7 +129,10 @@ int eprintf(const char *fmt, ...)
 int main(int argc, char **argv)
 {
 	int i, listen = 0, verbose = 0, stay_up = 0;
-	const char *fname = NULL, *host  = NULL, *port = FT_DEFAULT_PORT;
+	const char *port = FT_DEFAULT_PORT;
+	int fname_idx, host_idx;
+
+	fname_idx = host_idx = -1;
 
 #ifdef _WIN32
 	strncpy(__progname, *argv, sizeof __progname);
@@ -155,13 +158,14 @@ int main(int argc, char **argv)
 			clobber_mode = RESUME;
 		else if(ARG("O"))
 			stay_up = 1;
-		else if(!host)
-			host = argv[i];
-		else if(!fname)
-			fname = argv[i];
-		else{
+		else if(host_idx < 0)
+			host_idx = i;
+		else if(fname_idx < 0){
+			fname_idx = i;
+			break;
+		}else{
 		usage:
-			eprintf("Usage: %s [-p port] [OPTS] [-l | host] [file]\n"
+			eprintf("Usage: %s [-p port] [OPTS] [-l | host] [files...]\n"
 							"  -l: listen\n"
 							"  -O: remain running at the end of a transfer\n"
 							" If file exists:\n"
@@ -177,13 +181,17 @@ int main(int argc, char **argv)
 	if(listen){
 		int iport;
 
-		if(host && fname) /* no need to check file */
-			goto usage;
-		else if(host){
-			fname = host;
-			host = NULL;
+		if(host_idx > 0){
+			if(fname_idx > 0)
+				goto usage;
+
+			/* host idx given, but we're listening, assume it's a file */
+			fname_idx = host_idx;
+			host_idx = -1;
+
 			if(verbose)
-				printf("%s: serving %s...\n", *argv, fname);
+				printf("%s: serving file(s)...\n", *argv);
+
 		}else if(verbose)
 			printf("%s: listening for incomming files...", *argv);
 
@@ -210,7 +218,11 @@ int main(int argc, char **argv)
 				break; /* accepted */
 		}
 	}else{
-		if(!host)
+		char *host = NULL;
+
+		if(host_idx > 0)
+			host = argv[host_idx];
+		else
 			goto usage;
 
 		if(verbose)
@@ -225,7 +237,12 @@ int main(int argc, char **argv)
 
 
 	do{
-		if(fname){
+		if(fname_idx > 0){
+			char *fname = argv[fname_idx];
+
+			if(++fname_idx == argc)
+				fname_idx = -1;
+
 			if(verbose)
 				printf("sending %s\n", fname);
 
@@ -234,8 +251,6 @@ int main(int argc, char **argv)
 				eprintf("ft_send(): %s\n", ft_lasterr(&ft));
 				goto bail;
 			}
-			fname = NULL; /* don't send twice (stay_up) */
-
 		}else{
 			int lewp = 1;
 
@@ -243,7 +258,7 @@ int main(int argc, char **argv)
 				printf("%s: waiting for incomming file\n", *argv);
 
 			while(lewp)
-				switch(ft_poll_recv(&ft)){
+				switch(ft_poll_recv_or_close(&ft)){
 					case FT_ERR:
 						eprintf("ft_poll_recv(): %s\n", ft_lasterr(&ft));
 						goto bail;
@@ -262,13 +277,20 @@ int main(int argc, char **argv)
 					}
 				}
 
-			if(ft_recv(&ft, callback, queryback, fnameback)){
-				clrtoeol();
-				eprintf("ft_recv(): %s\n", ft_lasterr(&ft));
-				goto bail;
-			}
+			if(ft_poll_connected(&ft)){
+				if(verbose)
+					printf("%s: receiving file\n", *argv);
+
+				if(ft_recv(&ft, callback, queryback, fnameback)){
+					clrtoeol();
+					eprintf("ft_recv(): %s\n", ft_lasterr(&ft));
+					goto bail;
+				}
+			}else
+				/* connection closed properly */
+				break;
 		}
-	}while(stay_up);
+	}while(stay_up || fname_idx > 0);
 
 	ft_close(&ft);
 
