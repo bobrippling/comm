@@ -122,14 +122,14 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkTreeView" id="treeTransfers">
+                  <object class="GtkTreeView" id="treeDone">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="reorderable">True</property>
                     <property name="fixed_height_mode">True</property>
                     <property name="rubber_banding">True</property>
                     <property name="enable_grid_lines">horizontal</property>
-                    <signal name="row_activated" handler="on_treeTransfers_row_activated"/>
+                    <signal name="row_activated" handler="on_treeDoneTransfers_row_activated"/>
                   </object>
                   <packing>
                     <property name="padding">3</property>
@@ -261,25 +261,72 @@
                     <property name="visible">True</property>
                     <property name="orientation">vertical</property>
                     <child>
-                      <object class="GtkHBox" id="hboxFile">
+                      <object class="GtkVBox" id="vboxFile">
                         <property name="visible">True</property>
+                        <property name="orientation">vertical</property>
                         <child>
-                          <object class="GtkLabel" id="lblFile">
+                          <object class="GtkHBox" id="hboxFile">
                             <property name="visible">True</property>
-                            <property name="label" translatable="yes">File:</property>
+                            <child>
+                              <object class="GtkLabel" id="lblFile">
+                                <property name="visible">True</property>
+                                <property name="label" translatable="yes">File:</property>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="padding">4</property>
+                                <property name="position">0</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkFileChooserButton" id="btnFileChoice">
+                                <property name="visible">True</property>
+                                <property name="title" translatable="yes">File to Send</property>
+                              </object>
+                              <packing>
+                                <property name="position">1</property>
+                              </packing>
+                            </child>
                           </object>
                           <packing>
                             <property name="expand">False</property>
-                            <property name="padding">4</property>
                             <property name="position">0</property>
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkFileChooserButton" id="btnFileChoice">
+                          <object class="GtkHBox" id="hboxQueue">
                             <property name="visible">True</property>
-                            <property name="title" translatable="yes">File to Send</property>
+                            <property name="homogeneous">True</property>
+                            <child>
+                              <object class="GtkButton" id="btnQueue">
+                                <property name="label" translatable="yes">Queue</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">True</property>
+                                <property name="border_width">3</property>
+                                <signal name="clicked" handler="on_btnQueue_clicked"/>
+                              </object>
+                              <packing>
+                                <property name="position">0</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkButton" id="btnDequeue">
+                                <property name="label" translatable="yes">Dequeue</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">True</property>
+                                <property name="border_width">3</property>
+                                <signal name="clicked" handler="on_btnDequeue_clicked"/>
+                              </object>
+                              <packing>
+                                <property name="position">1</property>
+                              </packing>
+                            </child>
                           </object>
                           <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">False</property>
                             <property name="position">1</property>
                           </packing>
                         </child>
@@ -287,6 +334,17 @@
                       <packing>
                         <property name="expand">False</property>
                         <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkTreeView" id="treeTransfers">
+                        <property name="height_request">100</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="headers_visible">False</property>
+                      </object>
+                      <packing>
+                        <property name="position">1</property>
                       </packing>
                     </child>
                     <child>
@@ -318,7 +376,7 @@
                       </object>
                       <packing>
                         <property name="fill">False</property>
-                        <property name="position">1</property>
+                        <property name="position">2</property>
                       </packing>
                     </child>
                     <child>
@@ -339,7 +397,7 @@
                       <packing>
                         <property name="expand">False</property>
                         <property name="fill">False</property>
-                        <property name="position">2</property>
+                        <property name="position">3</property>
                       </packing>
                     </child>
                   </object>

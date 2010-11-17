@@ -8,8 +8,10 @@ struct transfer
 	struct transfer *next;
 };
 
-void transfers_init(void);
-void transfers_add(const char *title, const char *data, int recv);
+void transfers_init(GtkListStore **liststore, GtkWidget *treeWidget);
+
+void transfers_add(GtkListStore *liststore, const char *title, const char *data, int recv);
+
 struct transfer *transfers_get(int row);
 void transfers_clear(void);
 

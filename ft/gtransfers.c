@@ -6,47 +6,44 @@
 
 #include "gtransfers.h"
 
-
-GtkListStore *treeStore = NULL;
 struct transfer *transfers = NULL;
 
-void transfers_init(void)
+void transfers_init(GtkListStore **listStore, GtkWidget *treeWidget)
 {
-	extern GtkWidget *treeTransfers;
 	GtkTreeModel    *model;
 	GtkCellRenderer *renderer;
 
-	treeStore = gtk_list_store_new(1, G_TYPE_STRING);
-	model = GTK_TREE_MODEL(treeStore);
+	*listStore = gtk_list_store_new(1, G_TYPE_STRING);
+	model = GTK_TREE_MODEL(*listStore);
 
 	/* Name column */
 	renderer = gtk_cell_renderer_text_new();
-	gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(treeTransfers),
+	gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(treeWidget),
 			-1,
 			"File", renderer,
 			"text", 0 /* column index */,
 			NULL);
 
-	gtk_tree_view_set_model(GTK_TREE_VIEW(treeTransfers), model);
+	gtk_tree_view_set_model(GTK_TREE_VIEW(treeWidget), model);
 
 	g_object_unref(model);
 	/* don't do this: g_object_unref(renderer);*/
 }
 
-void transfers_add(const char *title,
+void transfers_add(GtkListStore *liststore, const char *title,
 		const char *data, int is_recv)
 {
 	GtkTreeIter iter;
 	struct transfer *t, *last;
 	char *tmp;
 
-	gtk_list_store_append(treeStore, &iter);
+	gtk_list_store_append(liststore, &iter);
 
 	tmp = alloca(strlen(title) + 8); /* should be 7 but oh well */
 	strcpy(tmp, is_recv ? "Recv: " : "Sent: ");
 	strcat(tmp, title);
 
-	gtk_list_store_set(treeStore, &iter,
+	gtk_list_store_set(liststore, &iter,
 			0, tmp, -1);
 
 	t = malloc(sizeof(*t));
@@ -75,9 +72,3 @@ struct transfer *transfers_get(int n)
 
 	return t;
 }
-
-void transfers_clear(void)
-{
-	gtk_list_store_clear(treeStore);
-}
-

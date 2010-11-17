@@ -23,7 +23,6 @@ static void insert_with_links(GtkTextBuffer *buffa, GtkTextIter *iter, const cha
 
 /* funcs */
 extern GtkWidget    *txtMain;
-static GtkListStore *treeStore;
 
 static void addtag(const char *name, const char *col)
 {
@@ -220,49 +219,6 @@ void addtextf(const char *col, const char *fmt, ...)
 	va_start(l, fmt);
 	addtextl(col, fmt, l);
 	va_end(l);
-}
-
-/*
- * list business
- * http://scentric.net/tutorial/sec-treemodel-rowref.html
- */
-
-void clientlist_init()
-{
-	GtkTreeModel     *model;
-	GtkCellRenderer  *renderer;
-	extern GtkWidget *treeClients;
-
-	treeStore = gtk_list_store_new(1, G_TYPE_STRING);
-	model = GTK_TREE_MODEL(treeStore);
-
-	/* Name column */
-	renderer = gtk_cell_renderer_text_new();
-	gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(treeClients),
-			-1,
-			"Name", renderer,
-			"text", 0 /* column index */,
-			NULL);
-
-	gtk_tree_view_set_model(GTK_TREE_VIEW(treeClients), model);
-
-	g_object_unref(model);
-	/* don't do this: g_object_unref(renderer);*/
-}
-
-void clientlist_add(const char *name)
-{
-	GtkTreeIter iter;
-
-	gtk_list_store_append(treeStore, &iter);
-
-	gtk_list_store_set(treeStore, &iter,
-			0, name, -1);
-}
-
-void clientlist_clear()
-{
-	gtk_list_store_clear(treeStore);
 }
 
 /* GtkTextTagTableForeach */

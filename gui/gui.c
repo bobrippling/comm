@@ -23,13 +23,13 @@
 #include "../log/log.h"
 #include "../cfg/cfg.h"
 #include "../libcomm/comm.h"
+#include "../common/glist.h"
 #include "priv.h"
 #include "../config.h"
 
 #define WIN_MAIN   "winMain"
 #define TIMEOUT    250
 
-/* On the TODO */
 #define COLOUR_UNKNOWN "#000000"
 #define COLOUR_ERR     "#FF0000"
 #define COLOUR_INFO    "#00DD00"
@@ -64,9 +64,11 @@ static GtkWidget *colorsel;
 static comm_t   commt;
 static GdkColor var_color;
 
+static GtkListStore *clientlist = NULL;
+static GtkWidget *treeClients;
+
 /* extern'd */
 GtkWidget *txtMain; /* GtkTextView */
-GtkWidget *treeClients;
 
 
 /* events */
@@ -432,7 +434,7 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 			switch(comm_state(&commt)){
 				case COMM_DISCONNECTED:
 					updatewidgets();
-					clientlist_clear();
+					glist_clear(clientlist);
 					break;
 
 				case COMM_ACCEPTED:
@@ -450,9 +452,9 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 		case COMM_CLIENT_LIST:
 		{
 			struct list *l;
-			clientlist_clear();
+			glist_clear(clientlist);
 			for(l = comm_clientlist(&commt); l; l = l->next)
-				clientlist_add(l->name);
+				glist_add(clientlist, l->name);
 			return;
 		}
 
@@ -493,14 +495,14 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 	if(!col)
 		col = COLOUR_UNKNOWN;
 
-	if(type == COMM_PRIVMSG && config_priv_win){
-		struct privchat *p = pri // TODO
-	}else{
+	/*if(type == COMM_PRIVMSG && config_priv_win){
+		struct privchat *p = pri;// TODO
+	}else{*/
 		addtext(col, insertme);
 
 		if(logadd)
 			log_add(insertmel);
-	}
+	//}
 
 	g_free(insertme);
 	g_free(insertmel);
@@ -706,7 +708,7 @@ int main(int argc, char **argv)
 
 	gtk_builder_connect_signals(builder, NULL);
 
-	clientlist_init();
+	glist_init(&clientlist, treeClients);
 
 	/* don't need it anymore */
 	g_object_unref(G_OBJECT(builder));

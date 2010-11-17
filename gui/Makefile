@@ -3,7 +3,7 @@ CFLAGS  += `pkg-config --cflags ${GTKINC}`
 LDFLAGS += `pkg-config --libs   ${GTKINC}`
 
 GUI_DEPS = gui.o gtkutil.o gladegen.o ../log/log.o \
-					 ../cfg/cfg.o ../libcomm/libcomm.a
+					 ../cfg/cfg.o ../libcomm/libcomm.a ../common/glist.o
 
 guicomm: ${GUI_DEPS}
 	@echo LD $@
@@ -21,8 +21,7 @@ gladegen.c: glade/comm.glade glade/col.glade
 include ../config.mk
 
 gladegen.o: gladegen.c gladegen.h
-gladegen_post.o: gladegen_post.c
-gladegen_pre.o: gladegen_pre.c gladegen.h
 gtkutil.o: gtkutil.c gtkutil.h
 gui.o: gui.c gtkutil.h gladegen.h ../log/log.h ../cfg/cfg.h \
- ../libcomm/comm.h ../config.h
+ ../libcomm/comm.h ../common/glist.h priv.h ../config.h
+priv.o: priv.c priv.h

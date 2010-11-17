@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <sys/select.h>
 
 #include "libft/ft.h"
 
@@ -122,7 +123,7 @@ int eprintf(const char *fmt, ...)
 
 int main(int argc, char **argv)
 {
-	int i, listen = 0, verbose = 0;
+	int i, listen = 0, verbose = 0, stay_up = 0;
 	const char *fname = NULL, *host  = NULL, *port = FT_DEFAULT_PORT;
 
 #ifdef _WIN32
@@ -147,6 +148,8 @@ int main(int argc, char **argv)
 			clobber_mode = RENAME;
 		else if(ARG("r"))
 			clobber_mode = RESUME;
+		else if(ARG("O"))
+			stay_up = 1;
 		else if(!host)
 			host = argv[i];
 		else if(!fname)
@@ -155,6 +158,7 @@ int main(int argc, char **argv)
 		usage:
 			eprintf("Usage: %s [-p port] [OPTS] [-l | host] [file]\n"
 							"  -l: listen\n"
+							"  -O: remain running at the end of a transfer\n"
 							" If file exists:\n"
 							"  -o: overwrite\n"
 							"  -n: rename incoming\n"
@@ -215,25 +219,51 @@ int main(int argc, char **argv)
 	}
 
 
-	if(fname){
-		if(verbose)
-			printf("sending %s\n", fname);
+	do{
+		if(fname){
+			if(verbose)
+				printf("sending %s\n", fname);
 
-		if(ft_send(&ft, callback, fname)){
-			clrtoeol();
-			eprintf("ft_send(): %s\n", ft_lasterr(&ft));
-			goto bail;
-		}
-	}else{
-		if(verbose)
-			printf("%s: receiving incomming file\n", *argv);
+			if(ft_send(&ft, callback, fname)){
+				clrtoeol();
+				eprintf("ft_send(): %s\n", ft_lasterr(&ft));
+				goto bail;
+			}
+			fname = NULL; /* don't send twice (stay_up) */
 
-		if(ft_recv(&ft, callback, queryback, fnameback)){
-			clrtoeol();
-			eprintf("ft_recv(): %s\n", ft_lasterr(&ft));
-			goto bail;
+		}else{
+			int lewp = 1;
+
+			if(verbose)
+				printf("%s: waiting for incomming file\n", *argv);
+
+			while(lewp)
+				switch(ft_poll_recv(&ft)){
+					case FT_ERR:
+						eprintf("ft_poll_recv(): %s\n", ft_lasterr(&ft));
+						goto bail;
+
+					case FT_YES:
+						lewp = 0;
+						break;
+
+					case FT_NO:
+					{
+						struct timeval tv;
+						tv.tv_sec = 0;
+						tv.tv_usec = 250000; /* 1/4 sec */
+						select(0, NULL, NULL, NULL, &tv);
+						break;
+					}
+				}
+
+			if(ft_recv(&ft, callback, queryback, fnameback)){
+				clrtoeol();
+				eprintf("ft_recv(): %s\n", ft_lasterr(&ft));
+				goto bail;
+			}
 		}
-	}
+	}while(stay_up);
 
 	ft_close(&ft);
 

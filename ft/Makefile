@@ -16,7 +16,12 @@ tft: tft.o libft/ft.o
 	@echo LD $@
 	$Q${CC} -o $@ $^ ${LDFLAGS}
 
-gft: gft.o libft/ft.o gladegen.o gcfg.o gtransfers.o ${GFT_DEPS}
+gft: gft.o libft/ft.o gladegen.o gcfg.o gtransfers.o \
+		util/gqueue.o ../common/glist.o ${GFT_DEPS}
+	@echo LD $@
+	$Q${CC} -o $@ $^ ${LDFLAGS_G}
+
+test: util/gqueue.o test.o
 	@echo LD $@
 	$Q${CC} -o $@ $^ ${LDFLAGS_G}
 
@@ -34,7 +39,8 @@ clean:
 include ../config.mk
 
 gcfg.o: gcfg.c gcfg.h ../config.h
-gft.o: gft.c ../config.h gladegen.h libft/ft.h gcfg.h gtransfers.h
+gft.o: gft.c ../config.h util/gqueue.h gladegen.h libft/ft.h \
+ ../common/glist.h gcfg.h gtransfers.h
 gladegen.o: gladegen.c gladegen.h
 gtransfers.o: gtransfers.c gtransfers.h
 tft.o: tft.c libft/ft.h

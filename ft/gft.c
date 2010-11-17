@@ -37,6 +37,11 @@
 				gtk_window_set_urgency_hint(GTK_WINDOW(winMain), b); \
 	while(0)
 
+
+#define QUEUE_REM(n) \
+	glist_remove(listTransfers, \
+			gtk_tree_view_get_model(GTK_TREE_VIEW(treeTransfers)), n)
+
 #ifdef _WIN32
 # define PATH_SEPERATOR '\\'
 #else
@@ -44,8 +49,10 @@
 #endif
 
 #include "../config.h"
+#include "util/gqueue.h"
 #include "gladegen.h"
 #include "libft/ft.h"
+#include "../common/glist.h"
 #include "gcfg.h"
 #include "gtransfers.h"
 
@@ -63,18 +70,21 @@ int queryback(struct filetransfer *ft,
 char *fnameback(struct filetransfer *ft,
 		char *fname);
 
+static GtkWidget *btnSend, *btnConnect, *btnListen, *btnClose;
+static GtkWidget *btnFileChoice, *btnOpenFolder, *btnClearTransfers;
+static GtkWidget *btnDirChoice;
 
-GtkWidget *btnSend, *btnConnect, *btnListen, *btnClose;
-GtkWidget *btnFileChoice, *btnOpenFolder, *btnClearTransfers, *btnDirChoice;
+static GtkWidget *progressft, *lblStatus;
+static GtkWidget *cboHost;
 
-GtkWidget *progressft, *lblStatus;
-GtkWidget *cboHost;
-GtkWidget *treeTransfers;
+static GtkWidget    *treeDone,      *treeTransfers;
+static GtkListStore *listTransfers, *listDone;
 
-GtkWidget *winMain;
+static GtkWidget *winMain;
 
 
 struct filetransfer ft;
+struct queue *file_queue = NULL;
 int cancelled = 0;
 double lastfraction = 0;
 enum
@@ -102,10 +112,9 @@ on_btnOpenFolder_clicked(void)
 G_MODULE_EXPORT gboolean
 btnClearTransfers_clicked(void)
 {
-	transfers_clear();
+	glist_clear(listDone);
 	return FALSE;
 }
-
 
 G_MODULE_EXPORT gboolean
 on_btnClose_clicked(void)
@@ -192,39 +201,73 @@ on_btnConnect_clicked(void)
 	return FALSE;
 }
 
-G_MODULE_EXPORT gboolean
-on_btnSend_clicked(void)
-{
-	const char *fname = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(btnFileChoice));
-	const char *basename;
 
-	if(!fname){
-		status("Need file");
+G_MODULE_EXPORT gboolean
+on_btnDequeue_clicked(void)
+{
+	char *sel = glist_selected(GTK_TREE_VIEW(treeTransfers));
+
+	if(!sel){
+		status("Select a queue'd file");
 		return FALSE;
 	}
 
-	basename = strrchr(fname, PATH_SEPERATOR);
+	/* gui list */
+	QUEUE_REM(sel);
 
-	if(!basename++)
-		basename = fname;
+	/* internal linked list */
+	queue_rem(&file_queue, sel);
+
+	return FALSE;
+}
+
+G_MODULE_EXPORT gboolean
+on_btnQueue_clicked(void)
+{
+	const char *fname = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(btnFileChoice));
+
+	if(!fname){
+		status("Need file to queue");
+		return FALSE;
+	}
+
+	glist_add(listTransfers, fname);
+	queue_add(&file_queue,    fname);
+
+	return FALSE;
+}
+
+G_MODULE_EXPORT gboolean
+on_btnSend_clicked(void)
+{
+	char *item;
 
 	settimeout(0);
-
 	lastfraction = 0;
 
-	if(ft_send(&ft, callback, fname)){
-		status("Couldn't send %s: %s", basename, ft_lasterr(&ft));
-		CLOSE();
-	}else{
-		status("Sent %s", basename);
-		STAY_OPEN();
+	while((item = queue_next(&file_queue))){
+		const char *basename = strrchr(item, PATH_SEPERATOR);
+
+		QUEUE_REM(item);
+
+		if(!basename++)
+			basename = item;
+
+		if(ft_send(&ft, callback, item)){
+			status("Couldn't send %s: %s", basename, ft_lasterr(&ft));
+			CLOSE();
+			break;
+		}else{
+			status("Sent %s", basename);
+			STAY_OPEN();
+		}
 	}
 
 	return FALSE;
 }
 
 G_MODULE_EXPORT gboolean
-on_treeTransfers_row_activated(GtkTreeView *tree_view,
+on_treeDoneTransfers_row_activated(GtkTreeView *tree_view,
 		GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data)
 {
 	struct transfer *transfer;
@@ -455,7 +498,7 @@ int callback(struct filetransfer *ft, enum ftstate ftst,
 			else
 				status("Recieved %s", ft_basename(ft));
 			gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progressft), 1.0f);
-			transfers_add(ft_basename(ft), ft_fname(ft), ftst == FT_RECIEVED);
+			transfers_add(listDone, ft_basename(ft), ft_fname(ft), ftst == FT_RECIEVED);
 			break;
 
 		case FT_BEGIN_SEND:
@@ -566,6 +609,8 @@ static int getobjects(GtkBuilder *b)
 	GET_WIDGET(btnOpenFolder);
 	GET_WIDGET(btnClearTransfers);
 	GET_WIDGET(btnDirChoice);
+
+	GET_WIDGET(treeDone);
 	GET_WIDGET(treeTransfers);
 
 	GET_WIDGET(hboxHost); /* FIXME: memleak? */
@@ -632,6 +677,8 @@ usage:
 
 	gtk_builder_connect_signals(builder, NULL);
 
+	glist_init(&listTransfers, treeTransfers);
+
 	/* don't need it anymore */
 	g_object_unref(G_OBJECT(builder));
 
@@ -639,7 +686,7 @@ usage:
 	g_signal_connect(G_OBJECT(winMain), "destroy", G_CALLBACK(on_winMain_destroy), NULL);
 
 	cfg_read(cboHost);
-	transfers_init();
+	transfers_init(&listDone, treeDone);
 	cmds();
 	gtk_widget_show(winMain);
 	gtk_main();
