@@ -218,6 +218,9 @@ on_btnDequeue_clicked(void)
 	/* internal linked list */
 	queue_rem(&file_queue, sel);
 
+	if(queue_len(file_queue) == 0)
+		gtk_widget_set_sensitive(btnSend, FALSE);
+
 	return FALSE;
 }
 
@@ -233,6 +236,8 @@ on_btnQueue_clicked(void)
 
 	glist_add(listTransfers, fname);
 	queue_add(&file_queue,    fname);
+
+	gtk_widget_set_sensitive(btnSend, TRUE);
 
 	return FALSE;
 }
@@ -262,6 +267,8 @@ on_btnSend_clicked(void)
 			STAY_OPEN();
 		}
 	}
+
+	gtk_widget_set_sensitive(btnSend, FALSE);
 
 	return FALSE;
 }

@@ -78,3 +78,10 @@ void queue_rem(struct queue **qp, const char *item)
 
 	g_warning("queue_rem: couldn't find \"%s\"", item);
 }
+
+int queue_len(struct queue *q)
+{
+	int i = 0;
+	for(; q; q = q->next, i++);
+	return i;
+}
