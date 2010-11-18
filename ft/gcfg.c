@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <ctype.h>
 
 #include "gcfg.h"
 #include "../config.h"
@@ -23,8 +24,16 @@ static int nhosts = 0;
 
 void cfg_add(const char *host)
 {
-	const char **new;
+	const char **new, *start;
+	char *dup;
 	int i;
+
+	start = host;
+	while(isspace(*start))
+		start++;
+
+	if(!*start)
+		return;
 
 	ITER_HOSTS(i,
 		if(!strcmp(hosts[i], host))
@@ -36,7 +45,12 @@ void cfg_add(const char *host)
 		return;
 
 	hosts = new;
-	hosts[nhosts-1] = strdup(host);
+	hosts[nhosts-1] = dup = strdup(host);
+
+	while(!isspace(*dup))
+		dup++;
+	if(isspace(*dup))
+		*dup = '\0';
 }
 
 void cfg_write()
