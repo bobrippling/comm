@@ -1,4 +1,5 @@
 *.o
+*.exe
 libcomm/libcomm.a
 term/termcomm
 server/svrcomm
@@ -7,12 +8,3 @@ gui/guicomm
 gui/comm.exe
 gui/gladegen.c
 Logs
-Comm v2.0.zip
-ftp/tft
-gft
-tft
-gladegen.c
-ft/gft.exe
-ft/gft.res
-ft/tft.exe
-gui/comm.res
