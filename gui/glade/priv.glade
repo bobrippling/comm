@@ -8,7 +8,7 @@
         <property name="visible">True</property>
         <property name="orientation">vertical</property>
         <child>
-          <object class="GtkTextView" id="txtMain">
+          <object class="GtkTextView" id="txtPriv">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
           </object>
@@ -20,7 +20,7 @@
           <object class="GtkHBox" id="hboxSend">
             <property name="visible">True</property>
             <child>
-              <object class="GtkEntry" id="entryTxt">
+              <object class="GtkEntry" id="entryPriv">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="invisible_char">&#x25CF;</property>
@@ -30,7 +30,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkButton" id="btnSend">
+              <object class="GtkButton" id="btnPriv">
                 <property name="label" translatable="yes">Send</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>

@@ -2,8 +2,9 @@ GTKINC   = gtk+-2.0 gmodule-2.0
 CFLAGS  += `pkg-config --cflags ${GTKINC}`
 LDFLAGS += `pkg-config --libs   ${GTKINC}`
 
-GUI_DEPS = gui.o gtkutil.o gladegen.o ../log/log.o \
-					 ../cfg/cfg.o ../libcomm/libcomm.a ../common/glist.o
+GUI_DEPS = gui.o gtkutil.o ../log/log.o \
+					 ../cfg/cfg.o ../libcomm/libcomm.a \
+					 ../common/glist.o priv.o
 
 guicomm: ${GUI_DEPS}
 	@echo LD $@
@@ -14,14 +15,13 @@ comm.exe: ${GUI_DEPS} ../common/sockprintf.o comm.res
 	@${CC} ${CFLAGS} -o $@ $^ ${LDFLAGS} -lws2_32 -lole32
 
 clean: mostlyclean
-	$Qrm -f guicomm comm.exe gladegen.c
+	$Qrm -f guicomm comm.exe gladegen.h
 
-gladegen.c: glade/comm.glade glade/col.glade
+gladegen.h: glade/col.glade glade/comm.glade glade/priv.glade
 
 include ../config.mk
 
-gladegen.o: gladegen.c gladegen.h
 gtkutil.o: gtkutil.c gtkutil.h
-gui.o: gui.c gtkutil.h gladegen.h ../log/log.h ../cfg/cfg.h \
- ../libcomm/comm.h ../common/glist.h priv.h ../config.h
+gui.o: gui.c gtkutil.h ../log/log.h ../cfg/cfg.h ../libcomm/comm.h \
+ ../common/glist.h gladegen.h priv.h ../config.h
 priv.o: priv.c priv.h

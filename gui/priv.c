@@ -1,49 +1,69 @@
+#include <gtk/gtk.h>
+#include <stdlib.h>
+
 #include "priv.h"
+
+G_MODULE_EXPORT gboolean on_btnSend_click(GtkWidget *win, GtkWidget *btn);
+G_MODULE_EXPORT gboolean on_winPriv_destroy(GtkWidget *win);
 
 struct privchat *priv_new(GtkWidget *winMain, const char *to)
 {
+	static int TEMP = 0;
+
 	struct privchat *p = malloc(sizeof *p);
-	GError     *error = NULL;
-	GtkBuilder *builder;
+	GtkWidget *vbox, *hbox;
+
+	if(!TEMP){
+		TEMP = 1;
+		setvbuf(stdout, NULL, _IONBF, 0);
+	}
 
 	if(!p)
 		g_error("couldn't allocated %ld bytes", sizeof *p);
 
-	p->namedup = g_strdup(to);
+	p->namedup  = g_strdup(to);
+	p->winPriv  = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+	p->txtMain  = gtk_text_view_new();
+	p->entryTxt = gtk_entry_new();
+	p->btnSend  = gtk_button_new();
 
-	builder = gtk_builder_new();
+	hbox = gtk_hbox_new(FALSE, 0);
+	vbox = gtk_vbox_new(FALSE, 0);
 
-	if(gladegen_init()) // TODO
-		return 1;
+	gtk_box_pack_start(GTK_BOX(vbox), p->entryTxt, TRUE, TRUE, 0); /* FIXME: TRUE vs FALSE */
+	gtk_box_pack_start(GTK_BOX(hbox), p->btnSend,  TRUE, TRUE, 0);
 
-	if(!gtk_builder_add_from_file(builder, GLADE_XML_FILE, &error)){
-		g_warning("%s", error->message);
-		/*g_free(error);*/
-		return 1;
-	}
-	gladegen_term();
+	gtk_box_pack_start(GTK_BOX(vbox), p->txtMain, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox), hbox      , TRUE, TRUE, 0);
 
-	if(getobjects(builder))
-		return 1;
+	gtk_container_add(GTK_CONTAINER(p->winPriv), vbox);
 
-#define GET_WIDGET(x) \
-	if(!((p->x) = GTK_WIDGET(gtk_builder_get_object(b, #x)))){ \
-		fputs("Error: Couldn't get Gtk Widget \"" #x "\", bailing\n", stderr); \
-		return 1; \
-	}
-	GET_WIDGET(winPriv);
-	GET_WIDGET(txtMain);
-	GET_WIDGET(entrytxt);
-	GET_WIDGET(btnSend);
-#undef GET_WIDGET
+	gtk_window_set_transient_for(GTK_WINDOW(p->winPriv), GTK_WINDOW(winMain));
 
-	gtk_builder_connect_signals(builder, NULL);
+	gtk_window_set_destroy_with_parent(GTK_WINDOW(p->winPriv), TRUE);
 
-	/* don't need it anymore */
-	g_object_unref(G_OBJECT(builder));
+	g_signal_connect(G_OBJECT(winMain),    "destroy", G_CALLBACK(on_winPriv_destroy), NULL);
+	g_signal_connect(G_OBJECT(p->btnSend), "clicked", G_CALLBACK(on_btnSend_click),   NULL);
 
-	gtk_window_set_transient_for(      p->winPriv, winMain);
-	gtk_window_set_destroy_with_parent(p->winPriv, TRUE);
+	gtk_widget_show_all(p->winPriv);
+
+	printf("new privchat window for \"%s\", %p\n", to, (void *)p->winPriv);
 
 	return p;
+}
+
+/* events */
+
+G_MODULE_EXPORT gboolean
+on_winPriv_destroy(GtkWidget *win)
+{
+	printf("on_winPriv_destroy::win: %p\n", (void *)win);
+	return FALSE;
+}
+
+G_MODULE_EXPORT gboolean
+on_btnSend_click(GtkWidget *win, GtkWidget *btn)
+{
+	printf("on_btnSend_click, win: %p, btn: %p\n", (void *)win, (void *)btn);
+	return FALSE;
 }

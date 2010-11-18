@@ -19,15 +19,16 @@
 #endif
 
 #include "gtkutil.h"
-#include "gladegen.h"
 #include "../log/log.h"
 #include "../cfg/cfg.h"
 #include "../libcomm/comm.h"
 #include "../common/glist.h"
+#include "gladegen.h"
 #include "priv.h"
 #include "../config.h"
 
-#define WIN_MAIN   "winMain"
+#define WIN_MAIN       "winMain"
+#define GLADE_XML_FILE "tmp.glade"
 #define TIMEOUT    250
 
 #define COLOUR_UNKNOWN "#000000"
@@ -66,6 +67,11 @@ static GdkColor var_color;
 
 static GtkListStore *clientlist = NULL;
 static GtkWidget *treeClients;
+
+struct
+{
+	int priv_win;
+} config = { 1 };
 
 /* extern'd */
 GtkWidget *txtMain; /* GtkTextView */
@@ -415,7 +421,7 @@ G_MODULE_EXPORT gboolean on_entryName_focus_out_event(GtkEntry *ent, gpointer da
 static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 {
 	const char *type_str = NULL, *col = NULL;
-	char *insertme, *insertmel;
+	char *insertme, *insertmel, *from_name;
 	int logadd = 0;
 	va_list l;
 
@@ -482,27 +488,28 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 		insertme = g_strconcat(insertmel, "\n", NULL);
 
 	if(type == COMM_MSG || type == COMM_PRIVMSG){
-		char *colon = strchr(insertmel, ':');
-		if(colon){
-			*colon = '\0';
+		from_name = strchr(insertmel, ':');
+		if(from_name){
+			*from_name = '\0';
 			if(!(col = comm_getcolour(&commt, insertmel)))
 				/* NULL if they have no colour set */
 				col = COLOUR_MSG;
-			*colon = ':';
+			*from_name = ':';
 		}
 	}
 
 	if(!col)
 		col = COLOUR_UNKNOWN;
 
-	/*if(type == COMM_PRIVMSG && config_priv_win){
-		struct privchat *p = pri;// TODO
-	}else{*/
+	if(type == COMM_PRIVMSG && from_name && config.priv_win){
+		// FIXME: check for existing window
+		priv_new(winMain, from_name);
+	}else{
 		addtext(col, insertme);
 
 		if(logadd)
 			log_add(insertmel);
-	//}
+	}
 
 	g_free(insertme);
 	g_free(insertmel);
@@ -652,6 +659,30 @@ static void txt2cfg()
 		config_setlasthost(host);
 		g_free(host);
 	}
+}
+
+int gladegen_init(void)
+{
+	FILE *f = fopen(GLADE_XML_FILE, "w");
+	unsigned int i;
+
+	if(!f)
+		return 1;
+
+	for(i = 0; i < sizeof(glade_str_col)/sizeof(char *); i++)
+		if(fputs(glade_str_col[i], f) == EOF){
+			fclose(f);
+			return 1;
+		}
+
+	if(fclose(f) == EOF)
+		return 1;
+	return 0;
+}
+
+void gladegen_term(void)
+{
+	remove(GLADE_XML_FILE);
 }
 
 int main(int argc, char **argv)

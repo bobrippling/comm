@@ -3,7 +3,7 @@
 
 struct privchat
 {
-	GtkWidget *winPriv, txtMain, *entryTxt, *btnSend;
+	GtkWidget *winPriv, *txtMain, *entryTxt, *btnSend;
 	char *namedup;
 };
 
