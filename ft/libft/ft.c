@@ -22,10 +22,11 @@
 
 # define PRINTF_SIZET "%ld"
 # define PRINTF_SIZET_CAST long
-# define PATH_SEPERATOR '\\'
 
 # define  os_getlasterr() Win32_LastErr(1)
 # define net_getlasterr() Win32_LastErr(0)
+
+# define G_DIR_SEPARATOR '\\'
 
 #else
 # define _POSIX_C_SOURCE 200809L
@@ -47,7 +48,7 @@
 # define PRINTF_SIZET "%lu"
 # define PRINTF_SIZET_CAST unsigned long
 
-# define PATH_SEPERATOR '/'
+# define G_DIR_SEPARATOR '/'
 
 #endif
 
@@ -628,7 +629,7 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 	int ilocal, cancelled = 0;
 	char buffer[BUFFER_SIZE];
 	size_t nwrite, nsent, callback_step;
-	const char *basename = strrchr(fname, PATH_SEPERATOR);
+	const char *basename = strrchr(fname, G_DIR_SEPARATOR);
 
 	ft->lastcallback = 0;
 
@@ -904,7 +905,7 @@ const char *ft_lasterr(struct filetransfer *ft)
 const char *ft_basename(struct filetransfer *ft)
 {
 	const char *fname = ft_fname(ft);
-	const char *slash = strrchr(fname, PATH_SEPERATOR);
+	const char *slash = strrchr(fname, G_DIR_SEPARATOR);
 
 	if(slash)
 		return slash+1;

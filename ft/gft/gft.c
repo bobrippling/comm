@@ -44,12 +44,6 @@
 	glist_remove(listTransfers, \
 			gtk_tree_view_get_model(GTK_TREE_VIEW(treeTransfers)), n)
 
-#ifdef _WIN32
-# define PATH_SEPERATOR '\\'
-#else
-# define PATH_SEPERATOR '/'
-#endif
-
 #include "../../config.h"
 
 #include "gladegen.h"
@@ -263,7 +257,7 @@ on_btnSend_clicked(void)
 	lastfraction = 0;
 
 	while((item = queue_next(&file_queue))){
-		const char *basename = strrchr(item, PATH_SEPERATOR);
+		const char *basename = strrchr(item, G_DIR_SEPARATOR);
 
 		QUEUE_REM(item);
 
@@ -441,8 +435,8 @@ const char *get_openfolder()
 		len = strlen(folder);
 		if(len >= sizeof(folder)-3)
 			fputs("warning: folder name too long\n", stderr);
-		else if(folder[len - 1] != PATH_SEPERATOR){
-			folder[len] = PATH_SEPERATOR;
+		else if(folder[len - 1] != G_DIR_SEPARATOR){
+			folder[len] = G_DIR_SEPARATOR;
 			folder[len+1] = '\0';
 		}
 
@@ -492,7 +486,7 @@ char *fnameback(struct filetransfer *ft, char *fname)
 		return fname;
 
 	return g_strdup_printf("%s%s%s", folder,
-			folder[strlen(folder)-1] == PATH_SEPERATOR ? "" : "/",
+			folder[strlen(folder)-1] == G_DIR_SEPARATOR ? "" : "/",
 			fname);
 }
 
@@ -724,7 +718,7 @@ usage:
 	g_signal_connect(G_OBJECT(winMain), "destroy", G_CALLBACK(on_winMain_destroy), NULL);
 
 	cfg_read(cboHost);
-	tray_init(winMain);
+	tray_init(winMain, *argv);
 	transfers_init(&listDone, treeDone);
 
 	gtk_widget_set_sensitive(btnSend, FALSE);

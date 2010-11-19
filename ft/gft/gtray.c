@@ -1,4 +1,5 @@
 #include <gtk/gtk.h>
+#include <string.h>
 
 #include "../../common/gtray.h"
 
@@ -17,8 +18,9 @@ void tray_popupmenu(GtkStatusIcon *status_icon, guint button,
 
 void tray_activated(GObject *tray, gpointer unused)
 {
-	/* TODO */
-	printf("activated! %p, %p\n", (void *)tray, (void *)unused);
+	(void)tray;
+	(void)unused;
+	tray_toggle();
 }
 
 void tray_popupmenu(GtkStatusIcon *status_icon, guint button, guint32 activate_time, gpointer unused)
@@ -40,9 +42,19 @@ void tray_toggle()
 	gtk_widget_set_visible(winMain, !gtk_widget_get_visible(winMain));
 }
 
-void tray_init(GtkWidget *winMain2)
+void tray_init(GtkWidget *winMain2, const char *argv_0)
 {
 	GtkWidget *menu_item_toggle, *menu_item_quit;
+	char *icon_path, *exe_dir, *slash;
+
+	exe_dir   = g_strdup(argv_0);
+	slash     = strrchr(exe_dir, G_DIR_SEPARATOR);
+	if(slash){
+		*slash = '\0';
+		icon_path = g_strdup_printf("%s/%s", exe_dir, ICON_FILE);
+	}else
+		/* something like argv[0] = "gft" */
+		icon_path = g_strdup(ICON_FILE);
 
 	winMain = winMain2;
 
@@ -57,8 +69,11 @@ void tray_init(GtkWidget *winMain2)
 	gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item_quit  );
 	gtk_widget_show_all(GTK_WIDGET(menu));
 
-	tray = gtray_new_fname(ICON_FILE,
+	tray = gtray_new_fname(icon_path,
 			"Comm FT", tray_activated, tray_popupmenu);
+
+	g_free(exe_dir);
+	g_free(icon_path);
 }
 
 void tray_term()
