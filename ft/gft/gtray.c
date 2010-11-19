@@ -2,6 +2,8 @@
 
 #include "../../common/gtray.h"
 
+#define ICON_FILE "gft.ico"
+
 static GtkStatusIcon *tray;
 static GtkWidget     *menu;
 static GtkWidget     *winMain;
@@ -55,7 +57,12 @@ void tray_init(GtkWidget *winMain2)
 	gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item_quit  );
 	gtk_widget_show_all(GTK_WIDGET(menu));
 
-	/* FIXME: embed icon (linux) */
-	tray = gtray_new(gtk_window_get_icon(GTK_WINDOW(winMain2)),
+	tray =
+#ifdef _WIN32
+		gtray_new_pixbuf(gtk_window_get_icon(GTK_WINDOW(winMain2)),
 			"Comm FT", tray_activated, tray_popupmenu);
+#else
+		gtray_new_fname(ICON_FILE,
+			"Comm FT", tray_activated, tray_popupmenu);
+#endif
 }
