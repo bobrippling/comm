@@ -7,4 +7,7 @@ fifo/fifocomm
 gui/guicomm
 gui/comm.exe
 gui/gladegen.c
+ft/tft
+ft/gft/gft
+ft/gft/gladegen.h
 Logs

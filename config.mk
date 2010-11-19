@@ -4,6 +4,8 @@ CFLAGS   += -g -Wextra -Wall -pedantic -pipe -std=c99
 LD        = gcc
 LDFLAGS  += -g
 
+MAKEFLAGS = --no-print-directory
+
 # make lacks ||, i think
 ifeq ($(shell uname -o),MSys)
 else

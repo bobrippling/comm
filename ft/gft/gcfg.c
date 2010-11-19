@@ -6,7 +6,7 @@
 #include <ctype.h>
 
 #include "gcfg.h"
-#include "../config.h"
+#include "../../config.h"
 
 #ifndef strdup
 char *strdup(const char *);

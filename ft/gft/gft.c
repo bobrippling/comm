@@ -14,6 +14,7 @@
 #include <stdarg.h>
 
 #define WIN_MAIN   "winFT"
+#define GLADE_XML_FILE "tmpft.glade"
 #define TIMEOUT    500
 
 #define CLOSE() \
@@ -48,11 +49,15 @@
 # define PATH_SEPERATOR '/'
 #endif
 
-#include "../config.h"
-#include "util/gqueue.h"
+#include "../../config.h"
+
 #include "gladegen.h"
-#include "libft/ft.h"
-#include "../common/glist.h"
+
+#include "../util/gqueue.h"
+#include "../../common/glist.h"
+
+#include "../libft/ft.h"
+
 #include "gcfg.h"
 #include "gtransfers.h"
 
@@ -631,6 +636,30 @@ static int getobjects(GtkBuilder *b)
 #undef GET_WIDGET
 }
 
+int gladegen_init(void)
+{
+	FILE *f = fopen(GLADE_XML_FILE, "w");
+	unsigned int i;
+
+	if(!f)
+		return 1;
+
+	for(i = 0; i < sizeof(glade_str_gft)/sizeof(char *); i++)
+		if(fputs(glade_str_gft[i], f) == EOF){
+			fclose(f);
+			return 1;
+		}
+
+	if(fclose(f) == EOF)
+		return 1;
+	return 0;
+}
+
+void gladegen_term(void)
+{
+	remove(GLADE_XML_FILE);
+}
+
 int main(int argc, char **argv)
 {
 	GError     *error = NULL;
@@ -672,7 +701,7 @@ usage:
 	if(gladegen_init())
 		return 1;
 
-	if(!gtk_builder_add_from_file(builder, GFT_GLADE, &error)){
+	if(!gtk_builder_add_from_file(builder, GLADE_XML_FILE, &error)){
 		g_warning("%s", error->message);
 		/*g_free(error);*/
 		return 1;

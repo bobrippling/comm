@@ -1,14 +1,8 @@
-GTKINC     = gtk+-2.0 gmodule-2.0
-
 CFLAGS    += -Wall -Wextra -pedantic -std=c99
 
 ifeq ($(shell uname -o),Msys)
-GFT_DEPS +=  gft.res
 LDFLAGS  += -lws2_32
 endif
-
-CFLAGS_G  += ${CFLAGS}  `pkg-config --cflags ${GTKINC}`
-LDFLAGS_G  = ${LDFLAGS} `pkg-config --libs ${GTKINC}`
 
 all: tft gft
 
@@ -16,31 +10,17 @@ tft: tft.o libft/ft.o
 	@echo LD $@
 	$Q${CC} -o $@ $^ ${LDFLAGS}
 
-gft: gft.o libft/ft.o gladegen.o gcfg.o gtransfers.o \
-		util/gqueue.o ../common/glist.o ${GFT_DEPS}
-	@echo LD $@
-	$Q${CC} -o $@ $^ ${LDFLAGS_G}
+gft:
+	@make ${MAKEFLAGS} -C $@
 
-test: util/gqueue.o test.o
-	@echo LD $@
-	$Q${CC} -o $@ $^ ${LDFLAGS_G}
+gft_clean:
+	@make ${MAKEFLAGS} -C gft clean
 
-g%.o: g%.c
-	@echo CC_GTK $@
-	$Q${CC} ${CFLAGS_G} -c -o $@ $<
+clean: gft_clean
+	@rm -f `find . -iname \*.o` tft gft/gladegen.c
 
-gladegen.c: glade/gft.glade
-
-clean:
-	rm -f `find . -iname \*.o` tft gft gladegen.c
-
-.PHONY: all clean
+.PHONY: all clean gft_clean gft
 
 include ../config.mk
 
-gcfg.o: gcfg.c gcfg.h ../config.h
-gft.o: gft.c ../config.h util/gqueue.h gladegen.h libft/ft.h \
- ../common/glist.h gcfg.h gtransfers.h
-gladegen.o: gladegen.c gladegen.h
-gtransfers.o: gtransfers.c gtransfers.h
 tft.o: tft.c libft/ft.h

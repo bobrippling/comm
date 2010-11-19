@@ -1,5 +1,3 @@
-MAKEFLAGS = --no-print-directory
-
 .PHONY : clean mostlyclean all \
 	server libcomm term gui fifo ft
 
@@ -40,6 +38,7 @@ clean:
 	$Qmake ${MAKEFLAGS} -C term    clean
 	$Qmake ${MAKEFLAGS} -C gui     clean
 	$Qmake ${MAKEFLAGS} -C fifo    clean
+	$Qmake ${MAKEFLAGS} -C ft      clean
 	$Qfind . -iname \*.o|xargs rm -f
 
 include config.mk
