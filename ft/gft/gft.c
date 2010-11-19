@@ -13,7 +13,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-#define WIN_MAIN   "winFT"
+#define WIN_MAIN       "winFT"
+#define TRAY_ICON      "tray.ico"
 #define GLADE_XML_FILE "tmpft.glade"
 #define TIMEOUT    500
 
@@ -55,6 +56,7 @@
 
 #include "../util/gqueue.h"
 #include "../../common/glist.h"
+#include "gtray.h"
 
 #include "../libft/ft.h"
 
@@ -720,6 +722,8 @@ usage:
 
 	/* signal setup */
 	g_signal_connect(G_OBJECT(winMain), "destroy", G_CALLBACK(on_winMain_destroy), NULL);
+
+	tray_init(winMain);
 
 	cfg_read(cboHost);
 	transfers_init(&listDone, treeDone);

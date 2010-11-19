@@ -8,7 +8,8 @@ CFLAGS_G  += ${CFLAGS}  `pkg-config --cflags ${GTKINC}`
 LDFLAGS_G  = ${LDFLAGS} `pkg-config --libs ${GTKINC}`
 
 gft: gft.o ../libft/ft.o gcfg.o gtransfers.o \
-		../util/gqueue.o ../../common/glist.o ${GFT_DEPS}
+		../util/gqueue.o ../../common/glist.o \
+		gtray.o ../../common/gtray.o ${GFT_DEPS}
 	@echo LD $@
 	$Q${CC} -o $@ $^ ${LDFLAGS_G}
 
@@ -27,5 +28,6 @@ include ../../config.mk
 
 gcfg.o: gcfg.c gcfg.h ../../config.h
 gft.o: gft.c ../../config.h gladegen.h ../util/gqueue.h \
- ../../common/glist.h ../libft/ft.h gcfg.h gtransfers.h
+ ../../common/glist.h gtray.h ../libft/ft.h gcfg.h gtransfers.h
 gtransfers.o: gtransfers.c gtransfers.h
+gtray.o: gtray.c ../../common/gtray.h

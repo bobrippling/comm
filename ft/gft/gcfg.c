@@ -47,7 +47,7 @@ void cfg_add(const char *host)
 	hosts = new;
 	hosts[nhosts-1] = dup = strdup(host);
 
-	while(!isspace(*dup))
+	while(*dup && !isspace(*dup))
 		dup++;
 	if(isspace(*dup))
 		*dup = '\0';
