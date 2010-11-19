@@ -723,14 +723,16 @@ usage:
 	/* signal setup */
 	g_signal_connect(G_OBJECT(winMain), "destroy", G_CALLBACK(on_winMain_destroy), NULL);
 
-	tray_init(winMain);
-
 	cfg_read(cboHost);
+	tray_init(winMain);
 	transfers_init(&listDone, treeDone);
+
 	gtk_widget_set_sensitive(btnSend, FALSE);
 	cmds();
 	gtk_widget_show(winMain);
 	gtk_main();
+
+	tray_term();
 	cfg_write();
 
 	return 0;

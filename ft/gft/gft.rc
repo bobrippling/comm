@@ -3,7 +3,7 @@
  */
 #include <windows.h>
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
-100      ICON          "../icons/gft.ico"
+100      ICON          "../../icons/gft.ico"
 
 VS_VERSION_INFO   VERSIONINFO
 	FILEVERSION     1,0,0,0

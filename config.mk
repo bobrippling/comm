@@ -25,7 +25,7 @@ Q         = @
 	@echo CC $<
 	$Q${CC} -c ${CFLAGS} -o $@ $<
 
-%.res: %.rc ../icons/%.ico
+%.res: %.rc
 	@echo RC $^
 	@windres -O coff -o $@ $<
 

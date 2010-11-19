@@ -2,10 +2,8 @@ GTKINC     = gtk+-2.0 gmodule-2.0
 
 ifeq ($(shell uname -o),Msys)
 GFT_DEPS +=  gft.res
+LDFLAGS  += -lws2_32
 endif
-
-CFLAGS_G  += ${CFLAGS}  `pkg-config --cflags ${GTKINC}`
-LDFLAGS_G  = ${LDFLAGS} `pkg-config --libs ${GTKINC}`
 
 gft: gft.o ../libft/ft.o gcfg.o gtransfers.o \
 		../util/gqueue.o ../../common/glist.o \
@@ -23,6 +21,9 @@ clean:
 	@rm -f gft *.o
 
 include ../../config.mk
+
+CFLAGS_G   = ${CFLAGS}  `pkg-config --cflags ${GTKINC}`
+LDFLAGS_G  = ${LDFLAGS} `pkg-config --libs ${GTKINC}`
 
 .PHONY: clean
 

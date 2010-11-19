@@ -19,7 +19,8 @@ struct privchat *priv_new(GtkWidget *winMain, const char *to)
 	}
 
 	if(!p)
-		g_error("couldn't allocated %ld bytes", sizeof *p);
+		g_error("couldn't allocated %ld bytes",
+				(long)sizeof *p);
 
 	p->namedup  = g_strdup(to);
 	p->winPriv  = gtk_window_new(GTK_WINDOW_TOPLEVEL);
