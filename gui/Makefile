@@ -4,7 +4,7 @@ LDFLAGS += `pkg-config --libs   ${GTKINC}`
 
 GUI_DEPS = gui.o gtkutil.o ../log/log.o \
 					 ../cfg/cfg.o ../libcomm/libcomm.a \
-					 ../common/glist.o priv.o
+					 ../gcommon/glist.o priv.o
 
 guicomm: ${GUI_DEPS}
 	@echo LD $@
@@ -23,5 +23,5 @@ include ../config.mk
 
 gtkutil.o: gtkutil.c gtkutil.h
 gui.o: gui.c gtkutil.h ../log/log.h ../cfg/cfg.h ../libcomm/comm.h \
- ../common/glist.h gladegen.h priv.h ../config.h
+ ../gcommon/glist.h gladegen.h priv.h ../config.h
 priv.o: priv.c priv.h

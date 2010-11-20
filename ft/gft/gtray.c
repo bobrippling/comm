@@ -4,7 +4,7 @@
 # include <windows.h>
 #endif
 
-#include "../../common/gtray.h"
+#include "../../gcommon/gtray.h"
 
 #define ICON_FILE "gft.ico"
 

@@ -5,6 +5,7 @@ LD        = gcc
 LDFLAGS  += -g
 
 MAKEFLAGS = --no-print-directory
+GTKINC     = gtk+-2.0 gmodule-2.0
 
 # make lacks ||, i think
 ifeq ($(shell uname -o),MSys)

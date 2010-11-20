@@ -49,7 +49,7 @@
 #include "gladegen.h"
 
 #include "../util/gqueue.h"
-#include "../../common/glist.h"
+#include "../../gcommon/glist.h"
 #include "gtray.h"
 
 #include "../libft/ft.h"

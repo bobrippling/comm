@@ -1,5 +1,6 @@
 .PHONY : clean mostlyclean all \
-	server libcomm term gui fifo ft
+	server libcomm term gui fifo \
+	ft gcommon
 
 MAKE_PRE  = "--- make "
 MAKE_POST = " ---"
@@ -26,7 +27,7 @@ term: libcomm
 	@echo ${MAKE_PRE}$@${MAKE_POST}
 	$Qmake ${MAKEFLAGS} -C $@
 
-gui: libcomm
+gui: libcomm gcommon
 	@echo ${MAKE_PRE}$@${MAKE_POST}
 	$Qmake ${MAKEFLAGS} -C $@
 
@@ -34,7 +35,11 @@ comm.exe: libcomm
 	@echo ${MAKE_PRE}$@${MAKE_POST}
 	$Qmake ${MAKEFLAGS} -C gui $@
 
-ft:
+ft: gcommon
+	@echo ${MAKE_PRE}$@${MAKE_POST}
+	$Qmake ${MAKEFLAGS} -C $@
+
+gcommon:
 	@echo ${MAKE_PRE}$@${MAKE_POST}
 	$Qmake ${MAKEFLAGS} -C $@
 

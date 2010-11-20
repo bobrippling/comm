@@ -22,7 +22,7 @@
 #include "../log/log.h"
 #include "../cfg/cfg.h"
 #include "../libcomm/comm.h"
-#include "../common/glist.h"
+#include "../gcommon/glist.h"
 #include "gladegen.h"
 #include "priv.h"
 #include "../config.h"
