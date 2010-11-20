@@ -1,11 +1,14 @@
 #include <gtk/gtk.h>
 #include <string.h>
+#ifdef _WIN32
+# include <windows.h>
+#endif
 
 #include "../../common/gtray.h"
 
 #define ICON_FILE "gft.ico"
 
-static GtkStatusIcon *tray;
+gtray_icon            tray;
 static GtkWidget     *menu;
 static GtkWidget     *winMain;
 
@@ -16,10 +19,10 @@ void tray_activated(GObject *tray, gpointer unused);
 void tray_popupmenu(GtkStatusIcon *status_icon, guint button,
 		guint32 activate_time, gpointer unused);
 
-void tray_activated(GObject *tray, gpointer unused)
+void tray_activated(GObject *unused0, gpointer unused1)
 {
-	(void)tray;
-	(void)unused;
+	(void)unused0;
+	(void)unused1;
 	tray_toggle();
 }
 
@@ -40,6 +43,11 @@ void tray_quit()
 void tray_toggle()
 {
 	gtk_widget_set_visible(winMain, !gtk_widget_get_visible(winMain));
+}
+
+void tray_balloon()
+{
+	gtray_balloon(&tray, "hai", "gaiz");
 }
 
 void tray_init(GtkWidget *winMain2, const char *argv_0)
@@ -69,7 +77,7 @@ void tray_init(GtkWidget *winMain2, const char *argv_0)
 	gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item_quit  );
 	gtk_widget_show_all(GTK_WIDGET(menu));
 
-	tray = gtray_new_fname(icon_path,
+	gtray_new_fname(&tray, icon_path,
 			"Comm FT", tray_activated, tray_popupmenu);
 
 	g_free(exe_dir);
@@ -78,5 +86,5 @@ void tray_init(GtkWidget *winMain2, const char *argv_0)
 
 void tray_term()
 {
-	gtray_visible(tray, FALSE);
+	gtray_visible(&tray, FALSE);
 }
