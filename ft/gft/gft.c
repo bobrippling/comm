@@ -114,7 +114,7 @@ G_MODULE_EXPORT gboolean
 btnClearTransfers_clicked(void)
 {
 	glist_clear(listDone);
-	tray_balloon();
+	tray_balloon("Test Title", "Test Msg");
 	return FALSE;
 }
 

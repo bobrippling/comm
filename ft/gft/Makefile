@@ -8,7 +8,6 @@ endif
 gft: gft.o ../libft/ft.o gcfg.o gtransfers.o \
 		../util/gqueue.o ../../common/glist.o \
 		gtray.o ../../common/gtray.o \
-		../../common/gwinlist.o \
 		${GFT_DEPS}
 	@echo LD $@
 	$Q${CC} -o $@ $^ ${LDFLAGS_G}

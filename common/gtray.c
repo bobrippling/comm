@@ -87,7 +87,7 @@ void gtray_balloon(gtray_icon *icondata,
 	if(!Shell_NotifyIcon(NIM_MODIFY, icondata))
 		fprintf(stderr, "Shell_NotifyIcon failed\n");
 #else
-
+	printf("TODO!\n");
 #endif
 }
 

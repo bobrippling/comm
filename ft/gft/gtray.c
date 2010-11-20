@@ -45,9 +45,9 @@ void tray_toggle()
 	gtk_widget_set_visible(winMain, !gtk_widget_get_visible(winMain));
 }
 
-void tray_balloon()
+void tray_balloon(const char *t, const char *m)
 {
-	gtray_balloon(&tray, "hai", "gaiz");
+	gtray_balloon(&tray, t, m);
 }
 
 void tray_init(GtkWidget *winMain2, const char *argv_0)
