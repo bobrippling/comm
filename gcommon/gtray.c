@@ -6,7 +6,7 @@
 # include <shellapi.h>
 # include <gdk/gdkwin32.h>
 
-# include "gwinlist.h"
+/*# include "gwinlist.h"*/
 #endif
 
 #include "gtray.h"

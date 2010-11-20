@@ -1,13 +1,13 @@
 ifeq ($(shell uname -o),Msys)
-GFT_DEPS +=  gft.res
-LDFLAGS  += -lws2_32
+GFT_DEPS  +=  gft.res
+LDFLAGS_G  = ${LDFLAGS} -lws2_32
 endif
 
 gft: gft.o ../libft/ft.o gcfg.o gtransfers.o \
 		../util/gqueue.o gtray.o \
 		../../gcommon/glist.o \
 		../../gcommon/gtray.o \
-		../../gcommon/gballoon.o
+		../../gcommon/gballoon.o \
 		${GFT_DEPS}
 	@echo LD $@
 	$Q${CC} -o $@ $^ ${LDFLAGS_G}

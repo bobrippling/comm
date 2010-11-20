@@ -1,6 +1,10 @@
 #include <gtk/gtk.h>
 #include <stdlib.h>
 
+#ifdef _WIN32
+# include <windows.h>
+#endif
+
 #include "gballoon.h"
 
 #define WIDTH  150
@@ -41,6 +45,11 @@ GtkWidget *gballoon_show(const char *title, const char *msg, int timeout,
 	GtkWidget *window = gtk_window_new(GTK_WINDOW_POPUP);
 	GtkWidget *label  = gtk_label_new(msg);
 	struct balloon *b = malloc(sizeof *b);
+#ifdef _WIN32
+	APPBARDATA abd;
+	memset(&abd, '\0', sizeof abd);
+	SHAppBarMessage(ABM_GETTASKBARPOS, &abd);
+#endif
 
 	if(!b)
 		g_error("couldn't allocate %ld bytes", sizeof *b);
@@ -54,7 +63,12 @@ GtkWidget *gballoon_show(const char *title, const char *msg, int timeout,
 	gtk_window_set_resizable(GTK_WINDOW(window), FALSE);
 	/*gtk_window_set_decorated(GTK_WINDOW(window), FALSE);*/
 	gtk_window_move(GTK_WINDOW(window),
-			gdk_screen_width() - WIDTH, gdk_screen_height() - HEIGHT);
+			gdk_screen_width() - WIDTH,
+			gdk_screen_height() - HEIGHT
+#ifdef _WIN32
+			- (abd.rc.bottom - abd.rc.top)
+#endif
+			);
 
 	gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
 	gtk_container_add(GTK_CONTAINER(window), label);
