@@ -54,6 +54,7 @@ clean:
 	$Qmake ${MAKEFLAGS} -C gui     clean
 	$Qmake ${MAKEFLAGS} -C fifo    clean
 	$Qmake ${MAKEFLAGS} -C ft      clean
+	$Qmake ${MAKEFLAGS} -C gcommon clean
 	$Qfind . -iname \*.o|xargs rm -f
 
 include config.mk

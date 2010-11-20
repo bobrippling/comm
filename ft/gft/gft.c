@@ -50,6 +50,7 @@
 
 #include "../util/gqueue.h"
 #include "../../gcommon/glist.h"
+#include "../../gcommon/gballoon.h"
 #include "gtray.h"
 
 #include "../libft/ft.h"
@@ -502,13 +503,21 @@ int callback(struct filetransfer *ft, enum ftstate ftst,
 
 		case FT_SENT:
 		case FT_RECIEVED:
+		{
+			char *stat;
+
 			if(ftst == FT_SENT)
-				status("Sent %s", ft_basename(ft));
+				stat = g_strdup_printf("Sent %s", ft_basename(ft));
 			else
-				status("Recieved %s", ft_basename(ft));
+				stat = g_strdup_printf("Recieved %s", ft_basename(ft));
+			status(stat);
 			gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progressft), 1.0f);
 			transfers_add(listDone, ft_basename(ft), ft_fname(ft), ftst == FT_RECIEVED);
+
+			gballoon_show("Transfer complete", stat, 5000, NULL, NULL);
+			g_free(stat);
 			break;
+		}
 
 		case FT_BEGIN_SEND:
 		case FT_BEGIN_RECV:
