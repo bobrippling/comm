@@ -74,7 +74,6 @@ char *fnameback(struct filetransfer *ft,
 
 static GtkWidget *btnSend, *btnConnect, *btnListen, *btnClose;
 static GtkWidget *btnFileChoice, *btnOpenFolder, *btnClearTransfers;
-static GtkWidget *btnDirChoice;
 
 static GtkWidget *progressft, *lblStatus;
 static GtkWidget *cboHost;
@@ -83,6 +82,9 @@ static GtkWidget    *treeDone,      *treeTransfers;
 static GtkListStore *listTransfers, *listDone;
 
 static GtkWidget *winMain;
+
+
+GtkWidget *btnDirChoice; /* extern'd */
 
 
 struct filetransfer ft;
@@ -100,6 +102,7 @@ G_MODULE_EXPORT gboolean
 on_winMain_destroy(void)
 {
 	CLOSE();
+	cfg_write(); /* must be before gtk shutdown */
 	gtk_main_quit(); /* gtk exit here only */
 	return FALSE;
 }
@@ -737,7 +740,6 @@ usage:
 	gtk_main();
 
 	tray_term();
-	cfg_write();
 
 	return 0;
 }

@@ -12,7 +12,7 @@
 char *strdup(const char *);
 #endif
 
-#define CFG_GFT_FNAME  "recent_hosts"
+#define CFG_GFT_FNAME  "gft.conf"
 
 #define ITER_HOSTS(i, code) \
 	for(i = 0; i < nhosts; i++) \
@@ -68,16 +68,42 @@ void cfg_write()
 
 	tmp = g_strdup_printf("%s/" CFG_EXTRA "%s", home, CFG_DOT CFG_GFT_FNAME);
 	f = fopen(tmp, "w");
+
+	/* mkdir (assuming ~/.config exists) */
+	if(!f){
+		char *slash = strrchr(tmp, '/');
+		if(slash){
+			*slash = '\0';
+			if(mkdir(tmp, 0755) && errno != EEXIST){
+				perror("mkdir(CFG)");
+				g_free(tmp);
+				return;
+			}
+			*slash = '/';
+			f = fopen(tmp, "w");
+		}
+	}
+
 	g_free(tmp);
 #endif
 
 	if(!f){
-		perror("cfg_add()");
+		perror("cfg_write()");
 		return;
 	}
 
+	{
+		extern GtkWidget *btnDirChoice;
+		char *dname = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(btnDirChoice));
+
+		if(dname){
+			fprintf(f, "DIR %s\n", dname);
+			g_free(dname);
+		}
+	}
+
 	ITER_HOSTS(i,
-		fprintf(f, "%s\n", hosts[i]);
+		fprintf(f, "HOST %s\n", hosts[i]);
 		);
 
 	fclose(f);
@@ -113,8 +139,16 @@ void cfg_read(GtkWidget *cboHost)
 		char *nl = strchr(line, '\n');
 		if(nl)
 			*nl = '\0';
-		cfg_add(line);
-		gtk_combo_box_append_text(GTK_COMBO_BOX(cboHost), line);
+
+		if(!strncmp(line, "HOST ", 5)){
+			char *h = line +5;
+			cfg_add(h);
+			gtk_combo_box_append_text(GTK_COMBO_BOX(cboHost), h);
+		}else if(!strncmp(line, "DIR ", 4)){
+			extern GtkWidget *btnDirChoice;
+			gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(btnDirChoice), line + 4);
+		}else
+			fprintf(stderr, "Invalid config line: %s\n", line);
 	}
 	fclose(f);
 	gtk_entry_set_text(GTK_ENTRY(GTK_BIN(cboHost)->child), line);
