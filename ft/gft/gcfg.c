@@ -141,9 +141,10 @@ void cfg_read(GtkWidget *cboHost)
 			*nl = '\0';
 
 		if(!strncmp(line, "HOST ", 5)){
-			char *h = line +5;
+			char *const h = line + 5;
 			cfg_add(h);
 			gtk_combo_box_append_text(GTK_COMBO_BOX(cboHost), h);
+			gtk_entry_set_text(GTK_ENTRY(GTK_BIN(cboHost)->child), h);
 		}else if(!strncmp(line, "DIR ", 4)){
 			extern GtkWidget *btnDirChoice;
 			gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(btnDirChoice), line + 4);
@@ -151,5 +152,4 @@ void cfg_read(GtkWidget *cboHost)
 			fprintf(stderr, "Invalid config line: %s\n", line);
 	}
 	fclose(f);
-	gtk_entry_set_text(GTK_ENTRY(GTK_BIN(cboHost)->child), line);
 }
