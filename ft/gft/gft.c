@@ -695,8 +695,10 @@ usage:
 		}else if(argc != 1)
 			goto usage;
 
-		if(!debug)
+		if(!debug){
 			FreeConsole();
+			fputs("gft: debug off\n", stderr);
+		}
 	}
 #else
 	if(argc != 1){
