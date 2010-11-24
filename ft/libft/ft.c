@@ -18,12 +18,15 @@
 # define W_OK 02
 # define R_OK 04
 
-# define WIN_DEBUG(x) perror("WIN_DEBUG(): " x )
+# define WIN_DEBUG(x) fprintf(stderr, \
+		"WIN_DEBUG(): " x ": %d (%d): %s\n", errno, \
+		WSAGetLastError(), Win32_LastErr(0))
 
 # define PRINTF_SIZET "%ld"
 # define PRINTF_SIZET_CAST long
 
 # define  os_getlasterr() Win32_LastErr(1)
+
 # define net_getlasterr() Win32_LastErr(0)
 
 # define G_DIR_SEPARATOR '\\'
@@ -189,65 +192,38 @@ int ft_listen(struct filetransfer *ft, int port)
 
 enum ftret ft_accept(struct filetransfer *ft, const int block)
 {
+	struct timeval tv;
+	fd_set fds;
+
 	int new, save;
 	socklen_t socklen;
-#ifndef _WIN32
-	int flags;
-#endif
 
-	ft->lasterr = NULL; /* must be checkable after this funcall */
 
 	if(!block){
-#ifdef _WIN32
-		u_long m = 0;
-		if(ioctlsocket(ft->sock, FIONBIO, &m) != 0){
-			ft->lasterr = net_getlasterr();
-			return FT_ERR;
+		FD_ZERO(&fds);
+		FD_SET(ft->sock, &fds);
+
+		tv.tv_sec  = 0;
+		tv.tv_usec = 1000;
+
+		switch(select(ft->sock + 1, &fds, NULL, NULL, &tv)){
+			case -1:
+				ft->lasterr = os_getlasterr();
+				return FT_ERR;
+			case 0:
+				return FT_NO;
 		}
-#else
-		flags = fcntl(ft->sock, F_GETFL);
-		if(fcntl(ft->sock, F_SETFL, flags | O_NONBLOCK) == -1){
-			ft->lasterr = net_getlasterr();
-			return FT_ERR;
-		}
-#endif
+		if(!FD_ISSET(ft->sock, &fds))
+			return FT_NO;
 	}
+
+	ft->lasterr = NULL; /* must be checkable after this funcall */
 
 	socklen = sizeof(struct sockaddr_in);
 	new = accept(ft->sock,
 			(struct sockaddr *)ft->addr,
 			&socklen);
 	save = errno;
-
-	if(!block){
-#ifdef _WIN32
-		u_long m = 1;
-		if(ioctlsocket(ft->sock, FIONBIO, &m) != 0){
-			ft->lasterr = net_getlasterr();
-			return FT_ERR;
-		}
-#else
-		if(fcntl(ft->sock, F_SETFL, flags & ~O_NONBLOCK) == -1){
-			ft->lasterr = net_getlasterr();
-			return FT_ERR;
-		}
-#endif
-	}
-	errno = save;
-
-	if(new == -1){
-		if(
-#ifdef _WIN32
-				errno == WSAEWOULDBLOCK ||
-#endif
-				errno == EAGAIN || errno == EWOULDBLOCK
-				)
-			return FT_NO;
-		else{
-			ft->lasterr = net_getlasterr();
-			return FT_ERR;
-		}
-	}
 
 	ft_connected(ft) = 1;
 
@@ -653,6 +629,7 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 		ft->lasterr = os_getlasterr();
 		goto bail;
 	}else if(st.st_size == 0){
+		WIN_DEBUG("zero len file");
 		ft->lasterr = "libft: Can't send zero-length file";
 		goto bail;
 	}
@@ -669,12 +646,14 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 	if((nwrite = snprintf(buffer, sizeof buffer,
 					"FILE %s\nSIZE " PRINTF_SIZET "\n\n",
 			basename, (PRINTF_SIZET_CAST)st.st_size)) >= (signed)sizeof buffer){
+		WIN_DEBUG("long fname");
 		ft->lasterr = "libft: Shorten your darn filename";
 		goto bail;
 	}
 
 	/* less complicated to do it here than ^whileloop */
 	if(send(ft->sock, buffer, nwrite, 0) == -1){
+		WIN_DEBUG("ft_send(): inital write");
 		ft->lasterr = net_getlasterr();
 		goto bail;
 	}
@@ -682,9 +661,11 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 #define BUFFER_RECV(len, flag) \
 		switch((nwrite = recv(ft->sock, buffer, len, flag))){ \
 			case -1: \
+				WIN_DEBUG("ft_send(): BUFFER_RECV recv()"); \
 				ft->lasterr = net_getlasterr(); \
 				goto bail; \
 			case 0: \
+				WIN_DEBUG("ft_send(): BUFFER_RECV premature"); \
 				ft->lasterr = FT_ERR_PREMATURE_CLOSE; \
 				goto bail; \
 		}
@@ -705,12 +686,14 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 
 	if(sscanf(buffer, "RESUME " PRINTF_SIZET "\n",
 				(PRINTF_SIZET_CAST *)&nsent) != 1){
+		WIN_DEBUG("invalid RESUME");
 		ft->lasterr = "libft: Invalid RESUME message";
 		goto bail;
 	}
 
 	if(nsent)
 		if(fseek(local, nsent, SEEK_SET) == -1){
+			WIN_DEBUG("fseek()"); \
 			ft->lasterr = os_getlasterr();
 			goto bail;
 		}
@@ -726,16 +709,19 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 		switch((nwrite = fread(buffer, sizeof(char), sizeof buffer, local))){
 			case 0:
 				if(ferror(local)){
+					WIN_DEBUG("ferror()"); \
 					ft->lasterr = net_getlasterr();
 					goto bail;
 				}
 				goto complete;
 			case -1:
+				WIN_DEBUG("fread()");
 				ft->lasterr = net_getlasterr();
 				goto bail;
 		}
 
 		if(send(ft->sock, buffer, nwrite, 0) == -1){
+			WIN_DEBUG("send()");
 			ft->lasterr = net_getlasterr();
 			goto bail;
 		}
@@ -778,6 +764,7 @@ complete:
 		}while(1);
 
 		if(strncmp(buffer, "OK\n", 3)){
+			WIN_DEBUG("\"OK\" not recv()'d");
 			ft->lasterr = FT_ERR_INVALID_MSG;
 			goto bail;
 		}
@@ -790,6 +777,7 @@ complete:
 		}
 
 		if(fclose(local)){
+			WIN_DEBUG("fclose()");
 			ft->lasterr = os_getlasterr();
 			return 1;
 		}
