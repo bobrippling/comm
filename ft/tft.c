@@ -158,7 +158,7 @@ int main(int argc, char **argv)
 			clobber_mode = RESUME;
 		else if(ARG("O"))
 			stay_up = 1;
-		else if(host_idx < 0)
+		else if(!listen && host_idx < 0)
 			host_idx = i;
 		else if(fname_idx < 0){
 			fname_idx = i;
