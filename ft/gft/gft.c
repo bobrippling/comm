@@ -50,16 +50,17 @@
 
 #include "../util/gqueue.h"
 #include "../../gcommon/glist.h"
-#include "../../gcommon/gballoon.h"
 #include "gtray.h"
 
 #include "../libft/ft.h"
+
+#include "../../common/gnudefs.h"
 
 #include "gcfg.h"
 #include "gtransfers.h"
 
 void cmds(void);
-void status(const char *, ...);
+void status(const char *, ...) GCC_PRINTF_ATTRIB(1, 2);
 void settimeout(int on);
 
 const char *get_openfolder(void);
@@ -118,7 +119,6 @@ G_MODULE_EXPORT gboolean
 btnClearTransfers_clicked(void)
 {
 	glist_clear(listDone);
-	tray_balloon("Test Title", "Test Msg");
 	return FALSE;
 }
 
@@ -517,7 +517,7 @@ int callback(struct filetransfer *ft, enum ftstate ftst,
 			gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progressft), 1.0f);
 			transfers_add(listDone, ft_basename(ft), ft_fname(ft), ftst == FT_RECIEVED);
 
-			gballoon_show("Transfer complete", stat, 5000, NULL, NULL);
+			tray_balloon("Transfer complete", stat);
 			g_free(stat);
 			break;
 		}
