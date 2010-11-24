@@ -10,6 +10,8 @@
 #endif
 
 #include "gtray.h"
+#include "gballoon.h"
+
 
 void gtray_new_fname(
 		gtray_icon *tray_icon,
@@ -87,7 +89,8 @@ void gtray_balloon(gtray_icon *icondata,
 	if(!Shell_NotifyIcon(NIM_MODIFY, icondata))
 		fprintf(stderr, "Shell_NotifyIcon failed\n");
 #else
-	printf("TODO!\n");
+	/*printf("gtray_balloon: TODO!\n");*/
+	gballoon_show(title, msg, 2000, NULL, NULL);
 #endif
 }
 

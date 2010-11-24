@@ -44,6 +44,7 @@ GtkWidget *gballoon_show(const char *title, const char *msg, int timeout,
 {
 	GtkWidget *window = gtk_window_new(GTK_WINDOW_POPUP);
 	GtkWidget *label  = gtk_label_new(msg);
+	GdkColor colour;
 	struct balloon *b = malloc(sizeof *b);
 #ifdef _WIN32
 	APPBARDATA abd;
@@ -57,6 +58,9 @@ GtkWidget *gballoon_show(const char *title, const char *msg, int timeout,
 	b->window     = window;
 	b->opacity    = 1.0f;
 	b->wait       = WAIT_ITERS;
+
+	gdk_color_parse("#63E184", &colour);
+	gtk_widget_modify_bg(window, GTK_STATE_NORMAL, &colour);
 
 	gtk_widget_set_size_request(window, WIDTH, HEIGHT);
 	gtk_window_set_title(GTK_WINDOW(window), title);

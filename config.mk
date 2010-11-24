@@ -34,6 +34,7 @@ mostlyclean:
 	$Qrm -f *.o
 
 %gen.h:
+	@echo GEN $@
 	@sed 's/"/\\"/g' $^ | awk ' \
 		BEGIN { \
 			ORS = ""; \

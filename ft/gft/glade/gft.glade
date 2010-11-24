@@ -125,10 +125,7 @@
                   <object class="GtkTreeView" id="treeDone">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
-                    <property name="reorderable">True</property>
-                    <property name="fixed_height_mode">True</property>
-                    <property name="rubber_banding">True</property>
-                    <property name="enable_grid_lines">horizontal</property>
+                    <property name="headers_visible">False</property>
                     <signal name="row_activated" handler="on_treeDoneTransfers_row_activated"/>
                   </object>
                   <packing>

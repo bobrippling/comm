@@ -1,9 +1,9 @@
 #ifndef GTRAY_H
 #define GTRAY_H
 
-#ifdef _WIN32
-/*# define USE_WIN_ICON*/
-#endif
+/*#ifdef _WIN32
+# define USE_WIN_ICON
+#endif*/
 
 #ifdef USE_WIN_ICON
 typedef NOTIFYICONDATA  gtray_icon;

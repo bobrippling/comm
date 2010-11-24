@@ -8,7 +8,7 @@
 
 #define ICON_FILE "gft.ico"
 
-gtray_icon            tray;
+static gtray_icon     tray;
 static GtkWidget     *menu;
 static GtkWidget     *winMain;
 
@@ -47,7 +47,7 @@ void tray_toggle()
 
 void tray_balloon(const char *t, const char *m)
 {
-	gtray_balloon(&tray, t, m);
+	gtray_balloon(&tray, t, m/*,*/ );
 }
 
 void tray_init(GtkWidget *winMain2, const char *argv_0)

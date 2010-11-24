@@ -13,3 +13,7 @@ include ../config.mk
 
 CFLAGS  = `pkg-config --cflags ${GTKINC}`
 LDFLAGS = `pkg-config --libs ${GTKINC}`
+
+gballoon.o: gballoon.c gballoon.h
+glist.o: glist.c glist.h
+gtray.o: gtray.c gtray.h gballoon.h
