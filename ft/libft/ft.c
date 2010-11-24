@@ -238,10 +238,9 @@ enum ftret ft_accept(struct filetransfer *ft, const int block)
 	if(new == -1){
 		if(
 #ifdef _WIN32
-				errno == WSAEWOULDBLOCK
-#else
-				errno == EAGAIN || errno == EWOULDBLOCK
+				errno == WSAEWOULDBLOCK ||
 #endif
+				errno == EAGAIN || errno == EWOULDBLOCK
 				)
 			return FT_NO;
 		else{
