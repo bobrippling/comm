@@ -68,7 +68,7 @@ void shelldir(const char *d);
 
 int callback(struct filetransfer *ft, enum ftstate state,
 		size_t bytessent, size_t bytestotal);
-int queryback(struct filetransfer *ft,
+int queryback(struct filetransfer *ft, enum ftquery qtype,
 		const char *msg, ...);
 char *fnameback(struct filetransfer *ft,
 		char *fname);
@@ -542,7 +542,7 @@ int callback(struct filetransfer *ft, enum ftstate ftst,
 	return cancelled;
 }
 
-int queryback(struct filetransfer *ft, const char *msg, ...)
+int queryback(struct filetransfer *ft, enum ftquery qtype, const char *msg, ...)
 {
 	GtkWidget *dialog = gtk_dialog_new(), *label;
 	va_list l;
@@ -551,6 +551,7 @@ int queryback(struct filetransfer *ft, const char *msg, ...)
 	int i = 0, formatargs = 0;
 
 	(void)ft;
+	(void)qtype;
 
 	if(!dialog)
 		return 0;

@@ -44,7 +44,7 @@ int callback(struct filetransfer *ft, enum ftstate state,
 	return 0;
 }
 
-int queryback(struct filetransfer *ft, const char *msg, ...)
+int queryback(struct filetransfer *ft, enum ftquery querytype, const char *msg, ...)
 {
 	va_list l;
 	int opt, c, formatargs = 0;
@@ -52,12 +52,13 @@ int queryback(struct filetransfer *ft, const char *msg, ...)
 
 	(void)ft;
 
-	switch(clobber_mode){
-		case ASK: break;
-		case OVERWRITE: return 0;
-		case RESUME:    return 1;
-		case RENAME:    return 2;
-	}
+	if(querytype == FT_FILE_EXISTS)
+		switch(clobber_mode){
+			case ASK: break;
+			case OVERWRITE: return 0;
+			case RESUME:    return 1;
+			case RENAME:    return 2;
+		}
 
 	va_start(l, msg);
 	vfprintf(stderr, msg, l);

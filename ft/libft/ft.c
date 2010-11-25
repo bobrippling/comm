@@ -120,8 +120,16 @@ static int WSA_Startuped = 0;
 		ft_sleep(); \
 	}while(0)
 
+#define FREE_AND_NULL(x) do{ free(x); x = NULL; }while(0)
+
 static size_t ft_getcallback_step(size_t);
 static void ft_sleep(void);
+
+static int ft_get_meta(struct filetransfer *ft,
+		char **basename, FILE **local, size_t *size,
+		ft_callback, ft_queryback,
+		ft_fnameback fnameback);
+
 
 static size_t ft_getcallback_step(size_t siz)
 {
@@ -234,11 +242,6 @@ enum ftret ft_accept(struct filetransfer *ft, const int block)
 
 static int ft_get_meta(struct filetransfer *ft,
 		char **basename, FILE **local, size_t *size,
-		ft_callback, ft_queryback,
-		ft_fnameback fnameback);
-
-static int ft_get_meta(struct filetransfer *ft,
-		char **basename, FILE **local, size_t *size,
 		ft_callback callback, ft_queryback queryback,
 		ft_fnameback fnameback)
 {
@@ -307,7 +310,7 @@ static int ft_get_meta(struct filetransfer *ft,
 	if(!strncmp(bufptr, "SIZE ", 5)){
 		if(sscanf(bufptr + 5, PRINTF_SIZET, (PRINTF_SIZET_CAST *)size) != 1){
 			ft->lasterr = "libft: Invalid SIZE recieved";
-			free(*basename);
+			FREE_AND_NULL(*basename);
 			return 1;
 		}
 	}else
@@ -338,17 +341,17 @@ static int ft_get_meta(struct filetransfer *ft,
 		char *newfname = fnameback(ft, *basename);
 
 		if(!newfname){
-			free(*basename);
+			FREE_AND_NULL(*basename);
 			ft->lasterr = FT_ERR_CANCELLED;
 			return 1;
 		}else if(newfname != *basename){
-			free(*basename);
+			FREE_AND_NULL(*basename);
 			ft_fname(ft) = *basename = newfname;
 		}
 
-		if(access(*basename, W_OK | R_OK) == 0)
+		if(access(*basename, W_OK | R_OK) == 0){
 			/* file exists - clobber/resume check */
-			switch(queryback(ft, "%s exists", *basename, "Overwrite", "Resume", "Rename", NULL)){
+			switch(queryback(ft, FT_FILE_EXISTS, "%s exists", *basename, "Overwrite", "Resume", "Rename", NULL)){
 				case 0: /* overwrite */
 					/* just carry on */
 					break;
@@ -357,6 +360,7 @@ static int ft_get_meta(struct filetransfer *ft,
 					resume = 1;
 					break;
 
+rename:
 				case 2: /* rename */
 				{
 					int clob = 1, len = strlen(*basename) + 5;
@@ -364,7 +368,7 @@ static int ft_get_meta(struct filetransfer *ft,
 
 					if(!tmp){
 						ft->lasterr = os_getlasterr();
-						free(*basename);
+						FREE_AND_NULL(*basename);
 						return 1;
 					}
 					dup = strdup(*basename = tmp);
@@ -401,31 +405,40 @@ static int ft_get_meta(struct filetransfer *ft,
 					ft->lasterr = FT_ERR_INVALID_MSG;
 					return 1;
 			}/* switch querycallback */
-		else if(errno != ENOENT){
+		}else if(errno != ENOENT)
 			/* access error */
-			ft->lasterr = os_getlasterr();
-			free(*basename);
-			return 1;
-		}
+			goto access_error;
 
 
 		{
 			char mode[4];
+open_retry:
 			if(resume)
-				strcpy(mode, "a+b");
+				strcpy(mode, "a+b"); /* doesn't */
 			else
-				strcpy(mode, "wb");
-			*local = fopen(*basename, mode); /* truncates *basename */
+				strcpy(mode, "wb"); /* truncates *basename */
+			*local = fopen(*basename, mode);
 		}
 		if(!*local){
+access_error:
+			switch(queryback(ft, FT_CANT_OPEN, "Can't open %s: %s", *basename, os_getlasterr(),
+					"Retry", "Rename", "Fail", NULL)){
+				case 0:
+					goto open_retry;
+				case 1:
+					goto rename;
+				case 2:
+				default:
+					break;
+			}
 			ft->lasterr = os_getlasterr();
-			free(*basename);
+			FREE_AND_NULL(*basename);
 			return 1;
 		}
 		if(resume)
 			if(fseek(*local, 0, SEEK_END)){
 				ft->lasterr = os_getlasterr();
-				free(*basename);
+				FREE_AND_NULL(*basename);
 				fclose(*local);
 				return 1;
 			}/* else leave fpointer at the end for ftell() below */
