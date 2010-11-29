@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -17,12 +18,15 @@
 
 #ifdef _WIN32
 char __progname[512];
+#else
+extern char *__progname;
 #endif
 
 void clrtoeol(void);
 void cleanup(void);
 int  eprintf(const char *, ...);
 void check_files(int fname_idx, int argc, char **argv);
+char *readline(int nulsep);
 
 struct filetransfer ft;
 enum { OVERWRITE, RESUME, RENAME, ASK } clobber_mode = ASK;
@@ -119,9 +123,6 @@ int eprintf(const char *fmt, ...)
 {
 	va_list l;
 	int ret;
-#ifndef _WIN32
-	extern char *__progname;
-#endif
 
 	fprintf(stderr, "%s: ", __progname);
 	va_start(l, fmt);
@@ -141,12 +142,79 @@ void check_files(int fname_idx, int argc, char **argv)
 						*argv, argv[i], strerror(errno));
 }
 
+
+int send_from_stdin(int nul)
+{
+#ifdef CUSTOM
+	static char buffer[4096]; /* static for ~stackoverflow */
+	char *start;
+	int nread;
+
+	nread = fread(buffer, sizeof *buffer, sizeof buffer, stdin);
+
+	if(!nread){
+		if(ferror(stdin))
+			perror("fread()");
+		return 1;
+	}
+
+	start = buffer;
+	do{
+		char *end = memchr(start, nul ? 0 : '\n', nread);
+
+		if(!end){
+			fprintf(stderr, "%s: couldn't find terminator for:\n%s\n", __progname, buffer);
+			return 0;
+		}
+
+		*end = '\0';
+
+		if(ft_send(&ft, callback, start)){
+			clrtoeol();
+			eprintf("ft_send(): %s\n", ft_lasterr(&ft));
+			return 1;
+		}
+
+		/* check for any mores */
+		nread -= (end - start);
+		start = end + 1;
+	}while(nread > 0);
+	return 0;
+#else
+	char  *line = NULL, *delim;
+	size_t size = 0;
+
+	if(getdelim(&line, &size, nul ? 0 : '\n', stdin) == -1){
+		if(ferror(stdin)){
+			perror("read()");
+			return 2;
+		}
+		return 1;
+	}
+
+	delim = strchr(line, nul ? 0 : '\n');
+	if(delim)
+		*delim = '\0';
+
+	if(ft_send(&ft, callback, line)){
+		clrtoeol();
+		eprintf("ft_send(): %s: %s\n", line, ft_lasterr(&ft));
+		return 2;
+	}
+
+	free(line);
+	return 0;
+#endif
+}
+
 int main(int argc, char **argv)
 {
-	int i, listen = 0, verbose = 0, stay_up = 0;
+	int i, listen, verbose;
+	int stay_up, read_stdin, read_stdin_nul;
 	const char *port = FT_DEFAULT_PORT;
 	int fname_idx, host_idx;
 
+	listen = verbose = stay_up = read_stdin = read_stdin_nul = 0;
 	fname_idx = host_idx = -1;
 
 #ifdef _WIN32
@@ -173,6 +241,10 @@ int main(int argc, char **argv)
 			clobber_mode = RESUME;
 		else if(ARG("O"))
 			stay_up = 1;
+		else if(ARG("i"))
+			read_stdin = 1;
+		else if(ARG("0"))
+			read_stdin_nul = 1;
 		else if(!listen && host_idx < 0)
 			host_idx = i;
 		else if(fname_idx < 0){
@@ -182,8 +254,11 @@ int main(int argc, char **argv)
 		usage:
 			eprintf("Usage: %s [-p port] [OPTS] [-l | host] [files...]\n"
 							"  -l: listen\n"
-							"  -O: remain running at the end of a transfer\n"
 							"  -v: verbose\n"
+							"\n"
+							"  -O: remain running at the end of a transfer\n"
+							"  -i: read supplementary file list from stdin\n"
+							"  -0: file list is nul-delimited\n"
 							" If file exists:\n"
 							"  -o: overwrite\n"
 							"  -n: rename incoming\n"
@@ -269,7 +344,7 @@ int main(int argc, char **argv)
 
 			if(ft_send(&ft, callback, fname)){
 				clrtoeol();
-				eprintf("ft_send(): %s\n", ft_lasterr(&ft));
+				eprintf("ft_send(): %s: %s\n", fname, ft_lasterr(&ft));
 				goto bail;
 			}
 		}else{
@@ -290,10 +365,42 @@ int main(int argc, char **argv)
 
 					case FT_NO:
 					{
+						/* check for a file to send */
 						struct timeval tv;
+						fd_set fds;
+
 						tv.tv_sec = 0;
 						tv.tv_usec = 250000; /* 1/4 sec */
-						select(0, NULL, NULL, NULL, &tv);
+						FD_ZERO(&fds);
+
+						if(read_stdin)
+							FD_SET(STDIN_FILENO, &fds);
+
+						switch(select(read_stdin, &fds, NULL, NULL, &tv)){
+							case -1:
+								perror("select()");
+								goto bail;
+
+							case 0:
+								break;
+
+							default:
+								/* got a file to send */
+								if(FD_ISSET(STDIN_FILENO, &fds))
+									switch(send_from_stdin(read_stdin_nul)){
+										case 0:
+											/* good to carry on */
+											break;
+										case 1:
+											/* eof */
+											read_stdin = 0;
+											if(!stay_up)
+												goto fin;
+										case 2:
+											goto bail;
+									}
+						}
+
 						continue;
 					}
 				}
@@ -312,8 +419,9 @@ int main(int argc, char **argv)
 				/* connection closed properly */
 				break;
 		}
-	}while(stay_up || fname_idx > 0);
+	}while(stay_up || read_stdin || fname_idx > 0);
 
+fin:
 	ft_close(&ft);
 
 	return 0;

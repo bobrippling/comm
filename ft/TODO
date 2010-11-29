@@ -1,7 +1,6 @@
+queue an entire folder
+
 fix ft->lastcallback?
 kbps
 
-background via tray
-	repeatedly connect to target if conenction dropped
-	balloon on file recieved
-	embed icon into program
+embed icon into program
