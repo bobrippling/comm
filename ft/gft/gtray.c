@@ -2,6 +2,7 @@
 #include <string.h>
 #ifdef _WIN32
 # include <windows.h>
+# include <gdk/gdkwin32.h>
 #endif
 
 #include "../../gcommon/gtray.h"
@@ -39,9 +40,41 @@ void tray_quit()
 	gtk_main_quit();
 }
 
+#ifdef _WIN32
+HWND tray_hwnd(void)
+{
+	HWND parent = FindWindow("Shell_TrayWnd", "");
+	return FindWindowEx(parent, 0, "TrayNotifyWnd", NULL);
+}
+#endif
+
+
 void tray_toggle()
 {
-	gtk_widget_set_visible(winMain, !gtk_widget_get_visible(winMain));
+#ifdef _WIN32
+	HWND hWnd;
+	RECT rc_us, rc_tray;
+	RECT *from, *to;
+
+	hWnd = (HWND)gdk_win32_drawable_get_handle(
+			winMain->window);
+
+	GetWindowRect(hWnd, &rc_us);
+	GetWindowRect(tray_hwnd(), &rc_tray);
+
+	if(gtk_widget_get_visible(winMain)){
+		from = &rc_us;
+		to   = &rc_tray;
+	}else{
+		from = &rc_tray;
+		to   = &rc_us;
+	}
+
+	DrawAnimatedRects(hWnd, IDANI_CAPTION, from, to);
+#endif
+
+	gtk_widget_set_visible(winMain,
+			!gtk_widget_get_visible(winMain));
 }
 
 void tray_balloon(const char *t, const char *m)

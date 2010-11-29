@@ -6,6 +6,7 @@
 #ifdef _WIN32
 # include <malloc.h>
 # include <windows.h>
+# include <shlobj.h>
 #else
 # include <alloca.h>
 #endif
@@ -708,8 +709,8 @@ usage:
 			goto usage;
 
 		if(!debug){
-			FreeConsole();
 			fputs("gft: debug off\n", stderr);
+			FreeConsole();
 		}
 	}
 #else
