@@ -2,6 +2,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <unistd.h>
+#include <errno.h>
 #ifdef _WIN32
 # include <winsock2.h>
 /* wtf */
@@ -20,6 +22,7 @@ char __progname[512];
 void clrtoeol(void);
 void cleanup(void);
 int  eprintf(const char *, ...);
+void check_files(int fname_idx, int argc, char **argv);
 
 struct filetransfer ft;
 enum { OVERWRITE, RESUME, RENAME, ASK } clobber_mode = ASK;
@@ -41,7 +44,7 @@ int callback(struct filetransfer *ft, enum ftstate state,
 	return 0;
 }
 
-int queryback(struct filetransfer *ft, const char *msg, ...)
+int queryback(struct filetransfer *ft, enum ftquery querytype, const char *msg, ...)
 {
 	va_list l;
 	int opt, c, formatargs = 0;
@@ -49,12 +52,13 @@ int queryback(struct filetransfer *ft, const char *msg, ...)
 
 	(void)ft;
 
-	switch(clobber_mode){
-		case ASK: break;
-		case OVERWRITE: return 0;
-		case RESUME:    return 1;
-		case RENAME:    return 2;
-	}
+	if(querytype == FT_FILE_EXISTS)
+		switch(clobber_mode){
+			case ASK: break;
+			case OVERWRITE: return 0;
+			case RESUME:    return 1;
+			case RENAME:    return 2;
+		}
 
 	va_start(l, msg);
 	vfprintf(stderr, msg, l);
@@ -126,6 +130,17 @@ int eprintf(const char *fmt, ...)
 	return ret;
 }
 
+void check_files(int fname_idx, int argc, char **argv)
+{
+	int i;
+
+	if(fname_idx > 0)
+		for(i = fname_idx; i < argc; i++)
+			if(access(argv[i], R_OK))
+				fprintf(stderr, "%s: warning: no read access for \"%s\" (%s)\n",
+						*argv, argv[i], strerror(errno));
+}
+
 int main(int argc, char **argv)
 {
 	int i, listen = 0, verbose = 0, stay_up = 0;
@@ -168,6 +183,7 @@ int main(int argc, char **argv)
 			eprintf("Usage: %s [-p port] [OPTS] [-l | host] [files...]\n"
 							"  -l: listen\n"
 							"  -O: remain running at the end of a transfer\n"
+							"  -v: verbose\n"
 							" If file exists:\n"
 							"  -o: overwrite\n"
 							"  -n: rename incoming\n"
@@ -176,6 +192,7 @@ int main(int argc, char **argv)
 			return 1;
 		}
 
+	setbuf(stdout, NULL);
 	atexit(cleanup);
 
 	if(listen){
@@ -192,8 +209,10 @@ int main(int argc, char **argv)
 			if(verbose)
 				printf("%s: serving file(s)...\n", *argv);
 
+			check_files(fname_idx, argc, argv);
+
 		}else if(verbose)
-			printf("%s: listening for incomming files...", *argv);
+			printf("%s: listening for incomming files...\n", *argv);
 
 		if(sscanf(port, "%d", &iport) != 1){
 			eprintf("need numeric port (\"%s\")\n", port);
@@ -224,6 +243,8 @@ int main(int argc, char **argv)
 			host = argv[host_idx];
 		else
 			goto usage;
+
+		check_files(fname_idx, argc, argv);
 
 		if(verbose)
 			printf("connecting to %s...\n", host);
@@ -276,6 +297,7 @@ int main(int argc, char **argv)
 						continue;
 					}
 				}
+			/* end while(lewp) */
 
 			if(ft_poll_connected(&ft)){
 				if(verbose)

@@ -68,7 +68,7 @@ void shelldir(const char *d);
 
 int callback(struct filetransfer *ft, enum ftstate state,
 		size_t bytessent, size_t bytestotal);
-int queryback(struct filetransfer *ft,
+int queryback(struct filetransfer *ft, enum ftquery qtype,
 		const char *msg, ...);
 char *fnameback(struct filetransfer *ft,
 		char *fname);
@@ -99,6 +99,17 @@ enum
 
 
 /* events */
+G_MODULE_EXPORT gboolean
+on_winMain_delete_event(void)
+{
+	/* return false to allow destroy */
+	if(cfg_get_close_to_tray()){
+		tray_toggle();
+		return TRUE;
+	}
+	return FALSE;
+}
+
 G_MODULE_EXPORT gboolean
 on_winMain_destroy(void)
 {
@@ -542,7 +553,7 @@ int callback(struct filetransfer *ft, enum ftstate ftst,
 	return cancelled;
 }
 
-int queryback(struct filetransfer *ft, const char *msg, ...)
+int queryback(struct filetransfer *ft, enum ftquery qtype, const char *msg, ...)
 {
 	GtkWidget *dialog = gtk_dialog_new(), *label;
 	va_list l;
@@ -551,6 +562,7 @@ int queryback(struct filetransfer *ft, const char *msg, ...)
 	int i = 0, formatargs = 0;
 
 	(void)ft;
+	(void)qtype;
 
 	if(!dialog)
 		return 0;
@@ -730,11 +742,24 @@ usage:
 	g_object_unref(G_OBJECT(builder));
 
 	/* signal setup */
-	g_signal_connect(G_OBJECT(winMain), "destroy", G_CALLBACK(on_winMain_destroy), NULL);
+	g_signal_connect(G_OBJECT(winMain), "delete-event" , G_CALLBACK(on_winMain_delete_event), NULL);
+	g_signal_connect(G_OBJECT(winMain), "destroy",       G_CALLBACK(on_winMain_destroy),      NULL);
 
 	cfg_read(cboHost);
 	tray_init(winMain, *argv);
 	transfers_init(&listDone, treeDone);
+
+	{
+#ifdef _WIN32
+		char path[MAX_PATH];
+		if(SHGetFolderPath(NULL, CSIDL_PERSONAL, NULL, 0, path) == S_OK)
+#else
+		char *path = getenv("HOME");
+		if(path)
+#endif
+			gtk_file_chooser_set_current_folder_uri(GTK_FILE_CHOOSER(btnFileChoice), path);
+	}
+
 
 	gtk_widget_set_sensitive(btnSend, FALSE);
 	cmds();

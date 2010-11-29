@@ -18,6 +18,12 @@ enum ftstate
 	FT_SENT, FT_RECIEVED
 };
 
+enum ftquery
+{
+	FT_FILE_EXISTS,
+	FT_CANT_OPEN
+};
+
 enum ftret
 {
 	FT_YES, FT_NO, FT_ERR
@@ -25,7 +31,7 @@ enum ftret
 
 typedef int (*ft_callback)(struct filetransfer *, enum ftstate state,
 		size_t bytessent, size_t bytestotal);
-typedef int (*ft_queryback)(struct filetransfer *, const char *msg, ...);
+typedef int (*ft_queryback)(struct filetransfer *, enum ftquery, const char *msg, ...);
 typedef char *(*ft_fnameback)(struct filetransfer *, char *);
 
 void ft_zero(struct filetransfer *);
