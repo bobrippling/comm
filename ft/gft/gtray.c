@@ -5,6 +5,7 @@
 #endif
 
 #include "../../gcommon/gtray.h"
+#include "gtray.h"
 
 #define ICON_FILE "gft.ico"
 
@@ -12,9 +13,7 @@ static gtray_icon     tray;
 static GtkWidget     *menu;
 static GtkWidget     *winMain;
 
-void tray_toggle(void);
-void tray_quit(  void);
-
+void tray_quit(void);
 void tray_activated(GObject *tray, gpointer unused);
 void tray_popupmenu(GtkStatusIcon *status_icon, guint button,
 		guint32 activate_time, gpointer unused);

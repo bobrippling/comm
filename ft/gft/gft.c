@@ -100,6 +100,17 @@ enum
 
 /* events */
 G_MODULE_EXPORT gboolean
+on_winMain_delete_event(void)
+{
+	/* return false to allow destroy */
+	if(cfg_get_close_to_tray()){
+		tray_toggle();
+		return TRUE;
+	}
+	return FALSE;
+}
+
+G_MODULE_EXPORT gboolean
 on_winMain_destroy(void)
 {
 	CLOSE();
@@ -731,11 +742,24 @@ usage:
 	g_object_unref(G_OBJECT(builder));
 
 	/* signal setup */
-	g_signal_connect(G_OBJECT(winMain), "destroy", G_CALLBACK(on_winMain_destroy), NULL);
+	g_signal_connect(G_OBJECT(winMain), "delete-event" , G_CALLBACK(on_winMain_delete_event), NULL);
+	g_signal_connect(G_OBJECT(winMain), "destroy",       G_CALLBACK(on_winMain_destroy),      NULL);
 
 	cfg_read(cboHost);
 	tray_init(winMain, *argv);
 	transfers_init(&listDone, treeDone);
+
+	{
+#ifdef _WIN32
+		char path[MAX_PATH];
+		if(SHGetFolderPath(NULL, CSIDL_PERSONAL, NULL, 0, path) == S_OK)
+#else
+		char *path = getenv("HOME");
+		if(path)
+#endif
+			gtk_file_chooser_set_current_folder_uri(GTK_FILE_CHOOSER(btnFileChoice), path);
+	}
+
 
 	gtk_widget_set_sensitive(btnSend, FALSE);
 	cmds();
