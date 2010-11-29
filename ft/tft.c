@@ -145,7 +145,7 @@ void check_files(int fname_idx, int argc, char **argv)
 
 int send_from_stdin(int nul)
 {
-#ifdef CUSTOM
+#ifdef _WIN32
 	static char buffer[4096]; /* static for ~stackoverflow */
 	char *start;
 	int nread;

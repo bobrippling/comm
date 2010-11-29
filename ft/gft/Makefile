@@ -19,7 +19,7 @@ g%.o: g%.c
 	$Q${CC} ${CFLAGS_G} -c -o $@ $<
 
 clean:
-	@rm -f gft *.o
+	@rm -f gft *.o gft.res
 
 include ../../config.mk
 
@@ -30,6 +30,8 @@ LDFLAGS_G  += `pkg-config --libs ${GTKINC}`
 
 gcfg.o: gcfg.c gcfg.h ../../config.h
 gft.o: gft.c ../../config.h gladegen.h ../util/gqueue.h \
- ../../gcommon/glist.h gtray.h ../libft/ft.h gcfg.h gtransfers.h
+ ../../gcommon/glist.h gtray.h ../libft/ft.h gcfg.h \
+ gtransfers.h gft.h
 gtransfers.o: gtransfers.c gtransfers.h
-gtray.o: gtray.c ../../gcommon/gtray.h
+gtray.o: gtray.c ../../gcommon/gtray.h gft.h
+gft.res: gft.h

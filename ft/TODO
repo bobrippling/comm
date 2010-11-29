@@ -4,3 +4,6 @@ fix ft->lastcallback?
 kbps
 
 embed icon into program
+
+icon changing code:
+SetClassLong(hwnd, GCL_HICON, (LONG) LoadIcon(hinst, MAKEINTRESOURCE(480)));

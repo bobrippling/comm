@@ -7,6 +7,7 @@
 
 #include "../../gcommon/gtray.h"
 #include "gtray.h"
+#include "gft.h"
 
 #define ICON_FILE "gft.ico"
 
@@ -85,6 +86,7 @@ void tray_balloon(const char *t, const char *m)
 void tray_init(GtkWidget *winMain2, const char *argv_0)
 {
 	GtkWidget *menu_item_toggle, *menu_item_quit;
+#ifndef _WIN32
 	char *icon_path, *exe_dir, *slash;
 
 	exe_dir   = g_strdup(argv_0);
@@ -95,6 +97,7 @@ void tray_init(GtkWidget *winMain2, const char *argv_0)
 	}else
 		/* something like argv[0] = "gft" */
 		icon_path = g_strdup(ICON_FILE);
+#endif
 
 	winMain = winMain2;
 
@@ -109,11 +112,27 @@ void tray_init(GtkWidget *winMain2, const char *argv_0)
 	gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item_quit  );
 	gtk_widget_show_all(GTK_WIDGET(menu));
 
+#ifdef _WIN32
+	{
+		HICON icon = LoadIcon(GetModuleHandle(0),
+				MAKEINTRESOURCE(IDI_ICON_GFT));
+		GdkPixbuf *pbuf;
+
+		if(!icon)
+			fprintf(stderr, "LoadIcon(): %d\n", GetLastError());
+
+		pbuf = gdk_win32_icon_to_pixbuf_libgtk_only(icon);
+
+		gtray_new_pixbuf(&tray, pbuf,
+				"Comm FT", tray_activated, tray_popupmenu);
+	}
+#else
 	gtray_new_fname(&tray, icon_path,
 			"Comm FT", tray_activated, tray_popupmenu);
 
 	g_free(exe_dir);
 	g_free(icon_path);
+#endif
 }
 
 void tray_term()
