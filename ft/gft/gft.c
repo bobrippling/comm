@@ -371,7 +371,7 @@ on_treeDoneTransfers_row_activated(GtkTreeView *tree_view,
 				status("Sent %s", transfer->fname);
 			shelldir(transfer->path);
 		}else
-			status("Couldn't get path for %s");
+			status("Couldn't get path for transfer %d", *indices);
 	}
 
 	return FALSE;
@@ -578,7 +578,7 @@ int callback(struct filetransfer *ft, enum ftstate ftst,
 				stat = g_strdup_printf("Sent %s", ft_basename(ft));
 			else
 				stat = g_strdup_printf("Recieved %s", ft_basename(ft));
-			status(stat);
+			status("%s", stat);
 			gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progressft), 1.0f);
 			transfers_add(listDone, ft_basename(ft), ft_fname(ft), ftst == FT_RECIEVED);
 
@@ -597,8 +597,10 @@ int callback(struct filetransfer *ft, enum ftstate ftst,
 		case FT_RECIEVING:
 		case FT_SENDING:
 			gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progressft), fraction);
-			status("%s: %dK/%dK (%2.2f%%)", ft_basename(ft),
-					bytessent / 1024, bytestotal / 1024, 100.0f * fraction);
+			status("%s: %ldK/%ldK (%2.2f%%)", ft_basename(ft),
+					(long)bytessent  / 1024,
+					(long)bytestotal / 1024,
+					100.0f * fraction);
 	}
 
 	while(gtk_events_pending())
