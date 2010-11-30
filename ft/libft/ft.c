@@ -617,7 +617,11 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 	int ilocal, cancelled = 0;
 	char buffer[BUFFER_SIZE];
 	size_t nwrite, nsent, callback_step;
-	const char *basename = strrchr(fname, G_DIR_SEPARATOR);
+	const char *basename  = strrchr(fname, G_DIR_SEPARATOR),
+				     *basename2 = strrchr(fname, G_DIR_SEPARATOR == '/' ? '\\' : '/');
+
+	if(!basename || basename < basename2)
+		basename = basename2;
 
 	ft->lastcallback = 0;
 
