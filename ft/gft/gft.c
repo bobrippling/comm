@@ -142,6 +142,9 @@ on_frmSend_drag_data_received(
 		for(iter = strtok(dup, "\r\n"); iter; iter = strtok(NULL, "\r\n"))
 			if(!strncmp(iter, "file://", 7)){
 				char *p = iter + 7;
+#ifdef _WIN32
+				p++;
+#endif
 				html_expand(p);
 				QUEUE(p);
 			}else
