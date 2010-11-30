@@ -30,8 +30,9 @@ LDFLAGS_G  += `pkg-config --libs ${GTKINC}`
 
 gcfg.o: gcfg.c gcfg.h ../../config.h
 gft.o: gft.c ../../config.h gladegen.h ../util/gqueue.h \
- ../../gcommon/glist.h gtray.h ../libft/ft.h gcfg.h \
- gtransfers.h gft.h
+ ../../gcommon/glist.h gtray.h ../libft/ft.h ../../common/gnudefs.h \
+ gcfg.h gtransfers.h
 gtransfers.o: gtransfers.c gtransfers.h
-gtray.o: gtray.c ../../gcommon/gtray.h gft.h
-gft.res: gft.h
+gtray.o: gtray.c ../../gcommon/gtray.h gtray.h gft.h
+gft.o: gft.rc gft.h
+gft.res: gft.rc gft.h

@@ -45,6 +45,14 @@
 	glist_remove(listTransfers, \
 			gtk_tree_view_get_model(GTK_TREE_VIEW(treeTransfers)), n)
 
+#define QUEUE(n) \
+	do{ \
+		glist_add(listTransfers, n); \
+		queue_add(&file_queue,   n); \
+		gtk_widget_set_sensitive(btnSend, TRUE); \
+	}while(0)
+
+
 #include "../../config.h"
 
 #include "gladegen.h"
@@ -65,6 +73,7 @@ void status(const char *, ...) GCC_PRINTF_ATTRIB(1, 2);
 void settimeout(int on);
 
 const char *get_openfolder(void);
+void html_expand(char *s);
 void shelldir(const char *d);
 
 int callback(struct filetransfer *ft, enum ftstate state,
@@ -79,6 +88,8 @@ static GtkWidget *btnFileChoice, *btnOpenFolder, *btnClearTransfers;
 
 static GtkWidget *progressft, *lblStatus;
 static GtkWidget *cboHost;
+
+static GtkWidget *frmSend;
 
 static GtkWidget    *treeDone,      *treeTransfers;
 static GtkListStore *listTransfers, *listDone;
@@ -100,6 +111,48 @@ enum
 
 
 /* events */
+G_MODULE_EXPORT gboolean
+on_frmSend_drag_data_received(
+		GtkWidget          *widget,
+		GdkDragContext     *context,
+		gint                x,
+		gint                y,
+		GtkSelectionData   *datasel,
+		guint               type,
+		guint               time)
+{
+	if(datasel && datasel->length >= 0){
+		char *dup, *iter;
+
+		if(context->action == GDK_ACTION_ASK)
+			context->action = GDK_ACTION_COPY;
+
+		/*
+		 * data looks like this:
+		 *
+		 * (char *){
+		 *   "file:///home/rob/Desktop/file1.txt\n\r?"
+		 *   "file:///home/rob/Desktop/file%202.txt\n\r?"
+		 * };
+		 *
+		 */
+
+		dup = g_strdup(datasel->data);
+
+		for(iter = strtok(dup, "\r\n"); iter; iter = strtok(NULL, "\r\n"))
+			if(!strncmp(iter, "file://", 7)){
+				char *p = iter + 7;
+				html_expand(p);
+				QUEUE(p);
+			}else
+				fprintf(stderr, "warning: can't add \"%s\" to queue\n", iter);
+
+		g_free(dup);
+	}
+
+	return FALSE;
+}
+
 G_MODULE_EXPORT gboolean
 on_winMain_delete_event(void)
 {
@@ -252,10 +305,7 @@ on_btnQueue_clicked(void)
 		return FALSE;
 	}
 
-	glist_add(listTransfers, fname);
-	queue_add(&file_queue,    fname);
-
-	gtk_widget_set_sensitive(btnSend, TRUE);
+	QUEUE(fname);
 
 	return FALSE;
 }
@@ -625,6 +675,7 @@ void status(const char *fmt, ...)
 static int getobjects(GtkBuilder *b)
 {
 	GtkWidget *hboxHost;
+	GtkWidget *scrollDone, *scrollQueue;
 
 #define GET_WIDGET(x) \
 	if(!((x) = GTK_WIDGET(gtk_builder_get_object(b, #x)))){ \
@@ -647,12 +698,22 @@ static int getobjects(GtkBuilder *b)
 	GET_WIDGET(treeDone);
 	GET_WIDGET(treeTransfers);
 
+	GET_WIDGET(frmSend);
+
 	GET_WIDGET(hboxHost); /* FIXME: memleak? */
 	/* create one with text as the column stuff */
 	cboHost = gtk_combo_box_entry_new_text();
 	gtk_container_add(GTK_CONTAINER(hboxHost), cboHost);
 	gtk_widget_set_visible(cboHost, TRUE);
 	/*gtk_box_reorder_child(GTK_BOX(hboxHost), cboHost, 0);*/
+
+#if 0
+	GET_WIDGET(scrollQueue);
+	GET_WIDGET(scrollDone);
+
+	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollDone),  GTK_POLICY_ALWAYS, GTK_POLICY_ALWAYS);
+	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollQueue), GTK_POLICY_ALWAYS, GTK_POLICY_ALWAYS);
+#endif
 
 	return 0;
 #undef GET_WIDGET
@@ -680,6 +741,44 @@ int gladegen_init(void)
 void gladegen_term(void)
 {
 	remove(GLADE_XML_FILE);
+}
+
+void html_expand(char *s)
+{
+	char *p = s;
+
+	do{
+		char *fin;
+		unsigned int n;
+
+		p = strchr(p, '%');
+		if(!p)
+			break;
+
+		if(sscanf(p+1, "%2x", &n) == 1){
+			*p = n;
+
+			memmove(p + 1, p + 3, strlen(p + 2));
+		}
+
+	}while(1);
+}
+
+void drag_init(void)
+{
+	static GtkTargetEntry target_list[] = {
+		/* datatype, GtkTargetFlags, datatype (custom) */
+		{ "text/uri-list", 0, 0 }
+	};
+
+	gtk_drag_dest_set(
+			frmSend,
+			GTK_DEST_DEFAULT_ALL,
+			target_list, sizeof(target_list)/sizeof(target_list[0]),
+			GDK_ACTION_COPY);
+
+	g_signal_connect(G_OBJECT(frmSend),
+			"drag-data-received", G_CALLBACK(on_frmSend_drag_data_received), NULL);
 }
 
 int main(int argc, char **argv)
@@ -743,8 +842,8 @@ usage:
 	g_object_unref(G_OBJECT(builder));
 
 	/* signal setup */
-	g_signal_connect(G_OBJECT(winMain), "delete-event" , G_CALLBACK(on_winMain_delete_event), NULL);
-	g_signal_connect(G_OBJECT(winMain), "destroy",       G_CALLBACK(on_winMain_destroy),      NULL);
+	g_signal_connect(G_OBJECT(winMain), "delete-event" ,       G_CALLBACK(on_winMain_delete_event),    NULL);
+	g_signal_connect(G_OBJECT(winMain), "destroy",             G_CALLBACK(on_winMain_destroy),         NULL);
 
 	cfg_read(cboHost);
 	tray_init(winMain, *argv);
@@ -761,8 +860,9 @@ usage:
 			gtk_file_chooser_set_current_folder_uri(GTK_FILE_CHOOSER(btnFileChoice), path);
 	}
 
-
 	gtk_widget_set_sensitive(btnSend, FALSE);
+	drag_init();
+
 	cmds();
 	gtk_widget_show(winMain);
 	gtk_main();
