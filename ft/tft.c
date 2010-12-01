@@ -277,10 +277,13 @@ int main(int argc, char **argv)
 			goto usage;
 
 		/* host idx given, but we're listening, assume it's a file */
-		fname_idx = host_idx;
-		host_idx = -1;
+		if(fname_idx < 0){
+			fname_idx = host_idx;
+			host_idx = -1;
+		}
 	}else if(host_idx == -1)
 		goto usage;
+
 
 	check_files(fname_idx, argc, argv);
 
