@@ -1,12 +1,9 @@
 ifeq ($(shell uname -o),Msys)
 GFT_DEPS    +=  gft.res
 LDFLAGS_G   += ${LDFLAGS} -lws2_32
-TARGET_NAME  = wing.exe
-else
-TARGET_NAME  = gft
 endif
 
-${TARGET_NAME}: gft.o ../libft/ft.o gcfg.o gtransfers.o \
+gft: gft.o ../libft/ft.o gcfg.o gtransfers.o \
 		../util/gqueue.o gtray.o \
 		../../gcommon/glist.o \
 		../../gcommon/gtray.o \

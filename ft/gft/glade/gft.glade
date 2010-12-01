@@ -3,7 +3,7 @@
   <requires lib="gtk+" version="2.16"/>
   <!-- interface-naming-policy project-wide -->
   <object class="GtkWindow" id="winMain">
-    <property name="title" translatable="yes">Wing v1.0</property>
+    <property name="title" translatable="yes">GFT v1.0</property>
     <signal name="focus_in_event" handler="on_winMain_focus_in_event"/>
     <child>
       <object class="GtkHBox" id="hboxMain">

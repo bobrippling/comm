@@ -13,7 +13,7 @@
 char *strdup(const char *);
 #endif
 
-#define CFG_GFT_FNAME  "wing.cfg"
+#define CFG_GFT_FNAME  "gft.cfg"
 
 #define ITER_HOSTS(i, code) \
 	for(i = 0; i < nhosts; i++) \
