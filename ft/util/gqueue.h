@@ -14,5 +14,6 @@ void  queue_add( struct queue **, const char *);
 void  queue_rem( struct queue **, const char *);
 
 int   queue_len( struct queue *);
+int   queue_has( struct queue *, const char *);
 
 #endif
