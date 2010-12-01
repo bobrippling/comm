@@ -1,9 +1,3 @@
-CFLAGS    += -Wall -Wextra -pedantic -std=c99
-
-ifeq ($(shell uname -o),Msys)
-LDFLAGS  += -lws2_32
-endif
-
 all: tft gft
 
 tft: tft.o libft/ft.o
@@ -22,5 +16,9 @@ clean: gft_clean
 .PHONY: all clean gft_clean gft
 
 include ../config.mk
+
+ifeq ($(shell uname -o),Msys)
+LDFLAGS  += -lws2_32
+endif
 
 tft.o: tft.c libft/ft.h

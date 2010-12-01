@@ -5,4 +5,6 @@
 #define IDI_ICON_GFT 105
 #endif
 
+void gft_quit(void);
+
 #endif

@@ -38,7 +38,7 @@ void tray_popupmenu(GtkStatusIcon *status_icon, guint button, guint32 activate_t
 
 void tray_quit()
 {
-	gtk_main_quit();
+	gft_quit();
 }
 
 #ifdef _WIN32
@@ -97,6 +97,8 @@ void tray_init(GtkWidget *winMain2, const char *argv_0)
 	}else
 		/* something like argv[0] = "gft" */
 		icon_path = g_strdup(ICON_FILE);
+#else
+	(void)argv_0;
 #endif
 
 	winMain = winMain2;

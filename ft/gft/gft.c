@@ -175,12 +175,17 @@ on_winMain_delete_event(void)
 	return FALSE;
 }
 
-G_MODULE_EXPORT gboolean
-on_winMain_destroy(void)
+void gft_quit()
 {
 	CLOSE();
 	cfg_write(); /* must be before gtk shutdown */
 	gtk_main_quit(); /* gtk exit here only */
+}
+
+G_MODULE_EXPORT gboolean
+on_winMain_destroy(void)
+{
+	gft_quit();
 	return FALSE;
 }
 

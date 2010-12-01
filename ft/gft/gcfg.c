@@ -13,7 +13,7 @@
 char *strdup(const char *);
 #endif
 
-#define CFG_GFT_FNAME  "gft.conf"
+#define CFG_GFT_FNAME  "wing.cfg"
 
 #define ITER_HOSTS(i, code) \
 	for(i = 0; i < nhosts; i++) \
@@ -61,7 +61,7 @@ void cfg_write()
 	FILE *f;
 
 #ifdef _WIN32
-	f = fopen("gft.cfg", "w");
+	f = fopen(CFG_GFT_FNAME, "w");
 #else
 	char *home = getenv("HOME"), *tmp;
 
@@ -119,7 +119,7 @@ void cfg_read(GtkWidget *cboHost)
 	char line[128];
 
 #ifdef _WIN32
-	f = fopen("gft.cfg", "r");
+	f = fopen(CFG_GFT_FNAME, "r");
 #else
 	char *home = getenv("HOME"), *tmp;
 
