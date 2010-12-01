@@ -10,6 +10,8 @@
 /* wtf */
 #else
 # include <sys/select.h>
+# include <sys/stat.h>
+# include <fcntl.h>
 #endif
 
 #include "libft/ft.h"
@@ -209,12 +211,14 @@ int send_from_stdin(int nul)
 
 int main(int argc, char **argv)
 {
-	int i, listen, verbose;
-	int stay_up, read_stdin, read_stdin_nul;
+	int i, listen;
+	int read_stdin, read_stdin_nul;
+	int stay_up;
 	const char *port = FT_DEFAULT_PORT;
 	int fname_idx, host_idx;
 
-	listen = verbose = stay_up = read_stdin = read_stdin_nul = 0;
+	listen = stay_up = 0;
+	read_stdin = read_stdin_nul = 0;
 	fname_idx = host_idx = -1;
 
 #ifdef _WIN32
@@ -231,15 +235,13 @@ int main(int argc, char **argv)
 				port = argv[i];
 			else
 				goto usage;
-		else if(ARG("v"))
-			verbose = 1;
 		else if(ARG("o"))
 			clobber_mode = OVERWRITE;
 		else if(ARG("n"))
 			clobber_mode = RENAME;
 		else if(ARG("r"))
 			clobber_mode = RESUME;
-		else if(ARG("O")){
+		else if(ARG("u")){
 			stay_up = 1;
 			read_stdin = 1;
 		}else if(ARG("i"))
@@ -255,9 +257,7 @@ int main(int argc, char **argv)
 		usage:
 			eprintf("Usage: %s [-p port] [OPTS] [-l | host] [files...]\n"
 							"  -l: listen\n"
-							"  -v: verbose\n"
-							"\n"
-							"  -O: remain running at the end of a transfer\n"
+							"  -u: remain running at the end of a transfer\n"
 							"  -i: read supplementary file list from stdin\n"
 							"  -0: file list is nul-delimited\n"
 							" If file exists:\n"
@@ -271,24 +271,22 @@ int main(int argc, char **argv)
 	setbuf(stdout, NULL);
 	atexit(cleanup);
 
+	/* sanity */
+	if(listen){
+		if(host_idx > 0 && fname_idx > 0)
+			goto usage;
+
+		/* host idx given, but we're listening, assume it's a file */
+		fname_idx = host_idx;
+		host_idx = -1;
+	}else if(host_idx == -1)
+		goto usage;
+
+	check_files(fname_idx, argc, argv);
+
+
 	if(listen){
 		int iport;
-
-		if(host_idx > 0){
-			if(fname_idx > 0)
-				goto usage;
-
-			/* host idx given, but we're listening, assume it's a file */
-			fname_idx = host_idx;
-			host_idx = -1;
-
-			if(verbose)
-				printf("%s: serving file(s)...\n", *argv);
-
-			check_files(fname_idx, argc, argv);
-
-		}else if(verbose)
-			printf("%s: listening for incomming files...\n", *argv);
 
 		if(sscanf(port, "%d", &iport) != 1){
 			eprintf("need numeric port (\"%s\")\n", port);
@@ -312,24 +310,10 @@ int main(int argc, char **argv)
 				printf("got connection from %s\n", ft_remoteaddr(&ft));
 				break; /* accepted */
 		}
-	}else{
-		char *host = NULL;
-
-		if(host_idx > 0)
-			host = argv[host_idx];
-		else
-			goto usage;
-
-		check_files(fname_idx, argc, argv);
-
-		if(verbose)
-			printf("connecting to %s...\n", host);
-
-		if(ft_connect(&ft, host, port)){
-			eprintf("ft_connect(\"%s\", \"%s\"): %s\n", host, port,
-					ft_lasterr(&ft));
-			return 1;
-		}
+	}else if(ft_connect(&ft, argv[host_idx], port)){
+		eprintf("ft_connect(\"%s\", \"%s\"): %s\n",
+				argv[host_idx], port, ft_lasterr(&ft));
+		return 1;
 	}
 
 
@@ -340,9 +324,6 @@ int main(int argc, char **argv)
 			if(++fname_idx == argc)
 				fname_idx = -1;
 
-			if(verbose)
-				printf("sending %s\n", fname);
-
 			if(ft_send(&ft, callback, fname)){
 				clrtoeol();
 				eprintf("ft_send(): %s: %s\n", fname, ft_lasterr(&ft));
@@ -350,9 +331,6 @@ int main(int argc, char **argv)
 			}
 		}else{
 			int lewp = 1;
-
-			if(verbose)
-				printf("%s: waiting for incomming file\n", *argv);
 
 			while(lewp)
 				switch(ft_poll_recv_or_close(&ft)){
@@ -383,7 +361,7 @@ int main(int argc, char **argv)
 								goto bail;
 
 							case 0:
-								break;
+								continue;
 
 							default:
 								/* got a file to send */
@@ -391,26 +369,26 @@ int main(int argc, char **argv)
 									switch(send_from_stdin(read_stdin_nul)){
 										case 0:
 											/* good to carry on */
-											break;
+											continue;
 										case 1:
 											/* eof */
 											read_stdin = 0;
 											if(!stay_up)
 												goto fin;
+											continue;
 										case 2:
+											/* ferror */
 											goto bail;
 									}
+								fprintf(stderr, "%s: should never see this\n", *argv);
+								continue;
 						}
-
-						continue;
+						/* unreachable */
 					}
 				}
 			/* end while(lewp) */
 
 			if(ft_poll_connected(&ft)){
-				if(verbose)
-					printf("%s: receiving file\n", *argv);
-
 				if(ft_recv(&ft, callback, queryback, fnameback)){
 					clrtoeol();
 					eprintf("ft_recv(): %s\n", ft_lasterr(&ft));
