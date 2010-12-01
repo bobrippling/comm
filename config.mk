@@ -55,4 +55,4 @@ mostlyclean:
 		} \
 		END { \
 			print "};\n#endif\n" \
-		}' $< >> $@
+		}' $< > $@

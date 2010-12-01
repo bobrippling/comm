@@ -239,9 +239,10 @@ int main(int argc, char **argv)
 			clobber_mode = RENAME;
 		else if(ARG("r"))
 			clobber_mode = RESUME;
-		else if(ARG("O"))
+		else if(ARG("O")){
 			stay_up = 1;
-		else if(ARG("i"))
+			read_stdin = 1;
+		}else if(ARG("i"))
 			read_stdin = 1;
 		else if(ARG("0"))
 			read_stdin_nul = 1;

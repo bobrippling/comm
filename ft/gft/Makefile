@@ -23,8 +23,8 @@ clean:
 
 include ../../config.mk
 
-CFLAGS_G   += `pkg-config --cflags ${GTKINC}`
-LDFLAGS_G  += `pkg-config --libs ${GTKINC}`
+CFLAGS_G   = ${CFLAGS} `pkg-config --cflags ${GTKINC}`
+LDFLAGS_G  = ${CFLAGS} `pkg-config --libs ${GTKINC}`
 
 .PHONY: clean
 

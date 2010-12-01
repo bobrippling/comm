@@ -4,6 +4,7 @@
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
+#include <sys/stat.h>
 
 #include "gcfg.h"
 #include "../../config.h"
@@ -163,8 +164,8 @@ void cfg_read(GtkWidget *cboHost)
 
 
 #define GET_AND_SET(n) \
-	int cfg_get_##n(     ) { return bool_##n; } \
-	int cfg_set_##n(int i) { bool_##n = i;    }
+	int  cfg_get_##n(     ) { return bool_##n; } \
+	void cfg_set_##n(int i) { bool_##n = i;    }
 
 
 GET_AND_SET(close_to_tray)

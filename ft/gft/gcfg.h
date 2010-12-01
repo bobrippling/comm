@@ -7,8 +7,8 @@ void cfg_write(void);
 
 
 #define GET_AND_SET(n) \
-	int cfg_get_##n(); \
-	int cfg_set_##n(int i);
+	int  cfg_get_##n(); \
+	void cfg_set_##n(int i);
 
 GET_AND_SET(close_to_tray)
 

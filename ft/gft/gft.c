@@ -19,6 +19,8 @@
 #define GLADE_XML_FILE "tmpft.glade"
 #define TIMEOUT    500
 
+#define UNUSED(x) (void)x
+
 #define CLOSE() \
 	do{ \
 		settimeout(0); \
@@ -121,6 +123,12 @@ on_frmSend_drag_data_received(
 		guint               type,
 		guint               time)
 {
+	UNUSED(widget);
+	UNUSED(x);
+	UNUSED(y);
+	UNUSED(type);
+	UNUSED(time);
+
 	if(datasel && datasel->length >= 0){
 		char *dup, *iter;
 
@@ -137,7 +145,7 @@ on_frmSend_drag_data_received(
 		 *
 		 */
 
-		dup = g_strdup(datasel->data);
+		dup = g_strdup((const gchar *)datasel->data);
 
 		for(iter = strtok(dup, "\r\n"); iter; iter = strtok(NULL, "\r\n"))
 			if(!strncmp(iter, "file://", 7)){
@@ -350,7 +358,7 @@ on_btnSend_clicked(void)
 }
 
 G_MODULE_EXPORT gboolean
-on_treeDoneTransfers_row_activated(GtkTreeView *tree_view,
+on_treeDone_row_activated(GtkTreeView *tree_view,
 		GtkTreePath *path, GtkTreeViewColumn *column, gpointer user_data)
 {
 	struct transfer *transfer;
@@ -679,8 +687,14 @@ void status(const char *fmt, ...)
 
 static int getobjects(GtkBuilder *b)
 {
-	GtkWidget *hboxHost;
+	GtkWidget *hbox;
 	GtkWidget *scrollDone, *scrollQueue;
+
+#define GET_WIDGET2(x, n) \
+	if(!((x) = GTK_WIDGET(gtk_builder_get_object(b, n)))){ \
+		fputs("Error: Couldn't get Gtk Widget " #x "\"" n "\", bailing\n", stderr); \
+		return 1; \
+	}
 
 #define GET_WIDGET(x) \
 	if(!((x) = GTK_WIDGET(gtk_builder_get_object(b, #x)))){ \
@@ -700,28 +714,38 @@ static int getobjects(GtkBuilder *b)
 	GET_WIDGET(btnClearTransfers);
 	GET_WIDGET(btnDirChoice);
 
-	GET_WIDGET(treeDone);
-	GET_WIDGET(treeTransfers);
-
 	GET_WIDGET(frmSend);
 
-	GET_WIDGET(hboxHost); /* FIXME: memleak? */
+	GET_WIDGET2(hbox, "hboxHost");
 	/* create one with text as the column stuff */
 	cboHost = gtk_combo_box_entry_new_text();
-	gtk_container_add(GTK_CONTAINER(hboxHost), cboHost);
+	gtk_container_add(GTK_CONTAINER(hbox), cboHost);
 	gtk_widget_set_visible(cboHost, TRUE);
-	/*gtk_box_reorder_child(GTK_BOX(hboxHost), cboHost, 0);*/
+	/*gtk_box_reorder_child(GTK_BOX(hbox), cboHost, 0);*/
 
-#if 0
-	GET_WIDGET(scrollQueue);
-	GET_WIDGET(scrollDone);
 
-	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollDone),  GTK_POLICY_ALWAYS, GTK_POLICY_ALWAYS);
-	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollQueue), GTK_POLICY_ALWAYS, GTK_POLICY_ALWAYS);
-#endif
+#define SCROLL_DO(scroll, tree, norder) \
+	scroll = gtk_scrolled_window_new(NULL, NULL); \
+	tree = gtk_tree_view_new(); \
+	gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(scroll), GTK_SHADOW_NONE); \
+	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC); \
+	gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(tree), FALSE); \
+	gtk_container_add(GTK_CONTAINER(scroll), tree); \
+	gtk_box_pack_start(GTK_BOX(hbox), scroll, TRUE, TRUE, 1); \
+	gtk_box_reorder_child(GTK_BOX(hbox), scroll, norder)
+
+	GET_WIDGET2(hbox, "vboxSend");
+	SCROLL_DO(scrollQueue, treeTransfers, 1);
+
+	GET_WIDGET2(hbox, "vboxConnect");
+	SCROLL_DO(scrollDone, treeDone, 3);
+
+	g_signal_connect(G_OBJECT(treeDone), "row_activated", G_CALLBACK(on_treeDone_row_activated), NULL);
 
 	return 0;
 #undef GET_WIDGET
+#undef GET_WIDGET2
+#undef SCROLL_DO
 }
 
 int gladegen_init(void)
@@ -753,7 +777,6 @@ void html_expand(char *s)
 	char *p = s;
 
 	do{
-		char *fin;
 		unsigned int n;
 
 		p = strchr(p, '%');
@@ -869,7 +892,7 @@ usage:
 	drag_init();
 
 	cmds();
-	gtk_widget_show(winMain);
+	gtk_widget_show_all(winMain);
 	gtk_main();
 
 	tray_term();
