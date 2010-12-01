@@ -86,3 +86,11 @@ int queue_len(struct queue *q)
 	for(; q; q = q->next, i++);
 	return i;
 }
+
+int queue_has(struct queue *q, const char *s)
+{
+	for(; q; q = q->next)
+		if(!strcmp(q->item, s))
+			return 1;
+	return 0;
+}

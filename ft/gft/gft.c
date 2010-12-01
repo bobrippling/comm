@@ -154,7 +154,8 @@ on_frmSend_drag_data_received(
 				p++;
 #endif
 				html_expand(p);
-				QUEUE(p);
+				if(!queue_has(file_queue, p))
+					QUEUE(p);
 			}else
 				fprintf(stderr, "warning: can't add \"%s\" to queue\n", iter);
 
