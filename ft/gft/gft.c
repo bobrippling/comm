@@ -4,9 +4,14 @@
 #include <errno.h>
 
 #ifdef _WIN32
-# include <malloc.h>
 # include <windows.h>
+# include <malloc.h>
 # include <shlobj.h>
+# ifdef GFT_USE_MANIFEST
+#  define _WIN32_IE    0x0600
+#  define _WIN32_WINNT 0x0600
+#  include <commctrl.h>
+# endif
 #else
 # include <alloca.h>
 #endif
@@ -819,6 +824,23 @@ int main(int argc, char **argv)
 {
 	GError     *error = NULL;
 	GtkBuilder *builder;
+
+#if defined(_WIN32) && defined(GFT_USE_MANIFEST)
+	{
+		INITCOMMONCONTROLSEX tim;
+		memset(&tim, 0, sizeof tim);
+		tim.dwSize = sizeof tim;
+		tim.dwICC = ICC_ANIMATE_CLASS | ICC_BAR_CLASSES | ICC_COOL_CLASSES |
+								ICC_DATE_CLASSES | ICC_HOTKEY_CLASS | ICC_INTERNET_CLASSES |
+								ICC_LISTVIEW_CLASSES | ICC_NATIVEFNTCTL_CLASS |
+								ICC_PAGESCROLLER_CLASS | ICC_PROGRESS_CLASS |
+								ICC_TAB_CLASSES | ICC_TREEVIEW_CLASSES |
+								ICC_UPDOWN_CLASS | ICC_USEREX_CLASSES | ICC_STANDARD_CLASSES;
+
+		if(InitCommonControlsEx(&tim) == FALSE)
+			fputs("warning: InitCommomControlsEx() failed\n", stderr);
+	}
+#endif
 
 	ft_zero(&ft);
 	gtk_init(&argc, &argv); /* bail here if !$DISPLAY */

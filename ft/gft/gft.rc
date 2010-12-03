@@ -4,6 +4,10 @@
 #include <windows.h>
 #include "gft.h"
 
+#ifdef GFT_USE_MANIFEST
+APP_MANIFEST RT_MANIFEST gft.exe.manifest
+#endif
+
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 
 IDI_ICON_GFT  ICON   "../../icons/gft.ico"
