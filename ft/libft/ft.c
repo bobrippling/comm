@@ -55,6 +55,11 @@
 
 #endif
 
+#define FT_LAST_ERR(s, n)    do{ ft->lasterr = s; ft->lasterrno = n; }while(0)
+#define FT_LAST_ERR_NET()    FT_LAST_ERR(net_getlasterr(), errno)
+#define FT_LAST_ERR_OS()     FT_LAST_ERR( os_getlasterr(), errno)
+#define FT_LAST_ERR_CLEAR()  FT_LAST_ERR(NULL, 0)
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -100,7 +105,7 @@ static int WSA_Startuped = 0;
 		struct WSAData d; \
 		WSA_Startuped = 1; \
 		if(WSAStartup(MAKEWORD(2, 2), &d)){ \
-			ft->lasterr = net_getlasterr(); \
+			FT_LAST_ERR_NET(); \
 			return 1; \
 		} \
 	} \
@@ -115,7 +120,7 @@ static int WSA_Startuped = 0;
 #define FT_SLEEP(exit_code) \
 	do{ \
 		if(callback(ft, FT_WAIT, 0, 1)){ \
-			ft->lasterr = FT_ERR_CANCELLED; \
+			FT_LAST_ERR(FT_ERR_CANCELLED, 0); \
 			exit_code; \
 		} \
 		ft_sleep(); \
@@ -159,7 +164,7 @@ int ft_listen(struct filetransfer *ft, int port)
 	DATA_INIT();
 
 	if((ft->sock = socket(PF_INET, SOCK_STREAM, 0)) == -1){
-		ft->lasterr = net_getlasterr();
+		FT_LAST_ERR_NET();
 		return 1;
 	}
 
@@ -179,19 +184,19 @@ int ft_listen(struct filetransfer *ft, int port)
 	l.l_onoff  = 1; /* do linger, G */
 	l.l_linger = LINGER_TIME; /* time (seconds) */
 	if(setsockopt(ft->sock, SOL_SOCKET, SO_LINGER, CAST &l, sizeof l)){
-		ft->lasterr = net_getlasterr();
+		FT_LAST_ERR_NET();
 		close(ft->sock);
 		return 1;
 	}
 
 	if(bind(ft->sock, (struct sockaddr *)&addr, sizeof addr) == -1){
-		ft->lasterr = net_getlasterr();
+		FT_LAST_ERR_NET();
 		close(ft->sock);
 		return 1;
 	}
 
 	if(listen(ft->sock, 1) == -1){
-		ft->lasterr = net_getlasterr();
+		FT_LAST_ERR_NET();
 		close(ft->sock);
 		return 1;
 	}
@@ -217,7 +222,7 @@ enum ftret ft_accept(struct filetransfer *ft, const int block)
 
 		switch(select(ft->sock + 1, &fds, NULL, NULL, &tv)){
 			case -1:
-				ft->lasterr = os_getlasterr();
+				FT_LAST_ERR_OS();
 				return FT_ERR;
 			case 0:
 				return FT_NO;
@@ -226,7 +231,7 @@ enum ftret ft_accept(struct filetransfer *ft, const int block)
 			return FT_NO;
 	}
 
-	ft->lasterr = NULL; /* must be checkable after this funcall */
+	FT_LAST_ERR_CLEAR();
 
 	socklen = sizeof(struct sockaddr_in);
 	new = accept(ft->sock,
@@ -252,7 +257,7 @@ static char *ft_rename(struct filetransfer *ft, char *basename)
 
 	new = malloc(strlen(basename) + strlen(dot ? dot : "") + 16);
 	if(!new){
-		ft->lasterr = "libft: couldn't allocate memory";
+		FT_LAST_ERR("libft: couldn't allocate memory", 0);
 		return NULL;
 	}
 
@@ -260,7 +265,7 @@ static char *ft_rename(struct filetransfer *ft, char *basename)
 		/* new = basename . "1" . (dot ? ".jpg" : "") */
 
 		if(snprintf(new, len - 1, "%s%d%s%s", basename, id++, dot ? "." : "", dot ? dot : "") >= len - 1){
-			ft->lasterr = "libft: basename overflow in snprintf()";
+			FT_LAST_ERR("libft: basename overflow in snprintf()", 0);
 			free(new);
 			return NULL;
 		}
@@ -268,7 +273,7 @@ static char *ft_rename(struct filetransfer *ft, char *basename)
 		if(access(new, W_OK | R_OK) == -1 && errno == ENOENT)
 			break;
 		else if(id > 999){
-			ft->lasterr = "libft: can't find gap in filesystem";
+			FT_LAST_ERR("libft: can't find gap in filesystem", 0);
 			free(new);
 			return NULL;
 		}
@@ -285,7 +290,7 @@ static int ft_get_meta(struct filetransfer *ft,
 {
 #define INVALID_MSG() \
 				do{\
-					ft->lasterr = FT_ERR_INVALID_MSG; \
+					FT_LAST_ERR(FT_ERR_INVALID_MSG, 0); \
 					return 1; \
 				}while(0)
 	char buffer[2048], *bufptr;
@@ -299,10 +304,10 @@ static int ft_get_meta(struct filetransfer *ft,
 		thisread = recv(ft->sock, buffer, sizeof buffer, MSG_PEEK);
 
 		if(thisread == 0){
-			ft->lasterr = FT_ERR_PREMATURE_CLOSE;
+			FT_LAST_ERR(FT_ERR_PREMATURE_CLOSE, 0);
 			return 1;
 		}else if(thisread == -1){
-			ft->lasterr = net_getlasterr();
+			FT_LAST_ERR_NET();
 			return 1;
 		}
 
@@ -318,7 +323,7 @@ static int ft_get_meta(struct filetransfer *ft,
 			break;
 		else{
 			if((unsigned)thisread > sizeof(buffer) - 32){
-				ft->lasterr = "libft: meta data overflow (shorten your darn filename)";
+				FT_LAST_ERR("libft: meta data overflow (shorten your darn filename)", 0);
 				return 1;
 			}
 
@@ -329,7 +334,7 @@ static int ft_get_meta(struct filetransfer *ft,
 	thisread = bufptr - buffer + 1; /* truncate to how much is left */
 
 	if(recv(ft->sock, buffer, thisread, 0) != thisread){
-		ft->lasterr = net_getlasterr();
+		FT_LAST_ERR_NET();
 		return 1;
 	}
 
@@ -337,7 +342,7 @@ static int ft_get_meta(struct filetransfer *ft,
 	if(!strncmp(bufptr, "FILE ", 5)){
 		*basename = strdup(buffer + 5);
 		if(!*basename){
-			ft->lasterr = os_getlasterr();
+			FT_LAST_ERR_OS();
 			return 1;
 		}
 		ft_fname(ft) = *basename;
@@ -347,7 +352,7 @@ static int ft_get_meta(struct filetransfer *ft,
 	bufptr = strtok(NULL, "\n");
 	if(!strncmp(bufptr, "SIZE ", 5)){
 		if(sscanf(bufptr + 5, PRINTF_SIZET, (PRINTF_SIZET_CAST *)size) != 1){
-			ft->lasterr = "libft: Invalid SIZE recieved";
+			FT_LAST_ERR("libft: Invalid SIZE recieved", 0);
 			FREE_AND_NULL(*basename);
 			return 1;
 		}
@@ -386,7 +391,7 @@ static int ft_get_meta(struct filetransfer *ft,
 
 		if(!newfname){
 			FREE_AND_NULL(*basename);
-			ft->lasterr = FT_ERR_CANCELLED;
+			FT_LAST_ERR(FT_ERR_CANCELLED, 0);
 			return 1;
 		}else if(newfname != *basename){
 			FREE_AND_NULL(*basename);
@@ -412,7 +417,7 @@ rename:
 					break;
 
 				default:
-					ft->lasterr = FT_ERR_INVALID_MSG;
+					FT_LAST_ERR(FT_ERR_INVALID_MSG, 0);
 					return 1;
 			}/* switch querycallback */
 		}else if(errno != ENOENT)
@@ -441,13 +446,13 @@ access_error:
 				default:
 					break;
 			}
-			ft->lasterr = os_getlasterr();
+			FT_LAST_ERR_OS();
 			FREE_AND_NULL(*basename);
 			return 1;
 		}
 		if(resume)
 			if(fseek(*local, 0, SEEK_END)){
-				ft->lasterr = os_getlasterr();
+				FT_LAST_ERR_OS();
 				FREE_AND_NULL(*basename);
 				fclose(*local);
 				return 1;
@@ -466,7 +471,7 @@ int ft_recv(struct filetransfer *ft,
 {
 #define INVALID_MSG() \
 				do{\
-					ft->lasterr = FT_ERR_INVALID_MSG; \
+					FT_LAST_ERR(FT_ERR_INVALID_MSG, 0); \
 					RET(1); \
 				}while(0)
 #define RET(x) do{ ret = x; goto ret; }while(0)
@@ -495,10 +500,10 @@ int ft_recv(struct filetransfer *ft,
 		long tmp = ftell(local);
 		size_so_far = tmp;
 		if(tmp == -1){
-			ft->lasterr = os_getlasterr();
+			FT_LAST_ERR_OS();
 			RET(1);
 		}else if(size_so_far == size){
-			ft->lasterr = "Can't resume - have full file";
+			FT_LAST_ERR("Can't resume - have full file", 0);
 			RET(1);
 		}
 	}
@@ -507,12 +512,12 @@ int ft_recv(struct filetransfer *ft,
 	snprintf(buffer, sizeof(buffer), "RESUME " PRINTF_SIZET "\n",
 			(PRINTF_SIZET_CAST)size_so_far);
 	if(send(ft->sock, buffer, strlen(buffer), 0) == -1){
-		ft->lasterr = net_getlasterr();
+		FT_LAST_ERR_NET();
 		RET(1);
 	}
 
 	if(callback(ft, FT_BEGIN_RECV, 0, size)){
-		ft->lasterr = FT_ERR_CANCELLED;
+		FT_LAST_ERR(FT_ERR_CANCELLED, 0);
 		RET(1);
 	}
 
@@ -520,25 +525,25 @@ int ft_recv(struct filetransfer *ft,
 		nread = recv(ft->sock, buffer, sizeof buffer, 0);
 
 		if(nread == -1){
-			ft->lasterr = net_getlasterr();
+			FT_LAST_ERR_NET();
 			RET(1);
 		}else if(nread == 0){
 done:
 			/* check */
 			if(size_so_far < size)
-				ft->lasterr = FT_ERR_PREMATURE_CLOSE;
+				FT_LAST_ERR(FT_ERR_PREMATURE_CLOSE, 0);
 			else if(size_so_far > size)
-				ft->lasterr = FT_ERR_TOO_MUCH;
+				FT_LAST_ERR(FT_ERR_TOO_MUCH, 0);
 			else{
 				/* good so far, don't be a douche and cancel it.. */
 				if(callback(ft, FT_RECIEVED, size_so_far, size)){
 					/* ... douche */
-					ft->lasterr = FT_ERR_CANCELLED;
+					FT_LAST_ERR(FT_ERR_CANCELLED, 0);
 					RET(1);
 				}
 				/* send OK\n */
 				if(send(ft->sock, "OK\n", 3, 0) == -1){
-					ft->lasterr = net_getlasterr();
+					FT_LAST_ERR_NET();
 					RET(1);
 				}
 				RET(0); /* XXX: function exit point here */
@@ -549,7 +554,7 @@ done:
 
 		if((signed)fwrite(buffer, sizeof(char),
 					nread, local) != nread /* !*sizeof char */){
-			ft->lasterr = os_getlasterr();
+			FT_LAST_ERR_OS();
 			RET(1);
 		}
 
@@ -568,7 +573,7 @@ done:
 			ft->lastcallback += callback_step;
 			if(callback(ft, FT_RECIEVING, size_so_far, size)){
 				/* cancelled */
-				ft->lasterr = FT_ERR_CANCELLED;
+				FT_LAST_ERR(FT_ERR_CANCELLED, 0);
 				RET(1);
 			}
 		}
@@ -602,7 +607,7 @@ enum ftret ft_poll_recv_or_close(struct filetransfer *ft)
 
 	switch(select(ft->sock + 1, &fds, NULL, NULL, &tv)){
 		case -1:
-			ft->lasterr = os_getlasterr();
+			FT_LAST_ERR_OS();
 			return FT_ERR;
 		case 0:
 			return FT_NO;
@@ -638,7 +643,7 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 	local = fopen(fname, "rb");
 	if(!local){
 		WIN_DEBUG("fopen()");
-		ft->lasterr = os_getlasterr();
+		FT_LAST_ERR_OS();
 		return 1;
 	}
 
@@ -647,17 +652,17 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 	if(ilocal == -1){
 		/* pretty much impossible */
 		WIN_DEBUG("fileno()");
-		ft->lasterr = os_getlasterr();
+		FT_LAST_ERR_OS();
 		goto bail;
 	}
 
 	if(fstat(ilocal, &st) == -1){
 		WIN_DEBUG("fstat()");
-		ft->lasterr = os_getlasterr();
+		FT_LAST_ERR_OS();
 		goto bail;
 	}else if(st.st_size == 0){
 		WIN_DEBUG("zero len file");
-		ft->lasterr = "libft: Can't send zero-length file";
+		FT_LAST_ERR("libft: Can't send zero-length file", 0);
 		goto bail;
 	}
 
@@ -674,14 +679,14 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 					"FILE %s\nSIZE " PRINTF_SIZET "\n\n",
 			basename, (PRINTF_SIZET_CAST)st.st_size)) >= (signed)sizeof buffer){
 		WIN_DEBUG("long fname");
-		ft->lasterr = "libft: Shorten your darn filename";
+		FT_LAST_ERR("libft: Shorten your darn filename", 0);
 		goto bail;
 	}
 
 	/* less complicated to do it here than ^whileloop */
 	if(send(ft->sock, buffer, nwrite, 0) == -1){
 		WIN_DEBUG("ft_send(): inital write");
-		ft->lasterr = net_getlasterr();
+		FT_LAST_ERR_NET();
 		goto bail;
 	}
 
@@ -689,11 +694,11 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 		switch((nwrite = recv(ft->sock, buffer, len, flag))){ \
 			case -1: \
 				WIN_DEBUG("ft_send(): BUFFER_RECV recv()"); \
-				ft->lasterr = net_getlasterr(); \
+				FT_LAST_ERR_NET(); \
 				goto bail; \
 			case 0: \
 				WIN_DEBUG("ft_send(): BUFFER_RECV premature"); \
-				ft->lasterr = FT_ERR_PREMATURE_CLOSE; \
+				FT_LAST_ERR(FT_ERR_PREMATURE_CLOSE, 0); \
 				goto bail; \
 		}
 
@@ -714,20 +719,20 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 	if(sscanf(buffer, "RESUME " PRINTF_SIZET "\n",
 				(PRINTF_SIZET_CAST *)&nsent) != 1){
 		WIN_DEBUG("invalid RESUME");
-		ft->lasterr = "libft: Invalid RESUME message";
+		FT_LAST_ERR("libft: Invalid RESUME message", 0);
 		goto bail;
 	}
 
 	if(nsent)
 		if(fseek(local, nsent, SEEK_SET) == -1){
-			WIN_DEBUG("fseek()"); \
-			ft->lasterr = os_getlasterr();
+			WIN_DEBUG("fseek()");
+			FT_LAST_ERR_OS();
 			goto bail;
 		}
 
 	if(callback(ft, FT_BEGIN_SEND, 0, st.st_size)){
 		/* cancel */
-		ft->lasterr = FT_ERR_CANCELLED;
+		FT_LAST_ERR(FT_ERR_CANCELLED, 0);
 		cancelled = 1;
 		goto complete;
 	}
@@ -736,20 +741,20 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 		switch((nwrite = fread(buffer, sizeof(char), sizeof buffer, local))){
 			case 0:
 				if(ferror(local)){
-					WIN_DEBUG("ferror()"); \
-					ft->lasterr = net_getlasterr();
+					WIN_DEBUG("ferror()");
+					FT_LAST_ERR_NET();
 					goto bail;
 				}
 				goto complete;
 			case -1:
 				WIN_DEBUG("fread()");
-				ft->lasterr = net_getlasterr();
+				FT_LAST_ERR_NET();
 				goto bail;
 		}
 
 		if(send(ft->sock, buffer, nwrite, 0) == -1){
 			WIN_DEBUG("send()");
-			ft->lasterr = net_getlasterr();
+			FT_LAST_ERR_NET();
 			goto bail;
 		}
 
@@ -761,7 +766,7 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 			if(callback(ft, FT_SENDING, nsent, st.st_size)){
 				/* cancel */
 				cancelled = 1;
-				ft->lasterr = FT_ERR_CANCELLED;
+				FT_LAST_ERR(FT_ERR_CANCELLED, 0);
 				break;
 			}
 		}
@@ -769,9 +774,9 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 
 complete:
 	if(nsent < (unsigned)st.st_size)
-		ft->lasterr = FT_ERR_PREMATURE_CLOSE;
+		FT_LAST_ERR(FT_ERR_PREMATURE_CLOSE, 0);
 	else if(nsent > (unsigned)st.st_size){
-		ft->lasterr = FT_ERR_TOO_MUCH;
+		FT_LAST_ERR(FT_ERR_TOO_MUCH, 0);
 		fprintf(stderr, "libft: nsent: " PRINTF_SIZET
 				", st.st_size: " PRINTF_SIZET "\n",
 				(PRINTF_SIZET_CAST)nsent, (PRINTF_SIZET_CAST)st.st_size);
@@ -792,20 +797,20 @@ complete:
 
 		if(strncmp(buffer, "OK\n", 3)){
 			WIN_DEBUG("\"OK\" not recv()'d");
-			ft->lasterr = FT_ERR_INVALID_MSG;
+			FT_LAST_ERR(FT_ERR_INVALID_MSG, 0);
 			goto bail;
 		}
 
 		if(callback(ft, FT_SENT, nsent, st.st_size)){
 			/* cancel */
 			cancelled = 1;
-			ft->lasterr = FT_ERR_CANCELLED;
+			FT_LAST_ERR(FT_ERR_CANCELLED, 0);
 			goto bail;
 		}
 
 		if(fclose(local)){
 			WIN_DEBUG("fclose()");
-			ft->lasterr = os_getlasterr();
+			FT_LAST_ERR_OS();
 			return 1;
 		}
 		/* normal exit here */
@@ -835,7 +840,7 @@ int ft_connect(struct filetransfer *ft, const char *host, const char *port)
 		port = FT_DEFAULT_PORT;
 
 	if((eno = getaddrinfo(host, port, &hints, &ret))){
-		ft->lasterr = gai_strerror(eno);
+		FT_LAST_ERR(gai_strerror(eno), eno);
 		return 1;
 	}
 
@@ -859,7 +864,7 @@ int ft_connect(struct filetransfer *ft, const char *host, const char *port)
 	freeaddrinfo(ret);
 
 	if(ft->sock == -1){
-		ft->lasterr = lastconnerr;
+		FT_LAST_ERR(lastconnerr, 0);
 		return 1;
 	}
 
@@ -880,7 +885,7 @@ int ft_close(struct filetransfer *ft)
 		shutdown(ft->sock, SHUTDOWN_FLAG);
 
 		if(close(ft->sock)){
-			ft->lasterr = os_getlasterr();
+			FT_LAST_ERR_OS();
 			ret = 1;
 		}
 

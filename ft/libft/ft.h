@@ -4,6 +4,7 @@
 struct filetransfer
 {
 	const char *lasterr, *fname;
+	int lasterrno;
 	int sock, connected;
 	size_t lastcallback;
 	/*struct sockaddr_in addr;*/
@@ -46,6 +47,7 @@ enum ftret ft_poll_recv_or_close(struct filetransfer *);
 int ft_recv(     struct filetransfer *, ft_callback callback, ft_queryback, ft_fnameback);
 int ft_send(     struct filetransfer *, ft_callback callback, const char *fname);
 
+#define     ft_lasterrno(ft) ((ft)->lasterrno)
 const char *ft_lasterr(   struct filetransfer *);
 const char *ft_basename(  struct filetransfer *);
 const char *ft_remoteaddr(struct filetransfer *);
