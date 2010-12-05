@@ -638,16 +638,13 @@ int callback(struct filetransfer *ft, enum ftstate ftst,
 
 int queryback(struct filetransfer *ft, enum ftquery qtype, const char *msg, ...)
 {
-	GtkWidget *dialog = gtk_dialog_new(), *label;
+	GtkWidget *dialog, *label;
 	va_list l;
 	const char *iter, *percent;
 	char *caption;
 	int i = 0, formatargs = 0;
 
 	(void)ft;
-
-	if(!dialog)
-		return 0;
 
 	switch(qtype){
 		case FT_FILE_EXISTS:
@@ -677,6 +674,11 @@ int queryback(struct filetransfer *ft, enum ftquery qtype, const char *msg, ...)
 	caption = g_strdup_vprintf(msg, l);
 	va_end(l); /* needs reinitialising */
 
+	dialog = gtk_dialog_new();
+	gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(winMain));
+	gtk_window_set_destroy_with_parent(GTK_WINDOW(dialog), TRUE);
+	gtk_window_set_skip_taskbar_hint(GTK_WINDOW(dialog), FALSE);
+
 	label = gtk_label_new(caption);
 	/*content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 	gtk_container_add(GTK_CONTAINER(content_area), label);*/
@@ -702,6 +704,7 @@ int queryback(struct filetransfer *ft, enum ftquery qtype, const char *msg, ...)
 
 	gtk_widget_show(label);
 	gtk_window_set_urgency_hint(GTK_WINDOW(dialog), TRUE);
+	gtk_window_set_urgency_hint(GTK_WINDOW(winMain), TRUE);
 	i = gtk_dialog_run(GTK_DIALOG(dialog));
 	g_free(caption);
 	gtk_widget_destroy(dialog);
