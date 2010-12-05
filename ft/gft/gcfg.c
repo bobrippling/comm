@@ -22,8 +22,6 @@ char *strdup(const char *);
 static const char **hosts = NULL;
 static int nhosts = 0;
 
-static int bool_close_to_tray = 1;
-
 void cfg_add(const char *host)
 {
 	const char **new, *start;
@@ -108,7 +106,11 @@ void cfg_write()
 		fprintf(f, "HOST %s\n", hosts[i]);
 		);
 
-	fprintf(f, "CLOSE_TRAY %d\n", !!bool_close_to_tray);
+	{
+		extern GtkWidget *chkTray;
+		fprintf(f, "CLOSE_TRAY %d\n",
+				gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chkTray)));
+	}
 
 	fclose(f);
 }
@@ -153,9 +155,13 @@ void cfg_read(GtkWidget *cboHost)
 			extern GtkWidget *btnDirChoice;
 			gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(btnDirChoice), line + 4);
 		}else if(!strncmp(line, "CLOSE_TRAY ", 11)){
-			if(sscanf(line + 11, "%d", &bool_close_to_tray) != 1)
+			extern GtkWidget *chkTray;
+			int val = 1;
+
+			if(sscanf(line + 11, "%d", &val) != 1)
 				fprintf(stderr, "Invalid config number: %s\n", line);
-			bool_close_to_tray = !!bool_close_to_tray;
+			else
+				gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chkTray), val);
 		}else
 			fprintf(stderr, "Invalid config line: %s\n", line);
 	}
@@ -166,6 +172,3 @@ void cfg_read(GtkWidget *cboHost)
 #define GET_AND_SET(n) \
 	int  cfg_get_##n(     ) { return bool_##n; } \
 	void cfg_set_##n(int i) { bool_##n = i;    }
-
-
-GET_AND_SET(close_to_tray)

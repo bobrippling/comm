@@ -66,6 +66,7 @@ char *strdup(const char *);
 int access(const char *, int);
 
 const char *Win32_LastErr(int skip_to_errno);
+void        Win32_check_name(char *);
 static int WSA_Startuped = 0;
 #endif
 
@@ -240,6 +241,43 @@ enum ftret ft_accept(struct filetransfer *ft, const int block)
 	return FT_YES;
 }
 
+static char *ft_rename(struct filetransfer *ft, char *basename)
+{
+	int id = 1, len = strlen(basename) + 5;
+	char *dot, *new;
+
+	dot = strchr(basename, '.');
+	if(dot)
+		*dot++ = '\0';
+
+	new = malloc(strlen(basename) + strlen(dot ? dot : "") + 16);
+	if(!new){
+		ft->lasterr = "libft: couldn't allocate memory";
+		return NULL;
+	}
+
+	do{
+		/* new = basename . "1" . (dot ? ".jpg" : "") */
+
+		if(snprintf(new, len - 1, "%s%d%s%s", basename, id++, dot ? "." : "", dot ? dot : "") >= len - 1){
+			ft->lasterr = "libft: basename overflow in snprintf()";
+			free(new);
+			return NULL;
+		}
+
+		if(access(new, W_OK | R_OK) == -1 && errno == ENOENT)
+			break;
+		else if(id > 999){
+			ft->lasterr = "libft: can't find gap in filesystem";
+			free(new);
+			return NULL;
+		}
+	}while(1);
+
+	/* get here on successful rename */
+	return new;
+}
+
 static int ft_get_meta(struct filetransfer *ft,
 		char **basename, FILE **local, size_t *size,
 		ft_callback callback, ft_queryback queryback,
@@ -338,7 +376,13 @@ static int ft_get_meta(struct filetransfer *ft,
 
 	if(!bufptr[1] || bufptr[1] == '\n'){
 		int resume = 0;
-		char *newfname = fnameback(ft, *basename);
+		char *newfname;
+
+#ifdef _WIN32
+		Win32_check_name(*basename);
+#endif
+
+		newfname = fnameback(ft, *basename);
 
 		if(!newfname){
 			FREE_AND_NULL(*basename);
@@ -362,44 +406,10 @@ static int ft_get_meta(struct filetransfer *ft,
 
 rename:
 				case 2: /* rename */
-				{
-					int clob = 1, len = strlen(*basename) + 5;
-					char *tmp = realloc(*basename, len + 1), *dup;
-
-					if(!tmp){
-						ft->lasterr = os_getlasterr();
-						FREE_AND_NULL(*basename);
+					*basename = ft_rename(ft, *basename);
+					if(!*basename)
 						return 1;
-					}
-					dup = strdup(*basename = tmp);
-					if(!dup){
-						ft->lasterr = os_getlasterr();
-						free(tmp);
-						return 1;
-					}
-
-					do{
-						if(snprintf(tmp, len - 1, "%s%d", dup, clob++) >= len - 1){
-							ft->lasterr = "libft: basename overflow in snprintf()";
-							free(tmp);
-							free(dup);
-							return 1;
-						}
-
-						if(access(tmp, W_OK | R_OK) == -1 && errno == ENOENT)
-							break;
-						else if(clob > 99){
-							ft->lasterr = "libft: can't find gap in filesystem";
-							free(tmp);
-							free(dup);
-							return 1;
-						}
-					}while(1);
-					/* get here on successful rename */
-					free(dup);
-					/* *basename free'd later */
 					break;
-				}
 
 				default:
 					ft->lasterr = FT_ERR_INVALID_MSG;
@@ -896,6 +906,29 @@ const char *Win32_LastErr(int skip_to_errno)
 			ecode, 0,
 			errbuf, sizeof errbuf, NULL);
 	return errbuf;
+}
+
+void Win32_check_name(char *s)
+{
+	for(; *s; s++)
+		switch(*s){
+			case 0x00: case 0x01: case 0x02: case 0x03: case 0x04: case 0x05:
+			case 0x06: case 0x07: case 0x08: case 0x09: case 0x0a: case 0x0b:
+			case 0x0c: case 0x0d: case 0x0e: case 0x0f: case 0x10: case 0x11:
+			case 0x12: case 0x13: case 0x14: case 0x15: case 0x16: case 0x17:
+			case 0x18: case 0x19: case 0x1a: case 0x1b: case 0x1c: case 0x1d:
+			case 0x1e: case 0x1f:
+			case '"':
+			case '*':
+			case '/':
+			case ':':
+			case '<':
+			case '>':
+			case '?':
+			case '|':
+			case '\\':
+				*s = '_';
+		}
 }
 #endif
 

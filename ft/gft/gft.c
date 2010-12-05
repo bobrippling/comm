@@ -96,10 +96,14 @@ static GtkWidget *frmSend;
 static GtkWidget    *treeDone,      *treeTransfers;
 static GtkListStore *listTransfers, *listDone;
 
+static GtkWidget *radioPrompt, *radioRename, *radioOverwrite, *radioResume;
+
 static GtkWidget *winMain;
 
 
-GtkWidget *btnDirChoice; /* extern'd */
+/* extern'd */
+GtkWidget *btnDirChoice;
+GtkWidget *chkTray;
 
 
 struct filetransfer ft;
@@ -169,7 +173,7 @@ G_MODULE_EXPORT gboolean
 on_winMain_delete_event(void)
 {
 	/* return false to allow destroy */
-	if(cfg_get_close_to_tray()){
+	if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chkTray))){
 		tray_toggle();
 		return TRUE;
 	}
@@ -347,6 +351,10 @@ on_btnSend_clicked(void)
 
 		if(!basename++)
 			basename = item;
+
+		status("Waiting for confirmation for \"%s\"", item);
+		while(gtk_events_pending())
+			gtk_main_iteration();
 
 		if(ft_send(&ft, callback, item)){
 			status("Couldn't send %s: %s", basename, ft_lasterr(&ft));
@@ -632,10 +640,33 @@ int queryback(struct filetransfer *ft, enum ftquery qtype, const char *msg, ...)
 	int i = 0, formatargs = 0;
 
 	(void)ft;
-	(void)qtype;
 
 	if(!dialog)
 		return 0;
+
+	switch(qtype){
+		case FT_FILE_EXISTS:
+			/*
+			 * use radio buttons
+			 * query order is:
+			 * 0: Overwrite
+			 * 1: Resume
+			 * 2: Rename
+			 */
+			if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(radioPrompt)))
+				break;
+			else if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(radioOverwrite)))
+				return 0;
+			else if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(radioResume)))
+				return 1;
+			else if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(radioRename)))
+				return 2;
+			/* should be unreachable */
+			break;
+
+		case FT_CANT_OPEN:
+			break;
+	}
 
 	va_start(l, msg);
 	caption = g_strdup_vprintf(msg, l);
@@ -698,7 +729,7 @@ static int getobjects(GtkBuilder *b)
 
 #define GET_WIDGET2(x, n) \
 	if(!((x) = GTK_WIDGET(gtk_builder_get_object(b, n)))){ \
-		fputs("Error: Couldn't get Gtk Widget " #x "\"" n "\", bailing\n", stderr); \
+		fputs("Error: Couldn't get Gtk Widget " #x " = \"" n "\", bailing\n", stderr); \
 		return 1; \
 	}
 
@@ -719,6 +750,7 @@ static int getobjects(GtkBuilder *b)
 	GET_WIDGET(btnOpenFolder);
 	GET_WIDGET(btnClearTransfers);
 	GET_WIDGET(btnDirChoice);
+	GET_WIDGET(chkTray);
 
 	GET_WIDGET(frmSend);
 
@@ -748,10 +780,25 @@ static int getobjects(GtkBuilder *b)
 
 	g_signal_connect(G_OBJECT(treeDone), "row_activated", G_CALLBACK(on_treeDone_row_activated), NULL);
 
+
+#define DO_RADIO_APPEND(rad, lbl) \
+	rad = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(radioPrompt), lbl); \
+	gtk_container_add(GTK_CONTAINER(hbox), rad)
+
+	GET_WIDGET2(hbox, "vboxExistsLeft");
+	radioPrompt = gtk_radio_button_new_with_label(NULL, "Prompt");
+	gtk_container_add(GTK_CONTAINER(hbox), radioPrompt);
+	DO_RADIO_APPEND(radioRename, "Rename");
+
+	GET_WIDGET2(hbox, "vboxExistsRight");
+	DO_RADIO_APPEND(radioOverwrite, "Overwrite");
+	DO_RADIO_APPEND(radioResume,    "Resume");
+
 	return 0;
 #undef GET_WIDGET
 #undef GET_WIDGET2
 #undef SCROLL_DO
+#undef DO_RADIO_APPEND
 }
 
 int gladegen_init(void)

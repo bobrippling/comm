@@ -10,8 +10,6 @@ void cfg_write(void);
 	int  cfg_get_##n(); \
 	void cfg_set_##n(int i);
 
-GET_AND_SET(close_to_tray)
-
 #undef GET_AND_SET
 
 #endif
