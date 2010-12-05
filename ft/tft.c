@@ -17,7 +17,7 @@
 #include "libft/ft.h"
 
 #define MAX(x, y) (x > y ? x : y)
-#define ft_send(a, b, c) (printf("tft: sending %s\n", c), ft_send(a, b, c))
+#undef  TFT_DIE_ON_SEND
 
 #ifdef _WIN32
 char __progname[512];
@@ -25,15 +25,24 @@ char __progname[512];
 extern char *__progname;
 #endif
 
-void clrtoeol(void);
-void cleanup(void);
-int  eprintf(const char *, ...);
-void check_files(int fname_idx, int argc, char **argv);
+void  clrtoeol(void);
+void  cleanup(void);
+int   eprintf(const char *, ...);
+void  check_files(int fname_idx, int argc, char **argv);
 char *readline(int nulsep);
+int   tft_send(const char *fname);
+int   callback(struct filetransfer *ft, enum ftstate state,
+        size_t bytessent, size_t bytestotal);
 
 struct filetransfer ft;
 enum { OVERWRITE, RESUME, RENAME, ASK } clobber_mode = ASK;
 
+
+int tft_send(const char *fname)
+{
+	printf("tft: sending %s\n", fname);
+	return ft_send(&ft, callback, fname);
+}
 
 int callback(struct filetransfer *ft, enum ftstate state,
 		size_t bytessent, size_t bytestotal)
@@ -172,9 +181,9 @@ int send_from_stdin(int nul)
 
 		*end = '\0';
 
-		if(ft_send(&ft, callback, start)){
+		if(tft_send(start)){
 			clrtoeol();
-			eprintf("ft_send(): %s\n", ft_lasterr(&ft));
+			eprintf("tft_send(): %s\n", ft_lasterr(&ft));
 			return 1;
 		}
 
@@ -199,9 +208,9 @@ int send_from_stdin(int nul)
 	if(delim)
 		*delim = '\0';
 
-	if(ft_send(&ft, callback, line)){
+	if(tft_send(line)){
 		clrtoeol();
-		eprintf("ft_send(): %s: %s\n", line, ft_lasterr(&ft));
+		eprintf("tft_send(): %s: %s\n", line, ft_lasterr(&ft));
 		return 2;
 	}
 
@@ -328,10 +337,12 @@ int main(int argc, char **argv)
 			if(++fname_idx == argc)
 				fname_idx = -1;
 
-			if(ft_send(&ft, callback, fname)){
+			if(tft_send(fname)){
 				clrtoeol();
-				eprintf("ft_send(): %s: %s\n", fname, ft_lasterr(&ft));
+				eprintf("tft_send(): %s: %s\n", fname, ft_lasterr(&ft));
+#ifdef TFT_DIE_ON_SEND
 				goto bail;
+#endif
 			}
 		}else{
 			int lewp = 1;
@@ -382,7 +393,11 @@ int main(int argc, char **argv)
 											continue;
 										case 2:
 											/* ferror */
+#ifdef TFT_DIE_ON_SEND
 											goto bail;
+#else
+											break;
+#endif
 									}
 								fprintf(stderr, "%s: should never see this\n", *argv);
 								continue;
