@@ -557,7 +557,23 @@ void shelldir(const char *d)
 			<= 32)
 		fprintf(stderr, "ShellExecute(\"%s\") failed: %d\n", d, ret);
 #else
-	fprintf(stderr, "TODO: btnOpenFolder(\"%s\")\n", d); /* TODO */
+	switch(fork()){
+		case -1:
+			status("Couldn't fork(): %s", strerror(errno));
+			break;
+
+		case 0:
+		{
+			char *path = g_strdup_printf("cd %s; exec $SHELL", d);
+			execlp("xterm", "xterm", "-e", path, NULL);
+			perror("excelp()");
+			exit(1);
+			break;
+		}
+
+		default:
+			break;
+	}
 #endif
 }
 
@@ -890,6 +906,11 @@ int main(int argc, char **argv)
 		if(InitCommonControlsEx(&tim) == FALSE)
 			fputs("warning: InitCommomControlsEx() failed\n", stderr);
 	}
+#endif
+
+#ifndef _WIN32
+	if(signal(SIGCHLD, SIG_IGN) == SIG_ERR)
+		perror("signal(SIGCHLD)");
 #endif
 
 	ft_zero(&ft);
