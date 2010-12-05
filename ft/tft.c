@@ -17,6 +17,7 @@
 #include "libft/ft.h"
 
 #define MAX(x, y) (x > y ? x : y)
+#define ft_send(a, b, c) (printf("tft: sending %s\n", c), ft_send(a, b, c))
 
 #ifdef _WIN32
 char __progname[512];
@@ -32,6 +33,7 @@ char *readline(int nulsep);
 
 struct filetransfer ft;
 enum { OVERWRITE, RESUME, RENAME, ASK } clobber_mode = ASK;
+
 
 int callback(struct filetransfer *ft, enum ftstate state,
 		size_t bytessent, size_t bytestotal)
@@ -143,7 +145,6 @@ void check_files(int fname_idx, int argc, char **argv)
 				fprintf(stderr, "%s: warning: no read access for \"%s\" (%s)\n",
 						*argv, argv[i], strerror(errno));
 }
-
 
 int send_from_stdin(int nul)
 {
@@ -257,7 +258,7 @@ int main(int argc, char **argv)
 		usage:
 			eprintf("Usage: %s [-p port] [OPTS] [-l | host] [files...]\n"
 							"  -l: listen\n"
-							"  -u: remain running at the end of a transfer\n"
+							"  -u: remain running at the end of a transfer (implies -i)\n"
 							"  -i: read supplementary file list from stdin\n"
 							"  -0: file list is nul-delimited\n"
 							" If file exists:\n"
@@ -392,6 +393,7 @@ int main(int argc, char **argv)
 			/* end while(lewp) */
 
 			if(ft_poll_connected(&ft)){
+				printf("tft: waiting for file\n");
 				if(ft_recv(&ft, callback, queryback, fnameback)){
 					clrtoeol();
 					eprintf("ft_recv(): %s\n", ft_lasterr(&ft));
