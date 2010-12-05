@@ -271,7 +271,7 @@ G_MODULE_EXPORT gboolean on_txtMain_button_press_event(
 				close(devnull);
 
 				execlp(browser, browser, link, (char *)NULL);
-				perror("execvf()");
+				perror("execlp()");
 				exit(-1);
 		}
 #endif
@@ -714,6 +714,9 @@ int main(int argc, char **argv)
 	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
 	if(!debug)
 		FreeConsole();
+#else
+	if(signal(SIGCHLD, SIG_IGN) == SIG_ERR)
+		perror("signal(SIGCHLD)");
 #endif
 
 	memset(&var_color, '\0', sizeof var_color);
