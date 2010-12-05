@@ -8,7 +8,7 @@
 
 #include <sys/types.h>
 #if _WIN32
-# define _WIN32_WINNT 0x501
+# define _WIN32_WINNT 0x600
 /* ws2tcpip must be first... enterprise */
 # include <ws2tcpip.h>
 # include <winsock2.h>

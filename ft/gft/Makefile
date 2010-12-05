@@ -1,6 +1,6 @@
 ifeq ($(shell uname -o),Msys)
 GFT_DEPS    +=  gft.res
-LDFLAGS_G   += ${LDFLAGS} -lws2_32
+LDFLAGS_G   += ${LDFLAGS} -lws2_32 -lcomctl32
 endif
 
 gft: gft.o ../libft/ft.o gcfg.o gtransfers.o \
@@ -23,8 +23,8 @@ clean:
 
 include ../../config.mk
 
-CFLAGS_G   = ${CFLAGS} `pkg-config --cflags ${GTKINC}`
-LDFLAGS_G += ${CFLAGS} `pkg-config --libs ${GTKINC}`
+CFLAGS_G   = ${CFLAGS}  `pkg-config --cflags ${GTKINC}`
+LDFLAGS_G += ${LDFLAGS} `pkg-config --libs ${GTKINC}`
 
 .PHONY: clean
 
@@ -35,4 +35,4 @@ gft.o: gft.c ../../config.h gladegen.h ../util/gqueue.h \
 gtransfers.o: gtransfers.c gtransfers.h
 gtray.o: gtray.c ../../gcommon/gtray.h gtray.h gft.h
 gft.o: gft.rc gft.h
-gft.res: gft.rc gft.h
+gft.res: gft.rc gft.h gft.exe.manifest
