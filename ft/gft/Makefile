@@ -19,7 +19,7 @@ g%.o: g%.c
 	$Q${CC} ${CFLAGS_G} -c -o $@ $<
 
 clean:
-	@rm -f gft *.o gft.res
+	@rm -f gft *.o gft.res gladegen.h
 
 include ../../config.mk
 
@@ -28,11 +28,9 @@ LDFLAGS_G += ${LDFLAGS} `pkg-config --libs ${GTKINC}`
 
 .PHONY: clean
 
-gcfg.o: gcfg.c gcfg.h ../../config.h
+gcfg.o: gcfg.c gcfg.h gft.h ../../config.h
 gft.o: gft.c ../../config.h gladegen.h ../util/gqueue.h \
  ../../gcommon/glist.h gtray.h ../libft/ft.h ../../common/gnudefs.h \
- gcfg.h gtransfers.h
+ gcfg.h gtransfers.h gft.h
 gtransfers.o: gtransfers.c gtransfers.h
 gtray.o: gtray.c ../../gcommon/gtray.h gtray.h gft.h
-gft.o: gft.rc gft.h
-gft.res: gft.rc gft.h gft.exe.manifest

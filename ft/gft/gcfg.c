@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 
 #include "gcfg.h"
+#include "gft.h"
 #include "../../config.h"
 
 #ifndef strdup
@@ -109,7 +110,12 @@ void cfg_write()
 	{
 		extern GtkWidget *chkTray;
 		fprintf(f, "CLOSE_TRAY %d\n",
-				gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chkTray)));
+#ifdef CFG_USE_RADIO
+				gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chkTray))
+#else
+				gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(chkTray))
+#endif
+				);
 	}
 
 	fclose(f);
@@ -161,7 +167,11 @@ void cfg_read(GtkWidget *cboHost)
 			if(sscanf(line + 11, "%d", &val) != 1)
 				fprintf(stderr, "Invalid config number: %s\n", line);
 			else
+#ifdef CFG_USE_RADIO
 				gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chkTray), val);
+#else
+				gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(chkTray), val);
+#endif
 		}else
 			fprintf(stderr, "Invalid config line: %s\n", line);
 	}

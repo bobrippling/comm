@@ -75,6 +75,8 @@
 #include "gcfg.h"
 #include "gtransfers.h"
 
+#include "gft.h"
+
 void cmds(void);
 void status(const char *, ...) GCC_PRINTF_ATTRIB(1, 2);
 void settimeout(int on);
@@ -101,7 +103,7 @@ static GtkWidget *frmSend;
 static GtkWidget    *treeDone,      *treeTransfers;
 static GtkListStore *listTransfers, *listDone;
 
-static GtkWidget *radioPrompt, *radioRename, *radioOverwrite, *radioResume;
+static GtkWidget *opt_Prompt, *opt_Rename, *opt_Overwrite, *opt_Resume;
 
 static GtkWidget *winMain;
 
@@ -178,7 +180,13 @@ G_MODULE_EXPORT gboolean
 on_winMain_delete_event(void)
 {
 	/* return false to allow destroy */
-	if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chkTray))){
+	if(
+#ifdef CFG_USE_RADIO
+			gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(chkTray))
+#else
+			gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(chkTray))
+#endif
+			){
 		tray_toggle();
 		return TRUE;
 	}
@@ -671,14 +679,25 @@ int queryback(struct filetransfer *ft, enum ftquery qtype, const char *msg, ...)
 			 * 1: Resume
 			 * 2: Rename
 			 */
-			if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(radioPrompt)))
+#ifdef CFG_USE_RADIO
+			if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(opt_Prompt)))
 				break;
-			else if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(radioOverwrite)))
+			else if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(opt_Overwrite)))
 				return 0;
-			else if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(radioResume)))
+			else if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(opt_Resume)))
 				return 1;
-			else if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(radioRename)))
+			else if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(opt_Rename)))
 				return 2;
+#else
+			if(gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(opt_Prompt)))
+				break;
+			else if(gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(opt_Overwrite)))
+				return 0;
+			else if(gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(opt_Resume)))
+				return 1;
+			else if(gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(opt_Rename)))
+				return 2;
+#endif
 			/* should be unreachable */
 			break;
 
@@ -805,24 +824,88 @@ static int getobjects(GtkBuilder *b)
 	g_signal_connect(G_OBJECT(treeDone), "row_activated", G_CALLBACK(on_treeDone_row_activated), NULL);
 
 
-#define DO_RADIO_APPEND(rad, lbl) \
-	rad = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(radioPrompt), lbl); \
+#ifdef CFG_USE_RADIO
+# define DO_RADIO_APPEND(rad, lbl) \
+	rad = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(opt_Prompt), lbl); \
 	gtk_container_add(GTK_CONTAINER(hbox), rad)
 
 	GET_WIDGET2(hbox, "vboxExistsLeft");
-	radioPrompt = gtk_radio_button_new_with_label(NULL, "Prompt");
-	gtk_container_add(GTK_CONTAINER(hbox), radioPrompt);
-	DO_RADIO_APPEND(radioRename, "Rename");
+	opt_Prompt = gtk_radio_button_new_with_label(NULL, "Prompt");
+	gtk_container_add(GTK_CONTAINER(hbox), opt_Prompt);
+	DO_RADIO_APPEND(opt_Rename, "Rename");
 
 	GET_WIDGET2(hbox, "vboxExistsRight");
-	DO_RADIO_APPEND(radioOverwrite, "Overwrite");
-	DO_RADIO_APPEND(radioResume,    "Resume");
+	DO_RADIO_APPEND(opt_Overwrite, "Overwrite");
+	DO_RADIO_APPEND(opt_Resume,    "Resume");
+# undef DO_RADIO_APPEND
+#else
+	{
+		GtkWidget *menu_header_exists, *menu_header_settings;
+		GtkWidget *menubar, *menu_exists, *menu_settings;
+		GSList *group = NULL;
+
+		menubar      = gtk_menu_bar_new();
+		hbox         = gtk_vbox_new(FALSE, 0);
+
+#define DO_MENU(v, prev) \
+			opt_ ## v = gtk_radio_menu_item_new_with_label(group, #v); \
+			group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(opt_ ## v)); \
+			gtk_menu_shell_append(GTK_MENU_SHELL(menu_exists), opt_ ## v)
+
+		menu_exists    = gtk_menu_new();
+		menu_settings  = gtk_menu_new();
+
+		/* append all to menu_header_exists */
+		DO_MENU(Prompt,    NULL);
+		DO_MENU(Rename,    opt_Prompt);
+		DO_MENU(Resume,    opt_Rename);
+		DO_MENU(Overwrite, opt_Resume);
+
+		chkTray = gtk_check_menu_item_new_with_label("Close to tray");
+
+		{ /* remove frmCfg */
+			GtkWidget *frmCfg, *vboxLeft;
+			GET_WIDGET(frmCfg);
+			GET_WIDGET(vboxLeft);
+			gtk_container_remove(GTK_CONTAINER(vboxLeft), frmCfg);
+		}
+
+		{ /* add menubar to main window */
+			GtkWidget *oldboxmain;
+			GET_WIDGET2(oldboxmain, "hboxMain");
+
+			gtk_container_remove(GTK_CONTAINER(winMain), oldboxmain);
+			gtk_container_add(   GTK_CONTAINER(hbox),    menubar);
+			gtk_container_add(   GTK_CONTAINER(hbox),    oldboxmain);
+
+			gtk_container_add(GTK_CONTAINER(winMain), hbox);
+
+			gtk_box_set_child_packing(GTK_BOX(hbox), menubar,
+					FALSE, /* expand */
+					TRUE,  /* fill */
+					0,     /* padding */
+					GTK_PACK_START);
+		}
+
+		menu_header_settings = gtk_menu_item_new_with_label("Settings");
+		menu_header_exists   = gtk_menu_item_new_with_label("File Exists Action");
+
+		gtk_menu_item_set_submenu(GTK_MENU_ITEM( menu_header_exists), menu_exists);
+		gtk_menu_shell_append(    GTK_MENU_SHELL(menu_settings),      menu_header_exists);
+		gtk_menu_shell_append(    GTK_MENU_SHELL(menu_settings),      chkTray);
+
+		gtk_menu_item_set_submenu(GTK_MENU_ITEM( menu_header_settings), menu_settings);
+		gtk_menu_shell_append(    GTK_MENU_SHELL(menubar),              menu_header_settings);
+
+		gtk_widget_show_all(menubar);
+	}
+#endif
 
 	return 0;
+
 #undef GET_WIDGET
 #undef GET_WIDGET2
 #undef SCROLL_DO
-#undef DO_RADIO_APPEND
 }
 
 int gladegen_init(void)

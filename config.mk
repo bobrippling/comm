@@ -45,8 +45,8 @@ mostlyclean:
 			sub(/\..*/, "", fname); \
 			fnameU = toupper(fname); \
 			\
-			print "#ifndef " fnameU "_H\n"; \
-			print "#define " fnameU "_H\n"; \
+			print "#ifndef _" fnameU "_H_\n"; \
+			print "#define _" fnameU "_H_\n"; \
 			print "const char *glade_str_" fname "[] = {\n"; \
 			delete ARGV; \
 		} \
