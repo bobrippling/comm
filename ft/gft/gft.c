@@ -14,6 +14,7 @@
 # endif
 #else
 # include <alloca.h>
+# include <unistd.h>
 #endif
 
 #include <stdio.h>
