@@ -49,7 +49,7 @@ int callback(struct filetransfer *ft, enum ftstate state,
 {
 	if(state == FT_SENT || state == FT_RECIEVED){
 		clrtoeol();
-		printf("Done: %s\n", ft_fname(ft));
+		printf("tft: done: %s\n", ft_fname(ft));
 		return 0;
 	}else if(state == FT_WAIT)
 		return 0;
@@ -198,7 +198,7 @@ int send_from_stdin(int nul)
 
 	if(getdelim(&line, &size, nul ? 0 : '\n', stdin) == -1){
 		if(ferror(stdin)){
-			perror("read()");
+			perror("tft: read()");
 			return 2;
 		}
 		return 1;
@@ -320,7 +320,7 @@ int main(int argc, char **argv)
 				eprintf("no incomming connections... :S\n");
 				return 1;
 			case FT_YES:
-				printf("got connection from %s\n", ft_remoteaddr(&ft));
+				printf("tft: got connection from %s\n", ft_remoteaddr(&ft));
 				break; /* accepted */
 		}
 	}else if(ft_connect(&ft, argv[host_idx], port)){
