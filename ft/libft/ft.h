@@ -57,6 +57,7 @@ int         ft_poll_connected( struct filetransfer *);
 #define ft_fname(ft)     ((ft)->fname)
 #define ft_connected(ft) ((ft)->connected)
 #define ft_haderror(ft)  (!!(ft)->lasterr)
+#define ft_get_fd(ft)    ((ft)->sock)
 
 
 #define FT_DEFAULT_PORT "7643"

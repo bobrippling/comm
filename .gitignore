@@ -12,4 +12,5 @@ server/svrcomm
 fifo/fifocomm
 gui/guicomm
 ft/tft
+ft/tftd
 ft/gft/gft
