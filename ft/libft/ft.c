@@ -129,6 +129,7 @@ static int WSA_Startuped = 0;
 #define FREE_AND_NULL(x) do{ free(x); x = NULL; }while(0)
 
 static size_t ft_getcallback_step(size_t);
+static int ft_recv(struct filetransfer *, ft_callback callback, ft_queryback, ft_fnameback);
 static void ft_sleep(void);
 
 static int ft_get_meta(struct filetransfer *ft,
@@ -464,7 +465,54 @@ access_error:
 #undef INVALID_MSG
 }
 
-int ft_recv(struct filetransfer *ft,
+#define PING_PONG(fname, msg) \
+int ft_#fname(struct filetransfer *ft) \
+{ \
+	const char buffer[] = msg "\n"; \
+	return send(ft->sock, buffer, sizeof buffer, 0) != -1; \
+}
+
+PING_PONG(ping, "PING")
+PING_PONG(pong, "PONG")
+
+int ft_handle(struct filetransfer *ft,
+		ft_callback  callback,
+		ft_queryback queryback,
+		ft_fnameback fnameback)
+{
+	/* check for PING or FILE */
+	char buffer[16], *nl;
+	ssize_t thisread;
+	int nloops = 5;
+
+
+	do{
+		thisread = recv(ft->sock, buffer, sizeof buffer, MSG_PEEK);
+		switch(thisread){
+			case 0:
+				FT_LAST_ERR(FT_ERR_PREMATURE_CLOSE, 0);
+				return 1;
+			case -1:
+				FT_LAST_ERR();
+				return 1;
+		}
+		if(nl = strchr(buffer, '\n'))
+			break;
+		else if(--nloops <= 0)
+			return 0;
+	}while(1);
+
+	*nl = '\0';
+	if(!strcmp(buffer, "PING")){
+		recv(ft->sock, buffer, nl - buffer + 1, MSG_PEEK);
+		return ft_pong(ft);
+	}else
+		/* assume transfer */
+		return ft_re(ft, callback, que, fnameback);
+}
+
+
+static int ft_recv(struct filetransfer *ft,
 		ft_callback callback,
 		ft_queryback queryback,
 		ft_fnameback fnameback)

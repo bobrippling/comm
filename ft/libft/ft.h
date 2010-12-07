@@ -44,7 +44,11 @@ int ft_close(  struct filetransfer *);
 enum ftret ft_accept(   struct filetransfer *, int block);
 enum ftret ft_poll_recv_or_close(struct filetransfer *);
 
-int ft_recv(     struct filetransfer *, ft_callback callback, ft_queryback, ft_fnameback);
+int ft_ping(     struct filetransfer *);
+int ft_pong(     struct filetransfer *)
+int ft_handle(   struct filetransfer *, ft_callback callback, ft_queryback, ft_fnameback);
+
+/*int ft_recv(     struct filetransfer *, ft_callback callback, ft_queryback, ft_fnameback);*/
 int ft_send(     struct filetransfer *, ft_callback callback, const char *fname);
 
 #define     ft_lasterrno(ft) ((ft)->lasterrno)
