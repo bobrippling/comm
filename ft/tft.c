@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <errno.h>
+#include <time.h>
 #ifdef _WIN32
 # include <winsock2.h>
 /* wtf */
@@ -19,6 +20,10 @@
 
 #define MAX(x, y) (x > y ? x : y)
 #undef  TFT_DIE_ON_SEND
+
+#ifdef FT_USE_PING
+# define PING_DELAY 20
+#endif
 
 void  clrtoeol(void);
 void  cleanup(void);
@@ -228,6 +233,9 @@ int main(int argc, char **argv)
 	int stay_up;
 	const char *port = FT_DEFAULT_PORT;
 	int fname_idx, host_idx;
+#ifdef FT_USE_PING
+	int last_ping;
+#endif
 
 	listen = stay_up = 0;
 	read_stdin = read_stdin_nul = 0;
@@ -239,6 +247,11 @@ int main(int argc, char **argv)
 	signal(SIGHUP,  sigh);
 	signal(SIGTERM, sigh);
 	signal(SIGQUIT, sigh);
+#endif
+
+#ifdef FT_USE_PING
+	srand(time(NULL));
+	last_ping = rand() % PING_DELAY;
 #endif
 
 #define ARG(c) !strcmp(argv[i], "-" c)
@@ -382,6 +395,15 @@ int main(int argc, char **argv)
 								goto bail;
 
 							case 0:
+								/* TODO */
+#ifdef FT_USE_PING
+								if(last_ping++ > PING_DELAY){
+									last_ping = 0;
+
+									if(ft_ping(&ft))
+										perror("ft_ping()");
+								}
+#endif
 								continue;
 
 							default:
@@ -413,10 +435,9 @@ int main(int argc, char **argv)
 			/* end while(lewp) */
 
 			if(ft_poll_connected(&ft)){
-				printf("tft: waiting for file\n");
-				if(ft_recv(&ft, callback, queryback, fnameback)){
+				if(ft_handle(&ft, callback, queryback, fnameback)){
 					clrtoeol();
-					eprintf("ft_recv(): %s\n", ft_lasterr(&ft));
+					eprintf("ft_handle(): %s\n", ft_lasterr(&ft));
 					goto bail;
 				}
 			}else

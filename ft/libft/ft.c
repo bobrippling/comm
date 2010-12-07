@@ -131,6 +131,7 @@ static int WSA_Startuped = 0;
 static size_t ft_getcallback_step(size_t);
 static int ft_recv(struct filetransfer *, ft_callback callback, ft_queryback, ft_fnameback);
 static void ft_sleep(void);
+static void ft_keepalive(struct filetransfer *ft);
 
 static int ft_get_meta(struct filetransfer *ft,
 		char **basename, FILE **local, size_t *size,
@@ -168,6 +169,8 @@ int ft_listen(struct filetransfer *ft, int port)
 		FT_LAST_ERR_NET();
 		return 1;
 	}
+
+	ft_keepalive(ft);
 
 	addr.sin_port = htons(port);
 	addr.sin_family = AF_INET;
@@ -465,21 +468,32 @@ access_error:
 #undef INVALID_MSG
 }
 
-#define PING_PONG(fname, msg) \
-int ft_#fname(struct filetransfer *ft) \
+#ifdef FT_USE_PING
+#define PING_PONG(fname, msg, setpingwait) \
+int ft_##fname(struct filetransfer *ft) \
 { \
 	const char buffer[] = msg "\n"; \
-	return send(ft->sock, buffer, sizeof buffer, 0) != -1; \
+	switch(send(ft->sock, buffer, sizeof(buffer) - 1, 0)){ \
+		case  0: \
+		case -1: \
+			return 1; \
+		default: \
+			return 0; \
+	} \
+	if(setpingwait) \
+		ft->pingwait = 1; \
 }
 
-PING_PONG(ping, "PING")
-PING_PONG(pong, "PONG")
+PING_PONG(ping, "PING", 1)
+PING_PONG(pong, "PONG", 0)
+#endif
 
 int ft_handle(struct filetransfer *ft,
 		ft_callback  callback,
 		ft_queryback queryback,
 		ft_fnameback fnameback)
 {
+#ifdef FT_USE_PING
 	/* check for PING or FILE */
 	char buffer[16], *nl;
 	ssize_t thisread;
@@ -493,10 +507,10 @@ int ft_handle(struct filetransfer *ft,
 				FT_LAST_ERR(FT_ERR_PREMATURE_CLOSE, 0);
 				return 1;
 			case -1:
-				FT_LAST_ERR();
+				FT_LAST_ERR_NET();
 				return 1;
 		}
-		if(nl = strchr(buffer, '\n'))
+		if((nl = strchr(buffer, '\n')))
 			break;
 		else if(--nloops <= 0)
 			return 0;
@@ -504,11 +518,16 @@ int ft_handle(struct filetransfer *ft,
 
 	*nl = '\0';
 	if(!strcmp(buffer, "PING")){
-		recv(ft->sock, buffer, nl - buffer + 1, MSG_PEEK);
+		recv(ft->sock, buffer, nl - buffer + 1, 0);
 		return ft_pong(ft);
+	}else if(!strcmp(buffer, "PONG")){
+		ft->pingwait = 0;
+		recv(ft->sock, buffer, nl - buffer + 1, 0);
+		return 0;
 	}else
+#endif
 		/* assume transfer */
-		return ft_re(ft, callback, que, fnameback);
+		return ft_recv(ft, callback, queryback, fnameback);
 }
 
 
@@ -673,6 +692,42 @@ static void ft_sleep()
 	select(0, NULL, NULL, NULL, &tv);
 }
 
+#ifdef FT_USE_PING
+static int ft_wait_for_pong(struct filetransfer *ft)
+{
+	/* TODO */
+}
+#endif
+
+static void ft_keepalive(struct filetransfer *ft)
+{
+	int v = 1;
+
+	/* FIXME: set interval? */
+
+	if(setsockopt(ft->sock, SOL_SOCKET, SO_KEEPALIVE,
+				&v, sizeof v) != 0)
+		fprintf(stderr, "libft: warning: setsockopt(SO_KEEPALIVE): %s\n",
+				strerror(errno));
+	else{
+#ifdef _WIN32
+		/*
+		 * http://msdn.microsoft.com/en-us/library/dd877220%28v=VS.85%29.aspx
+		 * SIO_KEEPALIVE_VALS
+		 * linux tcp keepalive change per connection
+		 * windows tcp keepalive setsockopt
+		 */
+
+#else
+		/*
+		 * http://www.mail-archive.com/linux-net@vger.rutgers.edu/msg06759.html
+		 */
+
+		TODO;
+#endif
+	}
+}
+
 int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 {
 	struct stat st;
@@ -731,12 +786,6 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 		goto bail;
 	}
 
-	/* less complicated to do it here than ^whileloop */
-	if(send(ft->sock, buffer, nwrite, 0) == -1){
-		WIN_DEBUG("ft_send(): inital write");
-		FT_LAST_ERR_NET();
-		goto bail;
-	}
 
 #define BUFFER_RECV(len, flag) \
 		switch((nwrite = recv(ft->sock, buffer, len, flag))){ \
@@ -749,6 +798,18 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
 				FT_LAST_ERR(FT_ERR_PREMATURE_CLOSE, 0); \
 				goto bail; \
 		}
+
+#ifdef FT_USE_PING
+	if(ft->pingwait && ft_wait_for_pong(ft))
+		return 1;
+#endif
+
+	/* less complicated to do it here than ^whileloop */
+	if(send(ft->sock, buffer, nwrite, 0) == -1){
+		WIN_DEBUG("ft_send(): inital write");
+		FT_LAST_ERR_NET();
+		goto bail;
+	}
 
 	/* wait for RESUME reply */
 	do{
@@ -915,6 +976,8 @@ int ft_connect(struct filetransfer *ft, const char *host, const char *port)
 		FT_LAST_ERR(lastconnerr, 0);
 		return 1;
 	}
+
+	ft_keepalive(ft);
 
 	ft_connected(ft) = 1;
 	return 0;

@@ -434,8 +434,8 @@ timeout(gpointer data)
 					return FALSE; /* timer death */
 				}
 
-				if(ft_recv(&ft, callback, queryback, fnameback)){
-					status("Couldn't recieve file: %s", ft_lasterr(&ft));
+				if(ft_handle(&ft, callback, queryback, fnameback)){
+					status("Couldn't handle incomming data: %s", ft_lasterr(&ft));
 					CLOSE();
 				}else{
 					/*
@@ -452,6 +452,9 @@ timeout(gpointer data)
 				return FALSE;
 
 			case FT_NO:
+#ifdef FT_USE_PING
+				/* TODO: ping/pong */
+#endif
 				return TRUE; /* keep looking */
 		}
 		/* unreachable */

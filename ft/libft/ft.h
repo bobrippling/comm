@@ -1,11 +1,16 @@
 #ifndef FTP_H
 #define FTP_H
 
+#undef FT_USE_PING
+
 struct filetransfer
 {
 	const char *lasterr, *fname;
 	int lasterrno;
 	int sock, connected;
+#ifdef FT_USE_PING
+	int pingwait;
+#endif
 	size_t lastcallback;
 	/*struct sockaddr_in addr;*/
 	char addr[32]; /* sizeof(sockaddr_in) == 16 */
@@ -44,8 +49,11 @@ int ft_close(  struct filetransfer *);
 enum ftret ft_accept(   struct filetransfer *, int block);
 enum ftret ft_poll_recv_or_close(struct filetransfer *);
 
+#ifdef FT_USE_PING
 int ft_ping(     struct filetransfer *);
-int ft_pong(     struct filetransfer *)
+int ft_pong(     struct filetransfer *);
+#endif
+
 int ft_handle(   struct filetransfer *, ft_callback callback, ft_queryback, ft_fnameback);
 
 /*int ft_recv(     struct filetransfer *, ft_callback callback, ft_queryback, ft_fnameback);*/
