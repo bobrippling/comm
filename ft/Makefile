@@ -1,4 +1,10 @@
-all: tft gft
+TARGETS = tft gft
+
+ifeq ($(shell uname -o),GNU/Linux)
+TARGETS += tftd
+endif
+
+all: ${TARGETS}
 
 tft: tft.o libft/ft.o
 	@echo LD $@
@@ -7,11 +13,15 @@ tft: tft.o libft/ft.o
 gft:
 	@make ${MAKEFLAGS} -C $@
 
+tftd: tftd.o libft/ft.o
+	@echo LD $@
+	$Q${CC} -o $@ $^ ${LDFLAGS}
+
 gft_clean:
 	@make ${MAKEFLAGS} -C gft clean
 
 clean: gft_clean
-	@rm -f `find . -iname \*.o` tft gft/gladegen.c
+	@rm -f *.o tft tftd
 
 .PHONY: all clean gft_clean gft
 
@@ -22,3 +32,4 @@ LDFLAGS  += -lws2_32
 endif
 
 tft.o: tft.c libft/ft.h
+tftd.o: tftd.c libft/ft.h

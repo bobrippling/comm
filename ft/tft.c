@@ -12,18 +12,13 @@
 # include <sys/select.h>
 # include <sys/stat.h>
 # include <fcntl.h>
+# include <signal.h>
 #endif
 
 #include "libft/ft.h"
 
 #define MAX(x, y) (x > y ? x : y)
 #undef  TFT_DIE_ON_SEND
-
-#ifdef _WIN32
-char __progname[512];
-#else
-extern char *__progname;
-#endif
 
 void  clrtoeol(void);
 void  cleanup(void);
@@ -33,6 +28,7 @@ char *readline(int nulsep);
 int   tft_send(const char *fname);
 int   callback(struct filetransfer *ft, enum ftstate state,
         size_t bytessent, size_t bytestotal);
+void sigh(int sig);
 
 struct filetransfer ft;
 enum { OVERWRITE, RESUME, RENAME, ASK } clobber_mode = ASK;
@@ -137,7 +133,7 @@ int eprintf(const char *fmt, ...)
 	va_list l;
 	int ret;
 
-	fprintf(stderr, "%s: ", __progname);
+	fprintf(stderr, "tft: ");
 	va_start(l, fmt);
 	ret = vfprintf(stderr, fmt, l);
 	va_end(l);
@@ -151,8 +147,8 @@ void check_files(int fname_idx, int argc, char **argv)
 	if(fname_idx > 0)
 		for(i = fname_idx; i < argc; i++)
 			if(access(argv[i], R_OK))
-				fprintf(stderr, "%s: warning: no read access for \"%s\" (%s)\n",
-						*argv, argv[i], strerror(errno));
+				fprintf(stderr, "tft: warning: no read access for \"%s\" (%s)\n",
+						argv[i], strerror(errno));
 }
 
 int send_from_stdin(int nul)
@@ -175,7 +171,7 @@ int send_from_stdin(int nul)
 		char *end = memchr(start, nul ? 0 : '\n', nread);
 
 		if(!end){
-			fprintf(stderr, "%s: couldn't find terminator for:\n%s\n", __progname, buffer);
+			fprintf(stderr, "tft: couldn't find terminator for:\n%s\n", buffer);
 			return 0;
 		}
 
@@ -219,6 +215,12 @@ int send_from_stdin(int nul)
 #endif
 }
 
+void sigh(int sig)
+{
+	cleanup();
+	exit(sig);
+}
+
 int main(int argc, char **argv)
 {
 	int i, listen;
@@ -231,8 +233,12 @@ int main(int argc, char **argv)
 	read_stdin = read_stdin_nul = 0;
 	fname_idx = host_idx = -1;
 
-#ifdef _WIN32
-	strncpy(__progname, *argv, sizeof __progname);
+#ifndef _WIN32
+	/* the usual suspects... */
+	signal(SIGINT,  sigh);
+	signal(SIGHUP,  sigh);
+	signal(SIGTERM, sigh);
+	signal(SIGQUIT, sigh);
 #endif
 
 #define ARG(c) !strcmp(argv[i], "-" c)
@@ -399,7 +405,6 @@ int main(int argc, char **argv)
 											break;
 #endif
 									}
-								fprintf(stderr, "%s: should never see this\n", *argv);
 								continue;
 						}
 						/* unreachable */
