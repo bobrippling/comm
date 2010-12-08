@@ -42,6 +42,11 @@
 # include <errno.h>
 # include <sys/select.h>
 
+/* extra tcp options */
+#define __USE_MISC
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+
 # define WIN_DEBUG(x)
 
 # define  os_getlasterr() strerror(errno)
@@ -717,13 +722,32 @@ static void ft_keepalive(struct filetransfer *ft)
 		 * linux tcp keepalive change per connection
 		 * windows tcp keepalive setsockopt
 		 */
+		DWORD dwError = 0;
+		/*struct tcp_keepalive tcp_kalive;*/
+		tcp_keepalive tcp_kalive;
 
+		tcp_kalive.onoff             = 1 ;
+		tcp_kalive.keepalivetime     = 5500;
+		tcp_kalive.keepaliveinterval = 3000;
+
+		if(WSAIoctl(ft->sock, SIO_KEEPALIVE_VALS, &tcp_kalive,
+				sizeof tcp_kalive, NULL, 0, 0, NULL, NULL))
+			fprintf(stderr, "libft: warning: WSAIoctl(SIO_KEEPALIVE_VALS) failed\n");
 #else
 		/*
-		 * http://www.mail-archive.com/linux-net@vger.rutgers.edu/msg06759.html
+		 * man 7 tcp
 		 */
+		int v;
 
-		TODO;
+#define SOCK_OPT(opt, val) \
+		v = val; \
+		if(setsockopt(ft->sock, SOL_TCP, opt, &v, sizeof v)) \
+			perror("libft: warning: setsockopt(" #opt ")")
+
+		/* time in seconds */
+		SOCK_OPT(TCP_KEEPCNT,   20); /* number of probes before conn. dropped */
+		SOCK_OPT(TCP_KEEPIDLE, 180); /* time before initial probe (3 mins) */
+		SOCK_OPT(TCP_KEEPINTVL, 60); /* time between keepalives */
 #endif
 	}
 }

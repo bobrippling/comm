@@ -67,8 +67,6 @@ int queryback(struct filetransfer *ft, enum ftquery qtype, const char *msg, ...)
 {
 	if(qtype == FT_FILE_EXISTS)
 		switch(clobber_mode){
-			case ASK: break;
-			case OVERWRITE: return 0;
 			case RESUME:    return 1;
 			case RENAME:    return 2;
 		}
@@ -100,7 +98,7 @@ int lewp()
 
 #define BIT(x, b) (((x) & (b)) == (b))
 		if(BIT(pfd[0].revents, POLLIN)){
-			if(ft_recv(&ft, callback, queryback, fnameback))
+			if(ft_handle(&ft, callback, queryback, fnameback))
 				fprintf(stderr, "ft_recv(): %s\n", ft_lasterr(&ft));
 		}
 
