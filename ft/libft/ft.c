@@ -1,22 +1,42 @@
 #ifdef _WIN32
 # define _WIN32_WINNT 0x501
-# define close(x) closesocket(x)
 
 /* ws2tcpip must be first... enterprise */
 # include <ws2tcpip.h>
 # include <winsock2.h>
 /* ^ getaddrinfo */
 
+# ifdef HAVE_MSTCPIP_H
+#  include <Mstcpip.h>
+/* ^ tcp_keepalive */
+# else
+struct tcp_keepalive {
+    u_long  onoff;
+    u_long  keepalivetime;
+    u_long  keepaliveinterval;
+};
+
+/* New WSAIoctl Options */
+
+#  define SIO_RCVALL            _WSAIOW(IOC_VENDOR,1)
+#  define SIO_RCVALL_MCAST      _WSAIOW(IOC_VENDOR,2)
+#  define SIO_RCVALL_IGMPMCAST  _WSAIOW(IOC_VENDOR,3)
+#  define SIO_KEEPALIVE_VALS    _WSAIOW(IOC_VENDOR,4)
+#  define SIO_ABSORB_RTRALERT   _WSAIOW(IOC_VENDOR,5)
+#  define SIO_UCAST_IF          _WSAIOW(IOC_VENDOR,6)
+#  define SIO_LIMIT_BROADCASTS  _WSAIOW(IOC_VENDOR,7)
+#  define SIO_INDEX_BIND        _WSAIOW(IOC_VENDOR,8)
+#  define SIO_INDEX_MCASTIF     _WSAIOW(IOC_VENDOR,9)
+#  define SIO_INDEX_ADD_MCAST   _WSAIOW(IOC_VENDOR,10)
+#  define SIO_INDEX_DEL_MCAST   _WSAIOW(IOC_VENDOR,11)
+# endif
+
 # include <sys/types.h>
 # include <sys/stat.h>
-/*
- * can't do this:
- * # include <io.h>
- * since closesocket conflicts... enterprise
- */
+
+# include <io.h>
+
 # include <errno.h>
-# define W_OK 02
-# define R_OK 04
 
 # define WIN_DEBUG(x) fprintf(stderr, \
 		"WIN_DEBUG(): " x ": %d (%d): %s\n", errno, \
@@ -26,8 +46,10 @@
 # define PRINTF_SIZET_CAST long
 
 # define  os_getlasterr() Win32_LastErr(1)
-
 # define net_getlasterr() Win32_LastErr(0)
+
+/* must be here to avoid header cockups */
+# define close(x) closesocket(x)
 
 # define G_DIR_SEPARATOR '\\'
 
@@ -42,7 +64,6 @@
 # include <errno.h>
 # include <sys/select.h>
 # include <sys/types.h>
-# include <dirent.h>
 
 /* extra tcp options */
 #define __USE_MISC
@@ -71,6 +92,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <dirent.h>
 
 #ifdef _WIN32
 int fileno(FILE *);
@@ -712,8 +734,14 @@ static void ft_keepalive(struct filetransfer *ft)
 
 	/* FIXME: set interval? */
 
+#ifdef _WIN32
+# define CAST (const char *)
+#else
+# define CAST
+#endif
+
 	if(setsockopt(ft->sock, SOL_SOCKET, SO_KEEPALIVE,
-				&v, sizeof v) != 0)
+				CAST &v, sizeof v) != 0)
 		fprintf(stderr, "libft: warning: setsockopt(SO_KEEPALIVE): %s\n",
 				strerror(errno));
 	else{
@@ -724,9 +752,7 @@ static void ft_keepalive(struct filetransfer *ft)
 		 * linux tcp keepalive change per connection
 		 * windows tcp keepalive setsockopt
 		 */
-		DWORD dwError = 0;
-		/*struct tcp_keepalive tcp_kalive;*/
-		tcp_keepalive tcp_kalive;
+		struct tcp_keepalive tcp_kalive;
 
 		tcp_kalive.onoff             = 1 ;
 		tcp_kalive.keepalivetime     = 5500;
