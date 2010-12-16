@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <ctype.h>
 
 #ifdef _WIN32
 # include <windows.h>
@@ -85,6 +86,7 @@ void settimeout(int on);
 const char *get_openfolder(void);
 void html_expand(char *s);
 void shelldir(const char *d);
+void show_file_choice(GtkFileChooserAction flags);
 
 int callback(struct filetransfer *ft, enum ftstate state,
 		size_t bytessent, size_t bytestotal);
@@ -93,8 +95,11 @@ int queryback(struct filetransfer *ft, enum ftquery qtype,
 char *fnameback(struct filetransfer *ft,
 		char *fname);
 
+void queue_add_html(char *s);
+
+
 static GtkWidget *btnSend, *btnConnect, *btnListen, *btnClose;
-static GtkWidget *btnFileChoice, *btnOpenFolder, *btnClearTransfers;
+static GtkWidget *btnOpenFolder, *btnClearTransfers;
 
 static GtkWidget *progressft, *lblStatus;
 static GtkWidget *cboHost;
@@ -160,16 +165,7 @@ on_frmSend_drag_data_received(
 		dup = g_strdup((const gchar *)datasel->data);
 
 		for(iter = strtok(dup, "\r\n"); iter; iter = strtok(NULL, "\r\n"))
-			if(!strncmp(iter, "file://", 7)){
-				char *p = iter + 7;
-#ifdef _WIN32
-				p++;
-#endif
-				html_expand(p);
-				if(!queue_has(file_queue, p))
-					QUEUE(p);
-			}else
-				fprintf(stderr, "warning: can't add \"%s\" to queue\n", iter);
+			queue_add_html(iter);
 
 		g_free(dup);
 	}
@@ -219,6 +215,20 @@ G_MODULE_EXPORT gboolean
 btnClearTransfers_clicked(void)
 {
 	glist_clear(listDone);
+	return FALSE;
+}
+
+G_MODULE_EXPORT gboolean
+on_btnFileSel_clicked(void)
+{
+	show_file_choice(GTK_FILE_CHOOSER_ACTION_OPEN);
+	return FALSE;
+}
+
+G_MODULE_EXPORT gboolean
+on_btnDirSel_clicked(void)
+{
+	show_file_choice(GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER);
 	return FALSE;
 }
 
@@ -331,21 +341,6 @@ on_btnDequeue_clicked(void)
 }
 
 G_MODULE_EXPORT gboolean
-on_btnQueue_clicked(void)
-{
-	const char *fname = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(btnFileChoice));
-
-	if(!fname){
-		status("Need file to queue ya crazy man");
-		return FALSE;
-	}
-
-	QUEUE(fname);
-
-	return FALSE;
-}
-
-G_MODULE_EXPORT gboolean
 on_btnSend_clicked(void)
 {
 	char *item;
@@ -370,7 +365,7 @@ on_btnSend_clicked(void)
 		while(gtk_events_pending())
 			gtk_main_iteration();
 
-		if(ft_send(&ft, callback, item)){
+		if(ft_send(&ft, callback, item, 1)){
 			status("Couldn't send %s: %s", basename, ft_lasterr(&ft));
 			CLOSE();
 			break;
@@ -493,6 +488,41 @@ int on_winMain_focus_in_event(void)
 	return FALSE;
 }
 
+void show_file_choice(GtkFileChooserAction flags)
+{
+	GtkWidget *dialog = gtk_file_chooser_dialog_new("File(s)",
+		GTK_WINDOW(winMain),
+		/*
+		 * GTK_FILE_CHOOSER_ACTION_OPEN
+		 * GTK_FILE_CHOOSER_ACTION_SAVE
+		 * GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER
+		 * GTK_FILE_CHOOSER_ACTION_CREATE_FOLDER
+		 */
+		flags,
+		GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+		GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+		NULL);
+
+	gtk_file_chooser_set_select_multiple(GTK_FILE_CHOOSER(dialog), TRUE);
+
+
+	if(gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT){
+		GSList *lst = gtk_file_chooser_get_uris(GTK_FILE_CHOOSER(dialog));
+		GSList *iter;
+
+		for(iter = lst; iter; iter = iter->next){
+			char *dup = g_strdup(iter->data);
+			queue_add_html(dup);
+			g_free(dup);
+			g_free(iter->data);
+		}
+
+		g_slist_free(lst);
+	}
+
+	gtk_widget_destroy(dialog);
+}
+
 void cmds()
 {
 	switch(gstate){
@@ -529,30 +559,18 @@ void cmds()
 		gtk_main_iteration();
 }
 
-const char *get_openfolder()
+void queue_add_html(char *s)
 {
-	static char folder[512];
-	char *dname;
-
-	dname = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(btnDirChoice));
-
-	if(dname){
-		unsigned int len;
-
-		strncpy(folder, dname, sizeof(folder));
-
-		len = strlen(folder);
-		if(len >= sizeof(folder)-3)
-			fputs("warning: folder name too long\n", stderr);
-		else if(folder[len - 1] != G_DIR_SEPARATOR){
-			folder[len] = G_DIR_SEPARATOR;
-			folder[len+1] = '\0';
-		}
-
-		g_free(dname);
-		return folder;
-	}
-	return NULL;
+	if(!strncmp(s, "file://", 7)){
+		char *p = s + 7;
+#ifdef _WIN32
+		p++;
+#endif
+		html_expand(p);
+		if(!queue_has(file_queue, p))
+			QUEUE(p);
+	}else
+		fprintf(stderr, "warning: can't add \"%s\" to queue\n", s);
 }
 
 void shelldir(const char *d)
@@ -790,7 +808,7 @@ static int getobjects(GtkBuilder *b)
 	GET_WIDGET(btnConnect);
 	GET_WIDGET(btnListen);
 	GET_WIDGET(btnClose);
-	GET_WIDGET(btnFileChoice);
+	/*GET_WIDGET(btnFileChoice);*/
 	GET_WIDGET(winMain);
 	GET_WIDGET(progressft);
 	GET_WIDGET(lblStatus);
@@ -826,7 +844,6 @@ static int getobjects(GtkBuilder *b)
 	SCROLL_DO(scrollDone, treeDone, 3);
 
 	g_signal_connect(G_OBJECT(treeDone), "row_activated", G_CALLBACK(on_treeDone_row_activated), NULL);
-
 
 #ifdef CFG_USE_RADIO
 # define DO_RADIO_APPEND(rad, lbl) \
@@ -865,7 +882,7 @@ static int getobjects(GtkBuilder *b)
 		DO_MENU(Resume,    opt_Rename);
 		DO_MENU(Overwrite, opt_Resume);
 
-		chkTray = gtk_check_menu_item_new_with_label("Close to tray");
+		chkTray      = gtk_check_menu_item_new_with_label("Close to tray");
 
 		{ /* remove frmCfg */
 			GtkWidget *frmCfg, *vboxLeft;
@@ -973,6 +990,46 @@ void drag_init(void)
 			"drag-data-received", G_CALLBACK(on_frmSend_drag_data_received), NULL);
 }
 
+const char *get_openfolder()
+{
+	static char folder[512];
+	char *dname;
+
+	dname = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(btnDirChoice));
+
+	if(dname){
+		unsigned int len;
+
+		strncpy(folder, dname, sizeof(folder));
+
+		len = strlen(folder);
+		if(len >= sizeof(folder)-3)
+			fputs("warning: folder name too long\n", stderr);
+		else if(folder[len - 1] != G_DIR_SEPARATOR){
+			folder[len] = G_DIR_SEPARATOR;
+			folder[len+1] = '\0';
+		}
+
+		g_free(dname);
+		return folder;
+	}
+	return NULL;
+}
+
+const char *get_init_path()
+{
+#ifdef _WIN32
+	static char path[MAX_PATH];
+	if(SHGetFolderPath(NULL, CSIDL_PERSONAL, NULL, 0, path) != S_OK)
+		return NULL;
+#else
+	char *path = getenv("HOME");
+#endif
+
+	return path;
+}
+
+
 int main(int argc, char **argv)
 {
 	GError     *error = NULL;
@@ -1062,17 +1119,6 @@ usage:
 	cfg_read(cboHost);
 	tray_init(winMain, *argv);
 	transfers_init(&listDone, treeDone);
-
-	{
-#ifdef _WIN32
-		char path[MAX_PATH];
-		if(SHGetFolderPath(NULL, CSIDL_PERSONAL, NULL, 0, path) == S_OK)
-#else
-		char *path = getenv("HOME");
-		if(path)
-#endif
-			gtk_file_chooser_set_current_folder_uri(GTK_FILE_CHOOSER(btnFileChoice), path);
-	}
 
 	gtk_widget_set_sensitive(btnSend, FALSE);
 	drag_init();

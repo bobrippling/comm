@@ -353,20 +353,28 @@
                           <object class="GtkHBox" id="hboxFile">
                             <property name="visible">True</property>
                             <child>
-                              <object class="GtkLabel" id="lblFile">
+                              <object class="GtkButton" id="btnFileSel">
+                                <property name="label" translatable="yes">Queue
+File(s)</property>
                                 <property name="visible">True</property>
-                                <property name="label" translatable="yes">File:</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">True</property>
+                                <property name="border_width">3</property>
+                                <signal name="clicked" handler="on_btnFileSel_clicked"/>
                               </object>
                               <packing>
-                                <property name="expand">False</property>
-                                <property name="padding">4</property>
                                 <property name="position">0</property>
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkFileChooserButton" id="btnFileChoice">
+                              <object class="GtkButton" id="btnDirSel">
+                                <property name="label" translatable="yes">Queue
+Directory(s)</property>
                                 <property name="visible">True</property>
-                                <property name="title" translatable="yes">File to Send</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">True</property>
+                                <property name="border_width">3</property>
+                                <signal name="clicked" handler="on_btnDirSel_clicked"/>
                               </object>
                               <packing>
                                 <property name="position">1</property>
@@ -379,39 +387,15 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkHBox" id="hboxQueue">
+                          <object class="GtkButton" id="btnDequeue">
+                            <property name="label" translatable="yes">Dequeue</property>
                             <property name="visible">True</property>
-                            <property name="homogeneous">True</property>
-                            <child>
-                              <object class="GtkButton" id="btnQueue">
-                                <property name="label" translatable="yes">Queue</property>
-                                <property name="visible">True</property>
-                                <property name="can_focus">True</property>
-                                <property name="receives_default">True</property>
-                                <property name="border_width">3</property>
-                                <signal name="clicked" handler="on_btnQueue_clicked"/>
-                              </object>
-                              <packing>
-                                <property name="position">0</property>
-                              </packing>
-                            </child>
-                            <child>
-                              <object class="GtkButton" id="btnDequeue">
-                                <property name="label" translatable="yes">Dequeue</property>
-                                <property name="visible">True</property>
-                                <property name="can_focus">True</property>
-                                <property name="receives_default">True</property>
-                                <property name="border_width">3</property>
-                                <signal name="clicked" handler="on_btnDequeue_clicked"/>
-                              </object>
-                              <packing>
-                                <property name="position">1</property>
-                              </packing>
-                            </child>
+                            <property name="can_focus">True</property>
+                            <property name="receives_default">True</property>
+                            <property name="border_width">3</property>
+                            <signal name="clicked" handler="on_btnDequeue_clicked"/>
                           </object>
                           <packing>
-                            <property name="expand">False</property>
-                            <property name="fill">False</property>
                             <property name="position">1</property>
                           </packing>
                         </child>
