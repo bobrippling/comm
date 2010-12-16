@@ -57,7 +57,8 @@ int ft_pong(     struct filetransfer *);
 int ft_handle(   struct filetransfer *, ft_callback callback, ft_queryback, ft_fnameback);
 
 /*int ft_recv(     struct filetransfer *, ft_callback callback, ft_queryback, ft_fnameback);*/
-int ft_send(     struct filetransfer *, ft_callback callback, const char *fname);
+int ft_send(     struct filetransfer *, ft_callback callback, const char *path, int recursive);
+int ft_send_file(struct filetransfer *, ft_callback callback, const char *fname);
 
 #define     ft_lasterrno(ft) ((ft)->lasterrno)
 const char *ft_lasterr(   struct filetransfer *);

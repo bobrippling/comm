@@ -41,6 +41,8 @@
 # include <fcntl.h>
 # include <errno.h>
 # include <sys/select.h>
+# include <sys/types.h>
+# include <dirent.h>
 
 /* extra tcp options */
 #define __USE_MISC
@@ -752,7 +754,62 @@ static void ft_keepalive(struct filetransfer *ft)
 	}
 }
 
-int ft_send(struct filetransfer *ft, ft_callback callback, const char *fname)
+int ft_send(struct filetransfer *ft, ft_callback callback, const char *path, int recursive)
+{
+	struct stat st;
+
+	if(stat(path, &st)){
+		FT_LAST_ERR_OS();
+		return 1;
+	}
+
+	if(S_ISDIR(st.st_mode)){
+		if(recursive){
+			DIR *d = opendir(path);
+			struct dirent *ent;
+			int ret = 0;
+
+			if(!d){
+				FT_LAST_ERR_OS();
+				return 1;
+			}
+
+			while((ent = readdir(d))){
+				char *fname;
+				int ftret;
+
+				if(!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, ".."))
+					continue;
+
+				fname = malloc(strlen(ent->d_name) + strlen(path) + 2);
+				if(!fname){
+					FT_LAST_ERR_OS();
+					ret = 1;
+					break;
+				}
+
+				strcpy(fname, path);
+				strcat(fname, "/");
+				strcat(fname, ent->d_name);
+
+				ftret = ft_send(ft, callback, fname, recursive);
+				free(fname);
+
+				if(ftret){
+					ret = ftret;
+					break;
+				}
+			}
+
+			closedir(d);
+			return ret;
+		}else
+			return 0;
+	}else
+		return ft_send_file(ft, callback, path);
+}
+
+int ft_send_file(struct filetransfer *ft, ft_callback callback, const char *fname)
 {
 	struct stat st;
 	FILE *local;
