@@ -35,6 +35,7 @@ int   callback(struct filetransfer *ft, enum ftstate state,
         size_t bytessent, size_t bytestotal);
 void sigh(int sig);
 
+int recursive = 0;
 struct filetransfer ft;
 enum { OVERWRITE, RESUME, RENAME, ASK } clobber_mode = ASK;
 
@@ -42,7 +43,7 @@ enum { OVERWRITE, RESUME, RENAME, ASK } clobber_mode = ASK;
 int tft_send(const char *fname)
 {
 	printf("tft: sending %s\n", fname);
-	return ft_send(&ft, callback, fname);
+	return ft_send(&ft, callback, fname, recursive);
 }
 
 int callback(struct filetransfer *ft, enum ftstate state,
@@ -277,6 +278,8 @@ int main(int argc, char **argv)
 			read_stdin = 1;
 		else if(ARG("0"))
 			read_stdin_nul = 1;
+		else if(ARG("R"))
+			recursive = 1;
 		else if(!listen && host_idx < 0)
 			host_idx = i;
 		else if(fname_idx < 0){
@@ -289,6 +292,7 @@ int main(int argc, char **argv)
 							"  -u: remain running at the end of a transfer (implies -i)\n"
 							"  -i: read supplementary file list from stdin\n"
 							"  -0: file list is nul-delimited\n"
+							"  -R: send directories recursively\n"
 							" If file exists:\n"
 							"  -o: overwrite\n"
 							"  -n: rename incoming\n"
