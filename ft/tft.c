@@ -151,10 +151,15 @@ void check_files(int fname_idx, int argc, char **argv)
 	int i;
 
 	if(fname_idx > 0)
-		for(i = fname_idx; i < argc; i++)
-			if(access(argv[i], R_OK))
-				fprintf(stderr, "tft: warning: no read access for \"%s\" (%s)\n",
+		for(i = fname_idx; i < argc; i++){
+			struct stat st;
+			if(stat(argv[i], &st))
+				fprintf(stderr, "tft: warning: couldn't stat \"%s\" (%s)\n",
 						argv[i], strerror(errno));
+			else if(!recursive && S_ISDIR(st.st_mode))
+				fprintf(stderr, "tft: warning: \"%s\" is a directory && !recursive\n",
+						argv[i]);
+		}
 }
 
 int send_from_stdin(int nul)
