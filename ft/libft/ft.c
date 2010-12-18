@@ -827,6 +827,11 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *path, int
 				}
 			}
 
+			if(errno){
+				FT_LAST_ERR_OS();
+				ret = 1;
+			}
+
 			closedir(d);
 			return ret;
 		}else
