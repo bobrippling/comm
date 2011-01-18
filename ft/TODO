@@ -1,7 +1,6 @@
-queue an entire folder/allow folders in queue
+in libft/ft.c, keep list of sent inodes, for dir-loop checking
 
 gft: menu instead of frmCfg
 
 fix ft->lastcallback?
 kbps
-ping pong
