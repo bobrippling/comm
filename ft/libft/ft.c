@@ -784,6 +784,8 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *path, int
 {
 	struct stat st;
 
+	errno = 0;
+
 	if(stat(path, &st)){
 		FT_LAST_ERR_OS();
 		return 1;
