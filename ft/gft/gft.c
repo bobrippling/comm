@@ -72,6 +72,7 @@
 
 #include "../libft/ft.h"
 
+#include "../../common/sleep.h"
 #include "../../common/gnudefs.h"
 
 #include "gcfg.h"
@@ -94,6 +95,8 @@ int queryback(struct filetransfer *ft, enum ftquery qtype,
 		const char *msg, ...);
 char *fnameback(struct filetransfer *ft,
 		char *fname);
+char *inputback(struct filetransfer *ft,
+		const char *prompt, char *def);
 
 void queue_add_html(char *s);
 
@@ -429,7 +432,7 @@ timeout(gpointer data)
 					return FALSE; /* timer death */
 				}
 
-				if(ft_handle(&ft, callback, queryback, fnameback)){
+				if(ft_handle(&ft, callback, queryback, fnameback, inputback)){
 					status("Couldn't handle incomming data: %s", ft_lasterr(&ft));
 					CLOSE();
 				}else{
@@ -631,6 +634,68 @@ char *fnameback(struct filetransfer *ft, char *fname)
 	return g_strdup_printf("%s%s%s", folder,
 			folder[strlen(folder)-1] == G_DIR_SEPARATOR ? "" : "/",
 			fname);
+}
+
+G_MODULE_EXPORT gboolean
+widget_generic_callback(GtkWidget *btn, gpointer *data)
+{
+	(void)btn;
+	*(int *)data = 1;
+	return FALSE;
+}
+
+char *inputback(struct filetransfer *ft, const char *prompt, char *def)
+{
+	GtkWidget *win = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+	GtkWidget *ent = gtk_entry_new();
+	GtkWidget *lbl = gtk_label_new(prompt);
+	GtkWidget *hbx = gtk_hbox_new(FALSE, 0);
+	GtkWidget *vbx = gtk_vbox_new(FALSE, 0);
+	GtkWidget *btn = gtk_button_new();
+	int clicked = 0, winclosed = 0;
+
+	(void)ft;
+
+	gtk_entry_set_text(GTK_ENTRY(ent), def);
+	gtk_button_set_label(GTK_BUTTON(btn), "Rename");
+
+	g_signal_connect(G_OBJECT(btn), "clicked", G_CALLBACK(widget_generic_callback), &clicked);
+	g_signal_connect(G_OBJECT(win), "destroy", G_CALLBACK(widget_generic_callback), &winclosed);
+
+	gtk_container_add(GTK_CONTAINER(hbx), ent);
+	gtk_container_add(GTK_CONTAINER(hbx), btn);
+	gtk_container_add(GTK_CONTAINER(vbx), lbl);
+	gtk_container_add(GTK_CONTAINER(vbx), hbx);
+
+	gtk_container_add(GTK_CONTAINER(win), vbx);
+
+	gtk_window_set_transient_for(GTK_WINDOW(win), GTK_WINDOW(winMain));
+	gtk_window_set_modal(GTK_WINDOW(win), TRUE);
+	gtk_window_set_destroy_with_parent(GTK_WINDOW(win), TRUE);
+
+	gtk_widget_show_all(win);
+
+	/* don't test the widget - could be closed */
+	while(!winclosed && !clicked){
+		while(gtk_events_pending())
+			gtk_main_iteration();
+		sleep_ms(25);
+	}
+
+	if(clicked){
+		/* safe to access ent here - widget hasn't been destroyed */
+		const char *txt = gtk_entry_get_text(GTK_ENTRY(ent));
+		char *ret = malloc(strlen(txt) + 1);
+		if(!ret)
+			g_error("couldn't allocate %ld bytes", (long)(strlen(txt) + 1));
+		strcpy(ret, txt);
+
+		gtk_widget_destroy(win);
+
+		return ret;
+	}else{
+		return NULL;
+	}
 }
 
 int callback(struct filetransfer *ft, enum ftstate ftst,

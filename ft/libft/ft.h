@@ -39,6 +39,7 @@ typedef int (*ft_callback)(struct filetransfer *, enum ftstate state,
 		size_t bytessent, size_t bytestotal);
 typedef int (*ft_queryback)(struct filetransfer *, enum ftquery, const char *msg, ...);
 typedef char *(*ft_fnameback)(struct filetransfer *, char *);
+typedef char *(*ft_inputback)(struct filetransfer *, const char *prompt, char *def);
 
 void ft_zero(struct filetransfer *);
 
@@ -54,7 +55,7 @@ int ft_ping(     struct filetransfer *);
 int ft_pong(     struct filetransfer *);
 #endif
 
-int ft_handle(   struct filetransfer *, ft_callback callback, ft_queryback, ft_fnameback);
+int ft_handle(   struct filetransfer *, ft_callback callback, ft_queryback, ft_fnameback, ft_inputback);
 
 /*int ft_recv(     struct filetransfer *, ft_callback callback, ft_queryback, ft_fnameback);*/
 int ft_send(     struct filetransfer *, ft_callback callback, const char *path, int recursive);

@@ -158,14 +158,19 @@ static int WSA_Startuped = 0;
 #define FREE_AND_NULL(x) do{ free(x); x = NULL; }while(0)
 
 static size_t ft_getcallback_step(size_t);
-static int ft_recv(struct filetransfer *, ft_callback callback, ft_queryback, ft_fnameback);
+static int ft_recv(struct filetransfer *ft,
+		ft_callback callback,
+		ft_queryback queryback,
+		ft_fnameback fnameback,
+		ft_inputback inputback);
 static void ft_sleep(void);
 static void ft_keepalive(struct filetransfer *ft);
 
 static int ft_get_meta(struct filetransfer *ft,
 		char **basename, FILE **local, size_t *size,
-		ft_callback, ft_queryback,
-		ft_fnameback fnameback);
+		ft_callback callback, ft_queryback queryback,
+		ft_fnameback fnameback,
+		ft_inputback inputback);
 
 
 static size_t ft_getcallback_step(size_t siz)
@@ -319,7 +324,8 @@ static char *ft_rename(struct filetransfer *ft, char *basename)
 static int ft_get_meta(struct filetransfer *ft,
 		char **basename, FILE **local, size_t *size,
 		ft_callback callback, ft_queryback queryback,
-		ft_fnameback fnameback)
+		ft_fnameback fnameback,
+		ft_inputback inputback)
 {
 #define INVALID_MSG() \
 				do{\
@@ -447,6 +453,16 @@ rename:
 					*basename = ft_rename(ft, *basename);
 					if(!*basename)
 						return 1;
+					{
+						char *new = inputback(ft, "Rename to...", *basename);
+						if(!new){
+							FT_LAST_ERR(FT_ERR_CANCELLED, 0);
+							return 1;
+						}else if(new != *basename){
+							free(*basename);
+							*basename = new;
+						}
+					}
 					break;
 
 				default:
@@ -520,7 +536,8 @@ PING_PONG(pong, "PONG", 0)
 int ft_handle(struct filetransfer *ft,
 		ft_callback  callback,
 		ft_queryback queryback,
-		ft_fnameback fnameback)
+		ft_fnameback fnameback,
+		ft_inputback inputback)
 {
 #ifdef FT_USE_PING
 	/* check for PING or FILE */
@@ -556,14 +573,15 @@ int ft_handle(struct filetransfer *ft,
 	}else
 #endif
 		/* assume transfer */
-		return ft_recv(ft, callback, queryback, fnameback);
+		return ft_recv(ft, callback, queryback, fnameback, inputback);
 }
 
 
 static int ft_recv(struct filetransfer *ft,
 		ft_callback callback,
 		ft_queryback queryback,
-		ft_fnameback fnameback)
+		ft_fnameback fnameback,
+		ft_inputback inputback)
 {
 #define INVALID_MSG() \
 				do{\
@@ -585,7 +603,7 @@ static int ft_recv(struct filetransfer *ft,
 
 	ft_fname(ft) = NULL;
 	if(ft_get_meta(ft, &basename, &local, &size,
-				callback, queryback, fnameback))
+				callback, queryback, fnameback, inputback))
 		RET(1);
 
 	ft_fname(ft) = basename;

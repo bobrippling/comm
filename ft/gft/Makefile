@@ -5,6 +5,7 @@ endif
 
 gft: gft.o ../libft/ft.o gcfg.o gtransfers.o \
 		../util/gqueue.o gtray.o \
+		../../common/sleep.o \
 		../../gcommon/glist.o \
 		../../gcommon/gtray.o \
 		../../gcommon/gballoon.o \

@@ -113,6 +113,30 @@ int queryback(struct filetransfer *ft, enum ftquery querytype, const char *msg, 
 	return opt - '0';
 }
 
+char *inputback(struct filetransfer *ft, const char *prompt, char *def)
+{
+	char *new = malloc(2048);
+
+	(void)ft;
+
+	printf("%s\n(default [nothing]: %s) > ", prompt, def);
+
+	if(!fgets(new, 2048, stdin)){
+		free(new);
+		new = NULL;
+	}else{
+		if(*new == '\n'){
+			free(new);
+			return def;
+		}else{
+			char *n = strchr(new, '\n');
+			if(n)
+				*n = '\0';
+		}
+	}
+	return new;
+}
+
 char *fnameback(struct filetransfer *ft, char *name)
 {
 	(void)ft;
@@ -237,7 +261,7 @@ int main(int argc, char **argv)
 	int i, listen;
 	int read_stdin, read_stdin_nul;
 	int stay_up;
-	const char *port = FT_DEFAULT_PORT;
+	const char *port = NULL;
 	int fname_idx, host_idx;
 #ifdef FT_USE_PING
 	int last_ping;
@@ -266,7 +290,7 @@ int main(int argc, char **argv)
 		if(ARG("l"))
 			listen = 1;
 		else if(ARG("p"))
-			if(++i < argc)
+			if(++i < argc && !port)
 				port = argv[i];
 			else
 				goto usage;
@@ -322,6 +346,14 @@ int main(int argc, char **argv)
 	}else if(host_idx == -1)
 		goto usage;
 
+	if(!port){
+		char *colon;
+		if(host_idx > -1 && (colon = strchr(argv[host_idx], ':'))){
+			*colon++ = '\0';
+			port = colon;
+		}else
+			port = FT_DEFAULT_PORT;
+	}
 
 	check_files(fname_idx, argc, argv);
 
@@ -444,7 +476,7 @@ int main(int argc, char **argv)
 			/* end while(lewp) */
 
 			if(ft_poll_connected(&ft)){
-				if(ft_handle(&ft, callback, queryback, fnameback)){
+				if(ft_handle(&ft, callback, queryback, fnameback, inputback)){
 					clrtoeol();
 					eprintf("ft_handle(): %s\n", ft_lasterr(&ft));
 					goto bail;
