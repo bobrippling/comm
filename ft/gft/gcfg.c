@@ -16,10 +16,6 @@ char *strdup(const char *);
 
 #define CFG_GFT_FNAME  "gft.cfg"
 
-#define ITER_HOSTS(i, code) \
-	for(i = 0; i < nhosts; i++) \
-		code
-
 static const char **hosts = NULL;
 static int nhosts = 0;
 
@@ -36,10 +32,9 @@ void cfg_add(const char *host)
 	if(!*start)
 		return;
 
-	ITER_HOSTS(i,
+	for(i = 0; i < nhosts; i++)
 		if(!strcmp(hosts[i], host))
 			return;
-			);
 
 	new = realloc(hosts, sizeof(*new) * ++nhosts);
 	if(!new)
@@ -103,9 +98,8 @@ void cfg_write()
 		}
 	}
 
-	ITER_HOSTS(i,
+	for(i = 0; i < nhosts; i++)
 		fprintf(f, "HOST %s\n", hosts[i]);
-		);
 
 	{
 		extern GtkWidget *chkTray;
