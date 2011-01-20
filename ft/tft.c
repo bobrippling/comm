@@ -408,7 +408,7 @@ int main(int argc, char **argv)
 			int lewp = 1;
 
 			while(lewp)
-				switch(ft_poll_recv_or_close(&ft)){
+				switch(ft_poll_recv_or_close(&ft)){ /* FIXME: single select instead */
 					case FT_ERR:
 						eprintf("ft_poll_recv(): %s\n", ft_lasterr(&ft));
 						goto bail;
