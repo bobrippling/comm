@@ -35,7 +35,7 @@ int   callback(struct filetransfer *ft, enum ftstate state,
         size_t bytessent, size_t bytestotal);
 void sigh(int sig);
 
-int recursive = 0;
+int recursive = 0, beep = 1;
 struct filetransfer ft;
 enum { OVERWRITE, RESUME, RENAME_ASK, RENAME, ASK } clobber_mode = ASK;
 
@@ -52,6 +52,9 @@ int callback(struct filetransfer *ft, enum ftstate state,
 	if(state == FT_SENT || state == FT_RECIEVED){
 		clrtoeol();
 		printf("tft: done: %s\n", ft_fname(ft));
+
+		if(beep && state == FT_RECIEVED)
+			putchar('\007');
 		return 0;
 	}else if(state == FT_WAIT)
 		return 0;
@@ -338,6 +341,8 @@ int main(int argc, char **argv)
 			clobber_mode = RENAME_ASK;
 		else if(ARG("r"))
 			clobber_mode = RESUME;
+		else if(ARG("B"))
+			beep = 0;
 		else if(ARG("u")){
 			stay_up = 1;
 			read_stdin = 1;
@@ -360,6 +365,7 @@ int main(int argc, char **argv)
 							"  -i: read supplementary file list from stdin\n"
 							"  -0: file list is nul-delimited\n"
 							"  -R: send directories recursively\n"
+							"  -B: don't beep on file-receive\n"
 							" If file exists:\n"
 							"  -o: overwrite\n"
 							"  -n: rename incoming automatically\n"
