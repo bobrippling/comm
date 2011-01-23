@@ -524,8 +524,13 @@ int main(int argc, char **argv)
 			if(ft_poll_connected(&ft)){
 				if(ft_handle(&ft, callback, queryback, fnameback, inputback)){
 					clrtoeol();
-					eprintf("ft_handle(): %s\n", ft_lasterr(&ft));
-					goto bail;
+					if(ft_lasterrno(&ft)){
+						eprintf("ft_handle(): %s\n", ft_lasterr(&ft));
+						goto bail;
+					}else{
+						/* disco */
+						goto fin;
+					}
 				}
 			}else
 				/* connection closed properly */

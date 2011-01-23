@@ -550,7 +550,7 @@ int ft_handle(struct filetransfer *ft,
 		thisread = recv(ft->sock, buffer, sizeof buffer, MSG_PEEK);
 		switch(thisread){
 			case 0:
-				FT_LAST_ERR(FT_ERR_PREMATURE_CLOSE, 0);
+				FT_LAST_ERR_CLEAR();
 				return 1;
 			case -1:
 				FT_LAST_ERR_NET();
