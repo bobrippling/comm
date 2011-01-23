@@ -1,7 +1,7 @@
 TARGETS = tft gft
 
 ifeq ($(shell uname -o),GNU/Linux)
-TARGETS += tftd
+#TARGETS += tftd
 endif
 
 all: ${TARGETS}
