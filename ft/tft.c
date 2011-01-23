@@ -37,7 +37,7 @@ void sigh(int sig);
 
 int recursive = 0;
 struct filetransfer ft;
-enum { OVERWRITE, RESUME, RENAME, ASK } clobber_mode = ASK;
+enum { OVERWRITE, RESUME, RENAME_ASK, RENAME, ASK } clobber_mode = ASK;
 
 
 int tft_send(const char *fname)
@@ -56,7 +56,7 @@ int callback(struct filetransfer *ft, enum ftstate state,
 	}else if(state == FT_WAIT)
 		return 0;
 
-	printf("\"%s\": %zd K / %zd K (%2.2f)%%\r", ft_basename(ft),
+	printf("\"%s\": %zd K / %zd K (%2.2f%%)\r", ft_basename(ft),
 			bytessent / 1024, bytestotal / 1024,
 			(float)(100.0f * bytessent / bytestotal));
 
@@ -73,10 +73,11 @@ int queryback(struct filetransfer *ft, enum ftquery querytype, const char *msg, 
 
 	if(querytype == FT_FILE_EXISTS)
 		switch(clobber_mode){
-			case ASK: break;
-			case OVERWRITE: return 0;
-			case RESUME:    return 1;
-			case RENAME:    return 2;
+			case ASK:        break;
+			case OVERWRITE:  return 0;
+			case RESUME:     return 1;
+			case RENAME_ASK:
+			case RENAME:     return 2;
 		}
 
 	va_start(l, msg);
@@ -115,26 +116,29 @@ int queryback(struct filetransfer *ft, enum ftquery querytype, const char *msg, 
 
 char *inputback(struct filetransfer *ft, const char *prompt, char *def)
 {
-	char *new = malloc(2048);
+	if(clobber_mode == RENAME_ASK){
+		char *new = malloc(2048);
 
-	(void)ft;
+		(void)ft;
 
-	printf("%s\n(default [nothing]: %s) > ", prompt, def);
+		printf("%s\n(default [nothing]: %s) > ", prompt, def);
 
-	if(!fgets(new, 2048, stdin)){
-		free(new);
-		new = NULL;
-	}else{
-		if(*new == '\n'){
+		if(!fgets(new, 2048, stdin)){
 			free(new);
-			return def;
+			new = NULL;
 		}else{
-			char *n = strchr(new, '\n');
-			if(n)
-				*n = '\0';
+			if(*new == '\n'){
+				free(new);
+				return def;
+			}else{
+				char *n = strchr(new, '\n');
+				if(n)
+					*n = '\0';
+			}
 		}
-	}
-	return new;
+		return new;
+	}else
+		return def;
 }
 
 char *fnameback(struct filetransfer *ft, char *name)
@@ -239,6 +243,38 @@ int send_from_stdin(int nul)
 	if(delim)
 		*delim = '\0';
 
+	if(line[0] == ':'){ /* get round this with ./:myfile.txt etc etc */
+		if(!strncmp(line+1, "cd", 2)){
+			const char *dir;
+
+			if(line[3])
+				dir = line + 4;
+			else{
+				dir = getenv("HOME");
+				if(!dir){
+					eprintf("tft: getenv(\"HOME\") failed, using \"/\"\n");
+					dir = "/";
+				}
+			}
+
+			if(chdir(dir))
+				perror("chdir()");
+
+			return 0;
+		}else if(!strcmp(line+1, "pwd")){
+			char path[512];
+
+			if(getcwd(path, sizeof path))
+				printf("%s\n", path);
+			else
+				perror("tft: getcwd()");
+			return 0;
+		}else{
+			eprintf("tft: unknown command, assuming file (\"%s\")\n",
+					line);
+		}
+	}
+
 	if(tft_send(line)){
 		clrtoeol();
 		eprintf("tft_send(): %s: %s\n", line, ft_lasterr(&ft));
@@ -298,6 +334,8 @@ int main(int argc, char **argv)
 			clobber_mode = OVERWRITE;
 		else if(ARG("n"))
 			clobber_mode = RENAME;
+		else if(ARG("a"))
+			clobber_mode = RENAME_ASK;
 		else if(ARG("r"))
 			clobber_mode = RESUME;
 		else if(ARG("u")){
@@ -324,8 +362,10 @@ int main(int argc, char **argv)
 							"  -R: send directories recursively\n"
 							" If file exists:\n"
 							"  -o: overwrite\n"
-							"  -n: rename incoming\n"
+							"  -n: rename incoming automatically\n"
+							"  -a: rename incoming\n"
 							"  -r: resume transfer\n"
+							" Default Port: " FT_DEFAULT_PORT "\n"
 					    , *argv, *argv);
 			return 1;
 		}
