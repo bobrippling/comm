@@ -132,6 +132,11 @@ int main(int argc, char **argv)
 	char *port = NULL, *host = NULL;
 	int i;
 
+	/*
+	 * TODO: chdir $DOWNLOAD_DIR
+	 * while true; tft -R -u -l < $pipe
+	 */
+
 #define ARG(s) !strcmp(argv[i], "-" s)
 
 	for(i = 1; i < argc; i++)
