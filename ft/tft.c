@@ -34,8 +34,9 @@ int   tft_send(const char *fname);
 int   callback(struct filetransfer *ft, enum ftstate state,
         size_t bytessent, size_t bytestotal);
 void sigh(int sig);
+void beep(void);
 
-int recursive = 0, beep = 1;
+int recursive = 0, canbeep = 1;
 struct filetransfer ft;
 enum { OVERWRITE, RESUME, RENAME_ASK, RENAME, ASK } clobber_mode = ASK;
 
@@ -46,6 +47,12 @@ int tft_send(const char *fname)
 	return ft_send(&ft, callback, fname, recursive);
 }
 
+void beep()
+{
+	if(canbeep)
+		putchar('\007');
+}
+
 int callback(struct filetransfer *ft, enum ftstate state,
 		size_t bytessent, size_t bytestotal)
 {
@@ -53,8 +60,8 @@ int callback(struct filetransfer *ft, enum ftstate state,
 		clrtoeol();
 		printf("tft: done: %s\n", ft_fname(ft));
 
-		if(beep && state == FT_RECIEVED)
-			putchar('\007');
+		if(state == FT_RECIEVED)
+			beep();
 		return 0;
 	}else if(state == FT_WAIT)
 		return 0;
@@ -117,9 +124,9 @@ int queryback(struct filetransfer *ft, enum ftquery querytype, const char *msg, 
 	return opt - '0';
 }
 
-char *inputback(struct filetransfer *ft, const char *prompt, char *def)
+char *inputback(struct filetransfer *ft, enum ftinput type, const char *prompt, char *def)
 {
-	if(clobber_mode == RENAME_ASK){
+	if(type == FT_RENAME && clobber_mode == RENAME_ASK){
 		char *new = malloc(2048);
 
 		(void)ft;
@@ -342,7 +349,7 @@ int main(int argc, char **argv)
 		else if(ARG("r"))
 			clobber_mode = RESUME;
 		else if(ARG("B"))
-			beep = 0;
+			canbeep = 0;
 		else if(ARG("u")){
 			stay_up = 1;
 			read_stdin = 1;
@@ -434,6 +441,9 @@ int main(int argc, char **argv)
 				argv[host_idx], port, ft_lasterr(&ft));
 		return 1;
 	}
+
+	/* connection established */
+	beep();
 
 
 	do{

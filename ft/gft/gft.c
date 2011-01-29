@@ -95,7 +95,7 @@ int queryback(struct filetransfer *ft, enum ftquery qtype,
 		const char *msg, ...);
 char *fnameback(struct filetransfer *ft,
 		char *fname);
-char *inputback(struct filetransfer *ft,
+char *inputback(struct filetransfer *ft, enum ftinput,
 		const char *prompt, char *def);
 
 void queue_add_html(char *s);
@@ -112,7 +112,8 @@ static GtkWidget *frmSend;
 static GtkWidget    *treeDone,      *treeTransfers;
 static GtkListStore *listTransfers, *listDone;
 
-static GtkWidget *opt_Prompt, *opt_Rename, *opt_Overwrite, *opt_Resume;
+static GtkWidget *opt_Prompt, *opt_AutoRename, *opt_ManRename,
+                 *opt_Overwrite, *opt_Resume;
 
 static GtkWidget *winMain;
 
@@ -644,8 +645,18 @@ widget_generic_callback(GtkWidget *btn, gpointer *data)
 	return FALSE;
 }
 
-char *inputback(struct filetransfer *ft, const char *prompt, char *def)
+char *inputback(struct filetransfer *ft, enum ftinput type, const char *prompt, char *def)
 {
+	/* if renaming and auto rename checked... */
+	if(type == FT_RENAME &&
+#ifdef CFG_USE_RADIO
+		gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(opt_AutoRename))
+#else
+		gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(opt_AutoRename))
+#endif
+			)
+		return def;
+
 	GtkWidget *win = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 	GtkWidget *ent = gtk_entry_new();
 	GtkWidget *lbl = gtk_label_new(prompt);
@@ -657,7 +668,7 @@ char *inputback(struct filetransfer *ft, const char *prompt, char *def)
 	(void)ft;
 
 	gtk_entry_set_text(GTK_ENTRY(ent), def);
-	gtk_button_set_label(GTK_BUTTON(btn), "Rename");
+	gtk_button_set_label(GTK_BUTTON(btn), prompt);
 
 	g_signal_connect(G_OBJECT(btn), "clicked", G_CALLBACK(widget_generic_callback), &clicked);
 	g_signal_connect(G_OBJECT(win), "destroy", G_CALLBACK(widget_generic_callback), &winclosed);
@@ -773,7 +784,10 @@ int queryback(struct filetransfer *ft, enum ftquery qtype, const char *msg, ...)
 				return 0;
 			else if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(opt_Resume)))
 				return 1;
-			else if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(opt_Rename)))
+			else if(
+					gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(opt_AutoRename)) ||
+					gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(opt_ManRename ))
+					)
 				return 2;
 #else
 			if(gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(opt_Prompt)))
@@ -782,7 +796,10 @@ int queryback(struct filetransfer *ft, enum ftquery qtype, const char *msg, ...)
 				return 0;
 			else if(gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(opt_Resume)))
 				return 1;
-			else if(gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(opt_Rename)))
+			else if(
+					gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(opt_AutoRename)) ||
+					gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(opt_ManRename ))
+					)
 				return 2;
 #endif
 			/* should be unreachable */
@@ -918,11 +935,12 @@ static int getobjects(GtkBuilder *b)
 	GET_WIDGET2(hbox, "vboxExistsLeft");
 	opt_Prompt = gtk_radio_button_new_with_label(NULL, "Prompt");
 	gtk_container_add(GTK_CONTAINER(hbox), opt_Prompt);
-	DO_RADIO_APPEND(opt_Rename, "Rename");
+	DO_RADIO_APPEND(opt_Resume, "Resume");
+	DO_RADIO_APPEND(opt_Overwrite,  "Overwrite");
 
 	GET_WIDGET2(hbox, "vboxExistsRight");
-	DO_RADIO_APPEND(opt_Overwrite, "Overwrite");
-	DO_RADIO_APPEND(opt_Resume,    "Resume");
+	DO_RADIO_APPEND(opt_AutoRename, "Auto-Rename");
+	DO_RADIO_APPEND(opt_ManRename,  "Manual-Rename");
 # undef DO_RADIO_APPEND
 #else
 	{
@@ -933,8 +951,8 @@ static int getobjects(GtkBuilder *b)
 		menubar      = gtk_menu_bar_new();
 		hbox         = gtk_vbox_new(FALSE, 0);
 
-#define DO_MENU(v, prev) \
-			opt_ ## v = gtk_radio_menu_item_new_with_label(group, #v); \
+#define DO_MENU(v, prev, lbl) \
+			opt_ ## v = gtk_radio_menu_item_new_with_label(group, lbl); \
 			group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(opt_ ## v)); \
 			gtk_menu_shell_append(GTK_MENU_SHELL(menu_exists), opt_ ## v)
 
@@ -942,10 +960,11 @@ static int getobjects(GtkBuilder *b)
 		menu_settings  = gtk_menu_new();
 
 		/* append all to menu_header_exists */
-		DO_MENU(Prompt,    NULL);
-		DO_MENU(Rename,    opt_Prompt);
-		DO_MENU(Resume,    opt_Rename);
-		DO_MENU(Overwrite, opt_Resume);
+		DO_MENU(Prompt,     NULL,           "Prompt");
+		DO_MENU(AutoRename, opt_Prompt,     "Auto-Rename");
+		DO_MENU(ManRename,  opt_AutoRename, "Manual-Rename");
+		DO_MENU(Resume,     opt_ManRename,  "Resume");
+		DO_MENU(Overwrite,  opt_Resume,     "Overwrite");
 
 		chkTray      = gtk_check_menu_item_new_with_label("Close to tray");
 

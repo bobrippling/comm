@@ -30,6 +30,11 @@ enum ftquery
 	FT_CANT_OPEN
 };
 
+enum ftinput
+{
+	FT_RENAME
+};
+
 enum ftret
 {
 	FT_YES, FT_NO, FT_ERR
@@ -39,7 +44,7 @@ typedef int (*ft_callback)(struct filetransfer *, enum ftstate state,
 		size_t bytessent, size_t bytestotal);
 typedef int (*ft_queryback)(struct filetransfer *, enum ftquery, const char *msg, ...);
 typedef char *(*ft_fnameback)(struct filetransfer *, char *);
-typedef char *(*ft_inputback)(struct filetransfer *, const char *prompt, char *def);
+typedef char *(*ft_inputback)(struct filetransfer *, enum ftinput, const char *prompt, char *def);
 
 void ft_zero(struct filetransfer *);
 

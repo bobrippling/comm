@@ -408,14 +408,14 @@ static int ft_get_meta(struct filetransfer *ft,
 	 *                     ^   ^-------+
 	 *                     |           |
 	 *                     |           |
-	 * bufptr ----------------+   bufptr -+
+	 * bufptr -------------+   bufptr -+
 	 *
 	 * safe to check bufptr[1], since
 	 * there are at least 3 \n:s
 	 *
 	 * bufptr[1] hasn't been changed by strtok
 	 * yet either (but check both \n and \0
-	 * for libc agnositicism
+	 * for libc agnositicism and other excuses)
 	 */
 
 	if(!bufptr[1] || bufptr[1] == '\n'){
@@ -454,7 +454,7 @@ rename:
 					if(!*basename)
 						return 1;
 					{
-						char *new = inputback(ft, "Rename to...", *basename);
+						char *new = inputback(ft, FT_RENAME, "Rename to...", *basename);
 						if(!new){
 							FT_LAST_ERR(FT_ERR_CANCELLED, 0);
 							return 1;
