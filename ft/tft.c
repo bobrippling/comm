@@ -11,10 +11,11 @@
 /* wtf */
 #else
 # include <sys/select.h>
-# include <sys/stat.h>
 # include <fcntl.h>
 # include <signal.h>
 #endif
+
+# include <sys/stat.h>
 
 #include "libft/ft.h"
 
