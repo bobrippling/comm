@@ -116,6 +116,7 @@ int queryback(struct filetransfer *ft, enum ftquery querytype, const char *msg, 
 	va_end(l);
 
 	fputs("Choice: ", stderr);
+	beep();
 	opt = getchar();
 	if(opt == '\n')
 		opt = '0';
@@ -133,6 +134,7 @@ char *inputback(struct filetransfer *ft, enum ftinput type, const char *prompt, 
 		(void)ft;
 
 		printf("%s\n(default [nothing]: %s) > ", prompt, def);
+		beep();
 
 		if(!fgets(new, 2048, stdin)){
 			free(new);
