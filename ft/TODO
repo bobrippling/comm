@@ -4,3 +4,6 @@ gft: menu instead of frmCfg
 
 fix ft->lastcallback?
 kbps
+
+asynchronous/select calls
+cancel ability - another socket or fixed-width messages
