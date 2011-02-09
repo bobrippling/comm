@@ -1,4 +1,4 @@
-TARGETS = tft gft
+TARGETS = tft gft tftd
 
 ifeq ($(shell uname -o),GNU/Linux)
 #TARGETS += tftd
