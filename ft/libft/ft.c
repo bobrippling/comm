@@ -277,6 +277,12 @@ enum ftret ft_accept(struct filetransfer *ft, const int block)
 			&socklen);
 	save = errno;
 
+	if(new == -1){
+		FT_LAST_ERR_OS();
+		ft_connected(ft) = 0;
+		return FT_ERR;
+	}
+
 	ft_connected(ft) = 1;
 
 	close(ft->sock);
