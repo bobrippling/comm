@@ -286,6 +286,7 @@ int connected_lewp()
 void sigh(int sig)
 {
 	switch(sig){
+		case SIGSEGV:
 		case SIGINT:
 		case SIGTERM:
 		case SIGQUIT:
@@ -317,6 +318,7 @@ int main(int argc, char **argv)
 	signal(SIGINT,  sigh);
 	signal(SIGQUIT, sigh);
 	signal(SIGTERM, sigh);
+	signal(SIGSEGV, sigh); /* oh hai */
 
 	/* interaction */
 	signal(SIGUSR1, sigh);
