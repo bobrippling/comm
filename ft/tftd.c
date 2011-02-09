@@ -17,6 +17,11 @@
 #define PATH_LEN     128
 #define MAX_LINE_LEN 4096
 
+#ifdef __GNUC__
+# define GCC_PRINTF_ATTRIB(x, y) __attribute__((format(printf, x, y)))
+#else
+# define GCC_PRINTF_ATTRIB(x)
+#endif
 
 enum { RESUME, RENAME } clobber_mode = RENAME;
 
@@ -32,6 +37,7 @@ struct filetransfer ft;
 
 #define eprintf(...) logprintf("err", __VA_ARGS__)
 
+void logprintf(const char *type, const char *fmt, ...) GCC_PRINTF_ATTRIB(2, 3);
 void logprintf(const char *type, const char *fmt, ...)
 {
 	FILE *f;
@@ -373,29 +379,30 @@ int main(int argc, char **argv)
 		}
 
 	for(;;){
+
+#define NAP(str) \
+		do{ \
+			eprintf("ft_" str ": %s, napping for 5\n", ft_lasterr(&ft)); \
+			sleep(5); \
+			continue; \
+		}while(0)
+
 		if(host){
-			if(ft_connect(&ft, host, port)){
-				eprintf("ft_connect: %s, napping for 5\n", ft_lasterr(&ft));
-				sleep(5);
-				continue;
-			}
+			logprintf("connecting", "connecting to %s:%s\n", host, port);
+			if(ft_connect(&ft, host, port))
+				NAP("connect");
 		}else{
-			if(ft_listen(&ft, atoi(port))){
-				eprintf("ft_listen: %s, napping for 5\n", ft_lasterr(&ft));
-				sleep(5);
-				continue;
-			}
-			if(ft_accept(&ft, 1) != FT_YES){
-				eprintf("ft_accept: %s\n", ft_lasterr(&ft));
-				cleanup();
-				return 1;
-			}
+			if(ft_listen(&ft, atoi(port)))
+				NAP("listen");
+			logprintf("listening", "port %s\n", port);
+			if(ft_accept(&ft, 1) != FT_YES)
+				NAP("accept");
 		}
 
-		logprintf("conn", "%s\n", ft_remoteaddr(&ft));
+		logprintf("connected", "%s\n", ft_remoteaddr(&ft));
 		connected_lewp();
 		ft_close(&ft);
 	}
 
-	logprintf("err", "unreachable code\n");
+	eprintf("unreachable code\n");
 }
