@@ -74,7 +74,7 @@ int block(int fd)
 	int flags = fcntl(fd, F_GETFL) & ~O_NONBLOCK;
 
 	if(fcntl(fd, F_SETFL, flags) == -1){
-		fprintf(stderr, "tftd: fcntl(O_NONBLOCK): %s\n", strerror(errno));
+		perror("tftd: fcntl(O_NONBLOCK)");
 		return 1;
 	}
 	return 0;
@@ -141,7 +141,7 @@ int callback(struct filetransfer *ft, enum ftstate state,
 	switch(state){
 		case FT_SENT:
 		case FT_RECIEVED:
-			logprintf(state == FT_SENT ? "sent" : "recv", "%s\n", ft_fname(ft));
+			logprintf(state == FT_SENT ? "end_send" : "end_recv", "%s\n", ft_fname(ft));
 			break;
 
 		case FT_BEGIN_SEND:
@@ -215,6 +215,14 @@ int connected_lewp()
 				/* notan happan */
 				continue;
 			case -1:
+				if(errno == EINTR){
+					if(got_usr1){
+						got_usr1 = 0;
+						logprintf("connected", "waiting messages\n");
+					}
+					continue;
+				}
+
 				if(ft_lasterrno(&ft)){
 					eprintf("poll: %s\n", strerror(errno));
 					return 1;
@@ -229,8 +237,10 @@ int connected_lewp()
 				if(ft_lasterrno(&ft)){
 					eprintf("ft_recv(): %s\n", ft_lasterr(&ft));
 					return 1;
-				}else
+				}else{
+					logprintf("state", "connection closed from %s\n", ft_remoteaddr(&ft));
 					return 0; /* conn closed */
+				}
 			}
 		}
 
@@ -310,7 +320,7 @@ void sigh(int sig)
 int main(int argc, char **argv)
 {
 	char *port = NULL, *host = NULL;
-	int i, daemon = 1;
+	int i, daemon = 1, sig = 0;
 
 #define ARG(s) !strcmp(argv[i], "-" s)
 
@@ -336,7 +346,22 @@ int main(int argc, char **argv)
 			clobber_mode = RESUME;
 		else if(ARG("D"))
 			daemon = 0;
-		else if(!dir)
+		else if(ARG("S")){
+			if(++i == argc){
+				fputs("-S needs an option\n", stderr);
+				goto usage;
+			}
+			if(!strcmp(argv[i], "kill"))
+				sig = SIGTERM;
+			else if(!strcmp(argv[i], "info"))
+				sig = SIGUSR1;
+			else if(!strcmp(argv[i], "hup"))
+				sig = SIGHUP;
+			else{
+				fprintf(stderr, "-S: invalid option \"%s\"\n", argv[i]);
+				goto usage;
+			}
+		}else if(!dir)
 			dir = argv[i];
 		else if(!host)
 			host = argv[i];
@@ -348,9 +373,27 @@ int main(int argc, char **argv)
 					"  -p: Port to listen on\n"
 					"  -n: Rename file if existing (default)\n"
 					"  -r: Resume transfer if existing\n"
+					"  -S: send message to current instance\n"
+					"      \"kill\" - stop\n"
+					"      \"info\" - print transfer info to log\n"
+					"      \"hup\"  - hang up current connection\n"
 					, *argv);
 			return 1;
 		}
+
+	if(sig){
+		char *args[] = { "pkill", NULL, "tftd", NULL };
+
+		if(!(args[1] = malloc(5))){
+			perror("tftd: malloc()");
+			return 1;
+		}
+		snprintf(args[1], 5, "-%d", sig);
+
+		execvp(args[0], args);
+		perror("tftd: exec: pkill");
+		return 1;
+	}
 
 	if(!dir){
 		fputs("need path\n", stderr);
@@ -366,7 +409,7 @@ int main(int argc, char **argv)
 	if(daemon)
 		switch(fork()){
 			case -1:
-				fprintf(stderr, "tftd: fork(): %s\n", strerror(errno));
+				perror("tftd: fork()");
 				return 1;
 
 			case 0:
@@ -381,29 +424,37 @@ int main(int argc, char **argv)
 		}
 
 	for(;;){
-
 #define NAP(str) \
 		do{ \
-			eprintf("ft_" str ": %s, napping for 5\n", ft_lasterr(&ft)); \
-			sleep(5); \
-			continue; \
+			if(ft_lasterrno(&ft) == EINTR && got_usr1){ \
+				got_usr1 = 0; \
+				logprintf("state", str "ing\n"); \
+			}else{ \
+				eprintf("ft_" str ": %s, napping for 5\n", ft_lasterr(&ft)); \
+				sleep(5); \
+			} \
+			goto conn_restart; \
 		}while(0)
 
+conn_restart:
+		ft_close(&ft);
 		if(host){
 			logprintf("connecting", "connecting to %s:%s\n", host, port);
 			if(ft_connect(&ft, host, port))
 				NAP("connect");
+
+			logprintf("state", "connected to %s\n", ft_remoteaddr(&ft));
 		}else{
 			if(ft_listen(&ft, atoi(port)))
 				NAP("listen");
 			logprintf("listening", "port %s\n", port);
 			if(ft_accept(&ft, 1) != FT_YES)
 				NAP("accept");
+
+			logprintf("state", "connection from %s\n", ft_remoteaddr(&ft));
 		}
 
-		logprintf("connected", "%s\n", ft_remoteaddr(&ft));
 		connected_lewp();
-		ft_close(&ft);
 	}
 
 	eprintf("unreachable code\n");
