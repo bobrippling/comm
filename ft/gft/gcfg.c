@@ -19,7 +19,7 @@ char *strdup(const char *);
 static const char **hosts = NULL;
 static int nhosts = 0;
 
-void cfg_add(const char *host)
+int cfg_add(const char *host)
 {
 	const char **new, *start;
 	char *dup;
@@ -30,15 +30,21 @@ void cfg_add(const char *host)
 		start++;
 
 	if(!*start)
-		return;
+		return 0;
 
 	for(i = 0; i < nhosts; i++)
-		if(!strcmp(hosts[i], host))
-			return;
+		if(!strcmp(hosts[i], host)){
+			/* move host[i] to the last position */
+			const char *save = hosts[i];
+			for(; i < nhosts - 1; i++)
+				hosts[i] = hosts[i+1];
+			hosts[i] = save;
+			return 0;
+		}
 
 	new = realloc(hosts, sizeof(*new) * ++nhosts);
 	if(!new)
-		return;
+		return 0;
 
 	hosts = new;
 	hosts[nhosts-1] = dup = strdup(host);
@@ -47,6 +53,8 @@ void cfg_add(const char *host)
 		dup++;
 	if(isspace(*dup))
 		*dup = '\0';
+
+	return 1;
 }
 
 void cfg_write()

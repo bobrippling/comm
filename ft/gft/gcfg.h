@@ -1,7 +1,7 @@
 #ifndef GCFG_H
 #define GCFG_H
 
-void cfg_add(const char *);
+int  cfg_add(const char *); /* returns 1 on _new_ entry */
 void cfg_read(GtkWidget *cboHost);
 void cfg_write(void);
 

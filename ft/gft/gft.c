@@ -299,7 +299,8 @@ on_btnConnect_clicked(void)
 		return FALSE;
 	}
 
-	cfg_add(host);
+	if(cfg_add(host))
+		gtk_combo_box_append_text(GTK_COMBO_BOX(cboHost), host);
 
 	port = strchr(host, ':');
 	if(port)
