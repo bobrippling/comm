@@ -12,3 +12,6 @@ protocol:
 
 server:
 	dump last 5 lines of chat when a new client connects
+
+gui:
+	move-to-$DISPLAY functionality
