@@ -5,3 +5,6 @@ gft: move-to-$DISPLAY code
 
 fix ft->lastcallback?
 kbps
+
+asynchronous/select calls
+cancel ability - another socket or fixed-width messages
