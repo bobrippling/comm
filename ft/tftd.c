@@ -8,7 +8,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include <poll.h>
+#include <sys/select.h>
 #include <signal.h>
 
 
@@ -69,6 +69,7 @@ char *pwd()
 	return getcwd(wd, sizeof wd);
 }
 
+#ifdef PIPE_BLOCK
 int block(int fd)
 {
 	int flags = fcntl(fd, F_GETFL) & ~O_NONBLOCK;
@@ -79,6 +80,7 @@ int block(int fd)
 	}
 	return 0;
 }
+#endif
 
 int reopen_cmd()
 {
@@ -91,17 +93,23 @@ int reopen_cmd()
 		return 1;
 	}
 
-	if((fd_cmd = open(file_cmd, O_RDONLY | O_NONBLOCK, 0600)) == -1){
+	if((fd_cmd = open(file_cmd, O_RDONLY
+#ifdef PIPE_BLOCK
+					| O_NONBLOCK
+#endif
+					, 0600)) == -1){
 		eprintf("tftd: open(\"%s\"): %s\n", file_cmd, strerror(errno));
 		remove(file_cmd);
 		return 1;
 	}
 
+#ifdef PIPE_BLOCK
 	if(block(fd_cmd)){
 		close(fd_cmd);
 		remove(file_cmd);
 		return 1;
 	}
+#endif
 
 	return 0;
 }
@@ -201,16 +209,16 @@ char *inputback(struct filetransfer *ft, enum ftinput itype, const char *prompt,
 
 int connected_lewp()
 {
-	struct pollfd pfd[2];
-
-	pfd[0].fd     = ft_get_fd(&ft);
-	pfd[0].events = POLLIN;
-
-	pfd[1].fd     = fd_cmd;
-	pfd[1].events = POLLIN | POLLHUP;
+	fd_set fds;
+	int fd_ft = ft_get_fd(&ft);
+	const int maxfd = 1 + (fd_ft > fd_cmd ? fd_ft : fd_cmd);
 
 	for(;;){
-		switch(poll(pfd, 2, -1)){
+		FD_ZERO(&fds);
+		FD_SET(fd_ft,  &fds);
+		FD_SET(fd_cmd, &fds);
+
+		switch(select(maxfd, &fds, NULL, NULL, NULL)){
 			case 0:
 				/* notan happan */
 				continue;
@@ -224,14 +232,13 @@ int connected_lewp()
 				}
 
 				if(ft_lasterrno(&ft)){
-					eprintf("poll: %s\n", strerror(errno));
+					eprintf("select: %s\n", strerror(errno));
 					return 1;
 				}
 				return 0;
 		}
 
-#define BIT(x, b) (((x) & (b)) == (b))
-		if(BIT(pfd[0].revents, POLLIN)){
+		if(FD_ISSET(fd_ft, &fds)){
 			if(ft_handle(&ft, callback, queryback, fnameback, inputback)){
 				/* "recieved %s" done in callback */
 				if(ft_lasterrno(&ft)){
@@ -244,18 +251,19 @@ int connected_lewp()
 			}
 		}
 
-		if(BIT(pfd[1].revents, POLLIN)){
-			int nread, saverrno;
+		if(FD_ISSET(fd_cmd, &fds)){
+			int nread;
 			char buffer[MAX_LINE_LEN], *nl;
 
 			nread = read(fd_cmd, buffer, MAX_LINE_LEN);
-			saverrno = errno;
 
 			switch(nread){
 				case -1:
 					eprintf("read(): %s\n", strerror(errno));
 					return 1;
 				case 0:
+					if(reopen_cmd())
+						return 1;
 					break;
 				default:
 					if((nl = memchr(buffer, '\n', nread)))
@@ -283,11 +291,6 @@ int connected_lewp()
 							goto pwd;
 					}else
 						eprintf("unknown directive \"%s\"\n", buffer);
-			}
-		}else if(BIT(pfd[1].revents, POLLHUP)){
-			if(reopen_cmd()){
-				eprintf("reopen cmd: %s\n", strerror(errno));
-				return 1;
 			}
 		}
 	}
