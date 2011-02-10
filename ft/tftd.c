@@ -27,8 +27,13 @@ enum { RESUME, RENAME } clobber_mode = RENAME;
 
 
 char *dir = NULL;
+#if 0
 char  file_cmd[PATH_LEN] = { 0 };
 char  file_log[PATH_LEN] = { 0 };
+#else
+# define file_cmd "tftd.cmd"
+# define file_log "tftd.log"
+#endif
 
 int fd_cmd   = -1;
 int got_usr1 =  0;
@@ -69,49 +74,26 @@ char *pwd()
 	return getcwd(wd, sizeof wd);
 }
 
-#ifdef PIPE_BLOCK
-int block(int fd)
-{
-	int flags = fcntl(fd, F_GETFL) & ~O_NONBLOCK;
-
-	if(fcntl(fd, F_SETFL, flags) == -1){
-		perror("tftd: fcntl(O_NONBLOCK)");
-		return 1;
-	}
-	return 0;
-}
-#endif
-
 int reopen_cmd()
 {
 	if(fd_cmd != -1)
 		close(fd_cmd);
 
 	if(mkfifo(file_cmd, 0600) == -1 && errno != EEXIST){
-		eprintf("tftd: mkfifo(\"%s\"): %s\n",
+		fprintf(stderr, "tftd: mkfifo(\"%s\"): %s\n",
 				file_cmd, strerror(errno));
 		return 1;
 	}
 
-	if((fd_cmd = open(file_cmd, O_RDONLY
-#ifdef PIPE_BLOCK
-					| O_NONBLOCK
-#endif
-					, 0600)) == -1){
-		eprintf("tftd: open(\"%s\"): %s\n", file_cmd, strerror(errno));
-		remove(file_cmd);
-		return 1;
+	if((fd_cmd = open(file_cmd, O_RDONLY | O_NONBLOCK, 0600)) == -1){
+		fprintf(stderr, "tftd: open(\"%s\"): %s\n", file_cmd, strerror(errno));
+		goto bail_fifo;
 	}
-
-#ifdef PIPE_BLOCK
-	if(block(fd_cmd)){
-		close(fd_cmd);
-		remove(file_cmd);
-		return 1;
-	}
-#endif
 
 	return 0;
+bail_fifo:
+	remove(file_cmd);
+	return 1;
 }
 
 int init_files()
@@ -125,9 +107,6 @@ int init_files()
 		fprintf(stderr, "tftd: chdir(\"%s\"): %s\n", dir, strerror(errno));
 		return 1;
 	}
-
-	snprintf(file_cmd, PATH_LEN, "%s/%s", dir, "tftd_cmd");
-	snprintf(file_log, PATH_LEN, "%s/%s", dir, "tftd_log");
 
 	if(reopen_cmd())
 		return 1;
