@@ -8,3 +8,5 @@ kbps
 
 asynchronous/select calls
 cancel ability - another socket or fixed-width messages
+
+test tftd with !block + select
