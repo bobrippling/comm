@@ -257,6 +257,8 @@ int connected_lewp()
 								eprintf("ft_send(\"%s\"): %s\n", fname, ft_lasterr(&ft));
 						}else
 							eprintf("not connected\n");
+					}else if(!strcmp(buffer, "hup")){
+						return 0;
 					}else if(!strcmp(buffer, "pwd")){
 		pwd:
 						logprintf("pwd", "%s\n", pwd());
