@@ -464,78 +464,55 @@ int main(int argc, char **argv)
 #endif
 			}
 		}else{
-			int lewp = 1;
+			for(;;){
+				fd_set fds;
+				const int ft_fd = ft_get_fd(&ft);
+				int maxfd = ft_fd;
 
-			while(lewp)
-				switch(ft_poll_recv_or_close(&ft)){ /* FIXME: single select instead */
-					case FT_ERR:
-						eprintf("ft_poll_recv(): %s\n", ft_lasterr(&ft));
-						goto bail;
+				FD_ZERO(&fds);
+				FD_SET(ft_fd, &fds);
 
-					case FT_YES:
-						lewp = 0;
-						break;
+				if(read_stdin){
+					FD_SET(STDIN_FILENO, &fds);
 
-					case FT_NO:
-					{
-						/* check for a file to send */
-						struct timeval tv;
-						fd_set fds;
-
-						tv.tv_sec = 0;
-						tv.tv_usec = 250000; /* 1/4 sec */
-						FD_ZERO(&fds);
-
-						if(read_stdin)
-							FD_SET(STDIN_FILENO, &fds);
-
-						switch(select(read_stdin, &fds, NULL, NULL, &tv)){
-							case -1:
-								perror("select()");
-								goto bail;
-
-							case 0:
-								/* TODO */
-#ifdef FT_USE_PING
-								if(last_ping++ > PING_DELAY){
-									last_ping = 0;
-
-									if(ft_ping(&ft))
-										perror("ft_ping()");
-								}
-#endif
-								continue;
-
-							default:
-								/* got a file to send */
-								if(FD_ISSET(STDIN_FILENO, &fds))
-									switch(send_from_stdin(read_stdin_nul)){
-										case 0:
-											/* good to carry on */
-											continue;
-										case 1:
-											/* eof */
-											read_stdin = 0;
-											if(!stay_up)
-												goto fin;
-											continue;
-										case 2:
-											/* ferror */
-#ifdef TFT_DIE_ON_SEND
-											goto bail;
-#else
-											break;
-#endif
-									}
-								continue;
-						}
-						/* unreachable */
-					}
+					if(read_stdin > ft_fd)
+						maxfd = read_stdin;
 				}
-			/* end while(lewp) */
 
-			if(ft_poll_connected(&ft)){
-				if(ft_handle(&ft, callback, queryback, fnameback, inputback)){
+				switch(select(maxfd + 1, &fds, NULL, NULL, NULL)){
+					case -1:
+						eprintf("select(): %s\n", strerror(errno));
+						goto bail;
+					case 0:
+						continue;
+				}
+
+				if(FD_ISSET(STDIN_FILENO, &fds))
+					/* got a file to send */
+					switch(send_from_stdin(read_stdin_nul)){
+						case 0:
+							/* good to carry on */
+							continue;
+						case 1:
+							/* eof */
+							read_stdin = 0;
+							if(!stay_up)
+								goto fin;
+							continue;
+						case 2:
+							/* ferror */
+#ifdef TFT_DIE_ON_SEND
+							goto bail;
+#else
+							break;
+#endif
+					}
+
+
+				if(FD_ISSET(ft_fd, &fds) &&
+						/*ft_poll_connected(&ft) &&*/
+						ft_handle(&ft, callback, queryback, fnameback, inputback)){
+
 					clrtoeol();
 					if(ft_lasterrno(&ft)){
 						eprintf("ft_handle(): %s\n", ft_lasterr(&ft));
@@ -545,9 +522,8 @@ int main(int argc, char **argv)
 						goto fin;
 					}
 				}
-			}else
-				/* connection closed properly */
-				break;
+			}
+
 		}
 	}while(stay_up || read_stdin || fname_idx > 0);
 
