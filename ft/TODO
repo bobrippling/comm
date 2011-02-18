@@ -10,3 +10,18 @@ asynchronous/select calls
 cancel ability - another socket or fixed-width messages
 
 test tftd with !block + select
+
+Fix:
+	select(5, [0 4], NULL, NULL, NULL)      = 1 (in [0])
+	read(0, "/tmp/Ste/eahfaeuha.txt\n", 1024) = 23
+	write(1, "tft: sending /tmp/Ste/eahfaeuha."..., 36) = 36
+	stat("/tmp/Ste/eahfaeuha.txt", {st_mode=S_IFREG|0644, st_size=9, ...}) = 0
+	open("/tmp/Ste/eahfaeuha.txt", O_RDONLY) = 3
+	fstat(3, {st_mode=S_IFREG|0644, st_size=9, ...}) = 0
+	sendto(4, "FILE eahfaeuha.txt\nSIZE 9\n\n", 27, 0, NULL, 0) = 27
+	recvfrom(4, 0x7fff3f4861b0, 512, 2, 0, 0) = ? ERESTARTSYS (To be restarted)
+	--- SIGINT (Interrupt) @ 0 (0) ---
+	shutdown(4, 1 /* send */)               = 0
+	close(4)                                = 0 <------------------------------------------- blocking here
+	--- SIGINT (Interrupt) @ 0 (0) ---
+	Process 19991 detached
