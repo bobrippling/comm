@@ -218,7 +218,7 @@ int connected_lewp()
 		}
 
 		if(FD_ISSET(fd_ft, &fds)){
-			if(ft_handle(&ft, callback, queryback, fnameback, inputback)){
+			if(ft_recv(&ft, callback, queryback, fnameback, inputback)){
 				/* "recieved %s" done in callback */
 				if(ft_lasterrno(&ft)){
 					eprintf("ft_recv(): %s\n", ft_lasterr(&ft));
@@ -424,7 +424,7 @@ conn_restart:
 		ft_close(&ft);
 		if(host){
 			logprintf("connecting", "connecting to %s:%s\n", host, port);
-			if(ft_connect(&ft, host, port))
+			if(ft_connect(&ft, host, port, callback))
 				NAP("connect");
 
 			logprintf("state", "connected to %s\n", ft_remoteaddr(&ft));
@@ -432,7 +432,7 @@ conn_restart:
 			if(ft_listen(&ft, atoi(port)))
 				NAP("listen");
 			logprintf("listening", "port %s\n", port);
-			if(ft_accept(&ft, 1) != FT_YES)
+			if(ft_accept(&ft) != FT_YES)
 				NAP("accept");
 
 			logprintf("state", "connection from %s\n", ft_remoteaddr(&ft));

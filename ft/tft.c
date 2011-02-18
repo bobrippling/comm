@@ -22,10 +22,6 @@
 #define MAX(x, y) (x > y ? x : y)
 #undef  TFT_DIE_ON_SEND
 
-#ifdef FT_USE_PING
-# define PING_DELAY 20
-#endif
-
 void  clrtoeol(void);
 void  cleanup(void);
 int   eprintf(const char *, ...);
@@ -312,13 +308,12 @@ int main(int argc, char **argv)
 	int stay_up;
 	const char *port = NULL;
 	int fname_idx, host_idx;
-#ifdef FT_USE_PING
-	int last_ping;
-#endif
 
 	listen = stay_up = 0;
 	read_stdin = read_stdin_nul = 0;
 	fname_idx = host_idx = -1;
+
+	ft_zero(&ft);
 
 #ifndef _WIN32
 	/* the usual suspects... */
@@ -326,11 +321,6 @@ int main(int argc, char **argv)
 	signal(SIGHUP,  sigh);
 	signal(SIGTERM, sigh);
 	signal(SIGQUIT, sigh);
-#endif
-
-#ifdef FT_USE_PING
-	srand(time(NULL));
-	last_ping = rand() % PING_DELAY;
 #endif
 
 #define ARG(c) !strcmp(argv[i], "-" c)
@@ -427,19 +417,19 @@ int main(int argc, char **argv)
 			return 1;
 		}
 
-		switch(ft_accept(&ft, 1)){
+		switch(ft_accept(&ft)){
 			case FT_ERR:
 				eprintf("ft_accept(): %s\n", ft_lasterr(&ft));
 				return 1;
 			case FT_NO:
 				/* shouldn't get here - since it blocks until a connection is made */
-				eprintf("no incomming connections... :S\n");
+				eprintf("no incoming connections... :S (%s)\n", ft_lasterr(&ft));
 				return 1;
 			case FT_YES:
 				printf("tft: got connection from %s\n", ft_remoteaddr(&ft));
 				break; /* accepted */
 		}
-	}else if(ft_connect(&ft, argv[host_idx], port)){
+	}else if(ft_connect(&ft, argv[host_idx], port, callback)){
 		eprintf("ft_connect(\"%s\", \"%s\"): %s\n",
 				argv[host_idx], port, ft_lasterr(&ft));
 		return 1;
@@ -460,7 +450,6 @@ int main(int argc, char **argv)
 
 	/* connection established */
 	beep();
-
 
 	do{
 		if(fname_idx > 0){
@@ -524,7 +513,7 @@ int main(int argc, char **argv)
 
 				if(FD_ISSET(ft_fd, &fds) &&
 						/*ft_poll_connected(&ft) &&*/
-						ft_handle(&ft, callback, queryback, fnameback, inputback)){
+						ft_recv(&ft, callback, queryback, fnameback, inputback)){
 
 					clrtoeol();
 					if(ft_lasterrno(&ft)){

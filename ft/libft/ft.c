@@ -142,8 +142,12 @@ static int WSA_Startuped = 0;
 	memset(&addr, '\0', sizeof addr);
 #else
 # define DATA_INIT() \
-	memset(ft,    '\0', sizeof *ft); \
-	memset(&addr, '\0', sizeof addr);
+	do{ \
+		const int async = ft_async(ft); \
+		memset(ft,    '\0', sizeof *ft); \
+		memset(&addr, '\0', sizeof addr); \
+		ft_async(ft) = async; \
+	}while(0)
 #endif
 
 #define FT_SLEEP(exit_code) \
@@ -152,19 +156,15 @@ static int WSA_Startuped = 0;
 			FT_LAST_ERR(FT_ERR_CANCELLED, 0); \
 			exit_code; \
 		} \
-		ft_sleep(); \
+		ft_sleep(ft, 0); \
 	}while(0)
 
 #define FREE_AND_NULL(x) do{ free(x); x = NULL; }while(0)
 
 static size_t ft_getcallback_step(size_t);
-static int ft_recv(struct filetransfer *ft,
-		ft_callback callback,
-		ft_queryback queryback,
-		ft_fnameback fnameback,
-		ft_inputback inputback);
-static void ft_sleep(void);
+static void ft_sleep(struct filetransfer *ft, int ms);
 static void ft_keepalive(struct filetransfer *ft);
+static void ft_block(struct filetransfer *ft, int block);
 
 static int ft_get_meta(struct filetransfer *ft,
 		char **basename, FILE **local, size_t *size,
@@ -172,6 +172,52 @@ static int ft_get_meta(struct filetransfer *ft,
 		ft_fnameback fnameback,
 		ft_inputback inputback);
 
+static int ft_sockwillblock(struct filetransfer *ft, int read);
+
+#define FT_SEND 0
+#define FT_RECV 1
+
+static ssize_t ft_net_send(struct filetransfer *, ft_callback, const void *, size_t, int);
+static ssize_t ft_net_recv(struct filetransfer *, ft_callback,       void *, size_t, int);
+
+
+static ssize_t ft_net_send(struct filetransfer *ft, ft_callback cb, const void *data, size_t len, int flags)
+{
+	if(ft->async)
+		while(ft_sockwillblock(ft, FT_SEND))
+			if(cb(ft, FT_WAIT, 0, 1)){
+				FT_LAST_ERR(FT_ERR_CANCELLED, 0);
+				return -1;
+			}
+
+	return send(ft->sock, data, len, flags);
+}
+
+static ssize_t ft_net_recv(struct filetransfer *ft, ft_callback cb,       void *data, size_t len, int flags)
+{
+	if(ft->async)
+		while(ft_sockwillblock(ft, FT_RECV))
+			if(cb(ft, FT_WAIT, 0, 1)){
+				FT_LAST_ERR(FT_ERR_CANCELLED, 0);
+				return -1;
+			}
+
+	return recv(ft->sock, data, len, flags);
+}
+
+static void ft_block(struct filetransfer *ft, int block)
+{
+	int flags = fcntl(ft->sock, F_GETFL);
+
+	if(flags == -1)
+		flags = block ? 0 : O_NONBLOCK;
+	else if(block)
+		flags &= ~O_NONBLOCK;
+	else
+		flags |=  O_NONBLOCK;
+
+	fcntl(ft->sock, F_SETFL, flags);
+}
 
 static size_t ft_getcallback_step(size_t siz)
 {
@@ -189,6 +235,33 @@ static size_t ft_getcallback_step(size_t siz)
 void ft_zero(struct filetransfer *ft)
 {
 	memset(ft, 0, sizeof *ft);
+	ft_asynctime(ft, 150);
+}
+
+void ft_asynctime(struct filetransfer *ft, int ms)
+{
+	if(ms > 0) /* mild validation */
+		ft->async_sleep_time = 1000 * ms;
+}
+
+int ft_sockwillblock(struct filetransfer *ft, int read)
+{
+	fd_set fds;
+	struct timeval tv = { 0, ft->async_sleep_time };
+
+	FD_ZERO(&fds);
+	FD_SET(ft->sock, &fds);
+
+	switch(select(ft->sock + 1, read ? &fds : NULL, read ? NULL : &fds, NULL, &tv)){
+		case -1:
+			FT_LAST_ERR_OS();
+			return 1;
+
+		case 0:
+			return 1; /* will block */
+	}
+
+	return 0; /* good to go */
 }
 
 int ft_listen(struct filetransfer *ft, int port)
@@ -242,31 +315,19 @@ int ft_listen(struct filetransfer *ft, int port)
 	return 0;
 }
 
-enum ftret ft_accept(struct filetransfer *ft, const int block)
+enum ftret ft_gotaction(struct filetransfer *ft)
 {
-	struct timeval tv;
-	fd_set fds;
+	return ft_sockwillblock(ft, FT_RECV) ? FT_NO : FT_YES;
+}
 
+enum ftret ft_accept(struct filetransfer *ft)
+{
 	int new, save;
 	socklen_t socklen;
 
-
-	if(!block){
-		FD_ZERO(&fds);
-		FD_SET(ft->sock, &fds);
-
-		tv.tv_sec  = 0;
-		tv.tv_usec = 1000;
-
-		switch(select(ft->sock + 1, &fds, NULL, NULL, &tv)){
-			case -1:
-				FT_LAST_ERR_OS();
-				return FT_ERR;
-			case 0:
-				return FT_NO;
-		}
-		if(!FD_ISSET(ft->sock, &fds))
-			return FT_NO;
+	if(ft->async && ft_sockwillblock(ft, FT_RECV)){
+		FT_LAST_ERR("No incoming connections", EAGAIN);
+		return FT_NO;
 	}
 
 	FT_LAST_ERR_CLEAR();
@@ -346,7 +407,7 @@ static int ft_get_meta(struct filetransfer *ft,
 
 	do{
 		/* read three newlines */
-		thisread = recv(ft->sock, buffer, sizeof buffer, MSG_PEEK);
+		thisread = ft_net_recv(ft, callback, buffer, sizeof buffer, MSG_PEEK);
 
 		if(thisread == 0){
 			FT_LAST_ERR(FT_ERR_PREMATURE_CLOSE, 0);
@@ -378,7 +439,8 @@ static int ft_get_meta(struct filetransfer *ft,
 
 	thisread = bufptr - buffer + 1; /* truncate to how much is left */
 
-	if(recv(ft->sock, buffer, thisread, 0) != thisread){
+
+	if(ft_net_recv(ft, callback, buffer, thisread, 0) != thisread){
 		FT_LAST_ERR_NET();
 		return 1;
 	}
@@ -519,71 +581,8 @@ access_error:
 #undef INVALID_MSG
 }
 
-#ifdef FT_USE_PING
-#define PING_PONG(fname, msg, setpingwait) \
-int ft_##fname(struct filetransfer *ft) \
-{ \
-	const char buffer[] = msg "\n"; \
-	switch(send(ft->sock, buffer, sizeof(buffer) - 1, 0)){ \
-		case  0: \
-		case -1: \
-			return 1; \
-		default: \
-			return 0; \
-	} \
-	if(setpingwait) \
-		ft->pingwait = 1; \
-}
 
-PING_PONG(ping, "PING", 1)
-PING_PONG(pong, "PONG", 0)
-#endif
-
-int ft_handle(struct filetransfer *ft,
-		ft_callback  callback,
-		ft_queryback queryback,
-		ft_fnameback fnameback,
-		ft_inputback inputback)
-{
-#ifdef FT_USE_PING
-	/* check for PING or FILE */
-	char buffer[16], *nl;
-	ssize_t thisread;
-	int nloops = 5;
-
-
-	do{
-		thisread = recv(ft->sock, buffer, sizeof buffer, MSG_PEEK);
-		switch(thisread){
-			case 0:
-				FT_LAST_ERR_CLEAR();
-				return 1;
-			case -1:
-				FT_LAST_ERR_NET();
-				return 1;
-		}
-		if((nl = strchr(buffer, '\n')))
-			break;
-		else if(--nloops <= 0)
-			return 0;
-	}while(1);
-
-	*nl = '\0';
-	if(!strcmp(buffer, "PING")){
-		recv(ft->sock, buffer, nl - buffer + 1, 0);
-		return ft_pong(ft);
-	}else if(!strcmp(buffer, "PONG")){
-		ft->pingwait = 0;
-		recv(ft->sock, buffer, nl - buffer + 1, 0);
-		return 0;
-	}else
-#endif
-		/* assume transfer */
-		return ft_recv(ft, callback, queryback, fnameback, inputback);
-}
-
-
-static int ft_recv(struct filetransfer *ft,
+int ft_recv(struct filetransfer *ft,
 		ft_callback callback,
 		ft_queryback queryback,
 		ft_fnameback fnameback,
@@ -631,7 +630,8 @@ static int ft_recv(struct filetransfer *ft,
 	/* resuming (works with 0) */
 	snprintf(buffer, sizeof(buffer), "RESUME " PRINTF_SIZET "\n",
 			(PRINTF_SIZET_CAST)size_so_far);
-	if(send(ft->sock, buffer, strlen(buffer), 0) == -1){
+
+	if(ft_net_send(ft, callback, buffer, strlen(buffer), 0) == -1){
 		FT_LAST_ERR_NET();
 		RET(1);
 	}
@@ -642,7 +642,7 @@ static int ft_recv(struct filetransfer *ft,
 	}
 
 	for(;;){
-		nread = recv(ft->sock, buffer, sizeof buffer, 0);
+		nread = ft_net_recv(ft, callback, buffer, sizeof buffer, 0);
 
 		if(nread == -1){
 			FT_LAST_ERR_NET();
@@ -662,7 +662,7 @@ done:
 					RET(1);
 				}
 				/* send OK\n */
-				if(send(ft->sock, "OK\n", 3, 0) == -1){
+				if(ft_net_send(ft, callback, "OK\n", 3, 0) == -1){
 					FT_LAST_ERR_NET();
 					RET(1);
 				}
@@ -714,49 +714,16 @@ ret:
 #undef INVALID_MSG
 }
 
-enum ftret ft_poll_recv_or_close(struct filetransfer *ft)
+static void ft_sleep(struct filetransfer *ft, int ms)
 {
-	struct timeval tv;
-	fd_set fds;
+	struct timeval tv = { 0, 1000 * (ms ? ms : ft->async_sleep_time) };
 
-	FD_ZERO(&fds);
-	FD_SET(ft->sock, &fds);
-
-	tv.tv_sec  = 0;
-	tv.tv_usec = 1000;
-
-	switch(select(ft->sock + 1, &fds, NULL, NULL, &tv)){
-		case -1:
-			FT_LAST_ERR_OS();
-			return FT_ERR;
-		case 0:
-			return FT_NO;
-	}
-	return FD_ISSET(ft->sock, &fds) ? FT_YES : FT_NO;
-}
-
-static void ft_sleep()
-{
-	struct timeval tv;
-
-	/* sleep while we wait */
-	tv.tv_sec  = 0;
-	tv.tv_usec = 1000000;
 	select(0, NULL, NULL, NULL, &tv);
 }
-
-#ifdef FT_USE_PING
-static int ft_wait_for_pong(struct filetransfer *ft)
-{
-	/* TODO */
-}
-#endif
 
 static void ft_keepalive(struct filetransfer *ft)
 {
 	int v = 1;
-
-	/* FIXME: set interval? */
 
 #ifdef _WIN32
 # define CAST (const char *)
@@ -881,6 +848,8 @@ int ft_send_file(struct filetransfer *ft, ft_callback callback, const char *fnam
 
 	ft->lastcallback = 0;
 
+	FT_LAST_ERR_CLEAR();
+
 	local = fopen(fname, "rb");
 	if(!local){
 		WIN_DEBUG("fopen()");
@@ -926,7 +895,7 @@ int ft_send_file(struct filetransfer *ft, ft_callback callback, const char *fnam
 
 
 #define BUFFER_RECV(len, flag) \
-		switch((nwrite = recv(ft->sock, buffer, len, flag))){ \
+		switch((nwrite = ft_net_recv(ft, callback, buffer, len, flag))){ \
 			case -1: \
 				WIN_DEBUG("ft_send(): BUFFER_RECV recv()"); \
 				FT_LAST_ERR_NET(); \
@@ -937,13 +906,9 @@ int ft_send_file(struct filetransfer *ft, ft_callback callback, const char *fnam
 				goto bail; \
 		}
 
-#ifdef FT_USE_PING
-	if(ft->pingwait && ft_wait_for_pong(ft))
-		return 1;
-#endif
 
 	/* less complicated to do it here than ^whileloop */
-	if(send(ft->sock, buffer, nwrite, 0) == -1){
+	if(ft_net_send(ft, callback, buffer, nwrite, 0) == -1){
 		WIN_DEBUG("ft_send(): inital write");
 		FT_LAST_ERR_NET();
 		goto bail;
@@ -957,6 +922,7 @@ int ft_send_file(struct filetransfer *ft, ft_callback callback, const char *fnam
 
 		nl = memchr(buffer, '\n', nwrite);
 		if(nl){
+			/* should be ok, since the previous one didn't block (async) */
 			BUFFER_RECV(nl - buffer + 1, 0);
 			break;
 		}
@@ -999,7 +965,7 @@ int ft_send_file(struct filetransfer *ft, ft_callback callback, const char *fnam
 				goto bail;
 		}
 
-		if(send(ft->sock, buffer, nwrite, 0) == -1){
+		if(ft_net_send(ft, callback, buffer, nwrite, 0) == -1){
 			WIN_DEBUG("send()");
 			FT_LAST_ERR_NET();
 			goto bail;
@@ -1036,6 +1002,7 @@ complete:
 
 			nl = memchr(buffer, '\n', nwrite);
 			if(nl){
+				/* again, should be ok */
 				BUFFER_RECV(nl - buffer + 1, 0);
 				break;
 			}
@@ -1065,10 +1032,12 @@ complete:
 	}
 bail:
 	fclose(local);
+	if(!ft_haderror(ft))
+		FT_LAST_ERR("Cancelled", 0);
 	return 1;
 }
 
-int ft_connect(struct filetransfer *ft, const char *host, const char *port)
+int ft_connect(struct filetransfer *ft, const char *host, const char *port, ft_callback cb)
 {
 	struct addrinfo hints, *ret = NULL, *dest = NULL;
 	struct sockaddr_in addr;
@@ -1098,9 +1067,41 @@ int ft_connect(struct filetransfer *ft, const char *host, const char *port)
 		if(ft->sock == -1)
 			continue;
 
-		if(connect(ft->sock, dest->ai_addr, dest->ai_addrlen) == 0){
-			memcpy(ft->addr, dest->ai_addr, sizeof(struct sockaddr_in));
-			break;
+
+		if(ft_async(ft)){
+			int connected = 0;
+			ft_block(ft, 0);
+
+			while(1){
+				if(connect(ft->sock, dest->ai_addr, dest->ai_addrlen) == 0){
+					connected = 1;
+					memcpy(ft->addr, dest->ai_addr, sizeof(struct sockaddr_in));
+					break;
+				}else if(errno != EINPROGRESS && errno != EALREADY){
+					break;
+				}
+
+				/* timeout, callback */
+				ft_sleep(ft, 250);
+				if(cb(ft, FT_WAIT, 0, 1)){
+					FT_LAST_ERR(FT_ERR_CANCELLED, 0);
+					freeaddrinfo(ret);
+					close(ft->sock);
+					ft->sock = -1;
+					return 1;
+				}
+			}
+
+			ft_block(ft, 1);
+
+			if(connected)
+				break;
+
+		}else{
+			if(connect(ft->sock, dest->ai_addr, dest->ai_addrlen) == 0){
+				memcpy(ft->addr, dest->ai_addr, sizeof(struct sockaddr_in));
+				break;
+			}
 		}
 
 		lastconnerr = net_getlasterr();
@@ -1132,6 +1133,10 @@ int ft_close(struct filetransfer *ft)
 # define SHUTDOWN_FLAG SHUT_WR
 #endif
 		shutdown(ft->sock, SHUTDOWN_FLAG);
+
+		if(ft_sockwillblock(ft, FT_SEND))
+			/* minor bodge - unblock it and let the OS deal with it */
+			ft_block(ft, 0);
 
 		if(close(ft->sock)){
 			FT_LAST_ERR_OS();
@@ -1214,14 +1219,4 @@ const char *ft_remoteaddr(struct filetransfer *ft)
 			0 /* flags */))
 		return NULL;
 	return buf;
-}
-
-int ft_poll_connected(struct filetransfer *ft)
-{
-	char dummy;
-
-	if(recv(ft->sock, &dummy, sizeof dummy, MSG_PEEK) == 0)
-		return 0;
-
-	return 1;
 }
