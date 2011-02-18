@@ -302,7 +302,7 @@ int send_from_stdin(int nul)
 void sigh(int sig)
 {
 	cleanup();
-	exit(sig);
+	exit(sig + 128);
 }
 
 int main(int argc, char **argv)
@@ -345,9 +345,9 @@ int main(int argc, char **argv)
 				goto usage;
 		else if(ARG("o"))
 			clobber_mode = OVERWRITE;
-		else if(ARG("n"))
-			clobber_mode = RENAME;
 		else if(ARG("a"))
+			clobber_mode = RENAME;
+		else if(ARG("n"))
 			clobber_mode = RENAME_ASK;
 		else if(ARG("r"))
 			clobber_mode = RESUME;
@@ -378,8 +378,8 @@ int main(int argc, char **argv)
 							"  -B: don't beep on file-receive\n"
 							" If file exists:\n"
 							"  -o: overwrite\n"
-							"  -n: rename incoming automatically\n"
-							"  -a: rename incoming\n"
+							"  -a: rename incoming automatically\n"
+							"  -n: rename incoming\n"
 							"  -r: resume transfer\n"
 							" Default Port: " FT_DEFAULT_PORT "\n"
 					    , *argv, *argv);
@@ -443,7 +443,20 @@ int main(int argc, char **argv)
 		eprintf("ft_connect(\"%s\", \"%s\"): %s\n",
 				argv[host_idx], port, ft_lasterr(&ft));
 		return 1;
+	}else
+		printf("tft: connected to %s\n", ft_remoteaddr(&ft));
+
+#if 0
+	{
+		int len = strlen(argv[0]) + strlen(" [connected]") + 1;
+		char *arg0 = malloc(len);
+		if(arg0){
+			snprintf(arg0, len, "%s%s", argv[0], " [connected]");
+			argv[0] = arg0;
+		}
 	}
+	- ~/code/Single/rename.c
+#endif
 
 	/* connection established */
 	beep();
@@ -519,6 +532,7 @@ int main(int argc, char **argv)
 						goto bail;
 					}else{
 						/* disco */
+						printf("tft: disconnected from %s\n", ft_remoteaddr(&ft));
 						goto fin;
 					}
 				}
