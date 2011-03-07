@@ -36,6 +36,7 @@ int   callback(struct filetransfer *ft, enum ftstate state,
         size_t bytessent, size_t bytestotal);
 void sigh(int sig);
 void beep(void);
+const char *now(void);
 
 int recursive = 0, canbeep = 1;
 struct filetransfer ft;
@@ -299,6 +300,17 @@ int send_from_stdin(int nul)
 #endif
 }
 
+const char *now()
+{
+	static char buffer[256];
+	time_t tm = time(NULL);
+	struct tm *t = localtime(&tm);
+
+	strftime(buffer, sizeof buffer, "%H:%M:%S", t); /* TODO: config */
+
+	return buffer;
+}
+
 void sigh(int sig)
 {
 	cleanup();
@@ -436,7 +448,7 @@ int main(int argc, char **argv)
 				eprintf("no incomming connections... :S\n");
 				return 1;
 			case FT_YES:
-				printf("tft: got connection from %s\n", ft_remoteaddr(&ft));
+				printf("tft: got connection from %s (%s)\n", ft_remoteaddr(&ft), now());
 				break; /* accepted */
 		}
 	}else if(ft_connect(&ft, argv[host_idx], port)){
@@ -444,7 +456,7 @@ int main(int argc, char **argv)
 				argv[host_idx], port, ft_lasterr(&ft));
 		return 1;
 	}else
-		printf("tft: connected to %s\n", ft_remoteaddr(&ft));
+		printf("tft: connected to %s (%s)\n", ft_remoteaddr(&ft), now());
 
 #if 0
 	{
@@ -527,7 +539,7 @@ int main(int argc, char **argv)
 						ft_handle(&ft, callback, queryback, fnameback, inputback)){
 
 					clrtoeol();
-					if(ft_lasterrno(&ft)){
+					if(ft_haderror(&ft)){
 						eprintf("ft_handle(): %s\n", ft_lasterr(&ft));
 						goto bail;
 					}else{
