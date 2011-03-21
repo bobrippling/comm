@@ -452,9 +452,6 @@ timeout(gpointer data)
 				return FALSE;
 
 			case FT_NO:
-#ifdef FT_USE_PING
-				/* TODO: ping/pong */
-#endif
 				return TRUE; /* keep looking */
 		}
 		/* unreachable */

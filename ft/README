@@ -8,14 +8,10 @@ Sender:
 		SIZE %zd\n
 		\n
 		<FILE_DATA>
-	or
-		PING\n
 Reciever:
 		RESUME %zd\n
 		*recieve data*
 		OK\n
-	or (on PING\n)
-		PONG\n
 
 Standard hailing frequency: Port 7643
 

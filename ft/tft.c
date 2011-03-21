@@ -22,10 +22,6 @@
 #define MAX(x, y) (x > y ? x : y)
 #undef  TFT_DIE_ON_SEND
 
-#ifdef FT_USE_PING
-# define PING_DELAY 20
-#endif
-
 void  clrtoeol(void);
 void  cleanup(void);
 void  fout(FILE *f, const char *fmt, va_list l);
@@ -337,9 +333,6 @@ int main(int argc, char **argv)
 	int stay_up;
 	const char *port = NULL;
 	int fname_idx, host_idx;
-#ifdef FT_USE_PING
-	int last_ping;
-#endif
 
 	listen = stay_up = 0;
 	read_stdin = read_stdin_nul = 0;
@@ -351,11 +344,6 @@ int main(int argc, char **argv)
 	signal(SIGHUP,  sigh);
 	signal(SIGTERM, sigh);
 	signal(SIGQUIT, sigh);
-#endif
-
-#ifdef FT_USE_PING
-	srand(time(NULL));
-	last_ping = rand() % PING_DELAY;
 #endif
 
 #define ARG(c) !strcmp(argv[i], "-" c)

@@ -158,11 +158,6 @@ static int WSA_Startuped = 0;
 #define FREE_AND_NULL(x) do{ free(x); x = NULL; }while(0)
 
 static size_t ft_getcallback_step(size_t);
-static int ft_recv(struct filetransfer *ft,
-		ft_callback callback,
-		ft_queryback queryback,
-		ft_fnameback fnameback,
-		ft_inputback inputback);
 static void ft_sleep(void);
 static void ft_keepalive(struct filetransfer *ft);
 
@@ -519,72 +514,8 @@ access_error:
 #undef INVALID_MSG
 }
 
-#ifdef FT_USE_PING
-#define PING_PONG(fname, msg, setpingwait) \
-int ft_##fname(struct filetransfer *ft) \
-{ \
-	const char buffer[] = msg "\n"; \
-	switch(send(ft->sock, buffer, sizeof(buffer) - 1, 0)){ \
-		case  0: \
-		case -1: \
-			return 1; \
-		default: \
-			return 0; \
-	} \
-	if(setpingwait) \
-		ft->pingwait = 1; \
-}
-
-PING_PONG(ping, "PING", 1)
-PING_PONG(pong, "PONG", 0)
-#endif
-
 int ft_handle(struct filetransfer *ft,
 		ft_callback  callback,
-		ft_queryback queryback,
-		ft_fnameback fnameback,
-		ft_inputback inputback)
-{
-#ifdef FT_USE_PING
-	/* check for PING or FILE */
-	char buffer[16], *nl;
-	ssize_t thisread;
-	int nloops = 5;
-
-
-	do{
-		thisread = recv(ft->sock, buffer, sizeof buffer, MSG_PEEK);
-		switch(thisread){
-			case 0:
-				FT_LAST_ERR_CLEAR();
-				return 1;
-			case -1:
-				FT_LAST_ERR_NET();
-				return 1;
-		}
-		if((nl = strchr(buffer, '\n')))
-			break;
-		else if(--nloops <= 0)
-			return 0;
-	}while(1);
-
-	*nl = '\0';
-	if(!strcmp(buffer, "PING")){
-		recv(ft->sock, buffer, nl - buffer + 1, 0);
-		return ft_pong(ft);
-	}else if(!strcmp(buffer, "PONG")){
-		ft->pingwait = 0;
-		recv(ft->sock, buffer, nl - buffer + 1, 0);
-		return 0;
-	}else
-#endif
-		/* assume transfer */
-		return ft_recv(ft, callback, queryback, fnameback, inputback);
-}
-
-
-static int ft_recv(struct filetransfer *ft,
-		ft_callback callback,
 		ft_queryback queryback,
 		ft_fnameback fnameback,
 		ft_inputback inputback)
@@ -744,13 +675,6 @@ static void ft_sleep()
 	tv.tv_usec = 1000000;
 	select(0, NULL, NULL, NULL, &tv);
 }
-
-#ifdef FT_USE_PING
-static int ft_wait_for_pong(struct filetransfer *ft)
-{
-	/* TODO */
-}
-#endif
 
 static void ft_keepalive(struct filetransfer *ft)
 {
@@ -936,11 +860,6 @@ int ft_send_file(struct filetransfer *ft, ft_callback callback, const char *fnam
 				FT_LAST_ERR(FT_ERR_PREMATURE_CLOSE, 0); \
 				goto bail; \
 		}
-
-#ifdef FT_USE_PING
-	if(ft->pingwait && ft_wait_for_pong(ft))
-		return 1;
-#endif
 
 	/* less complicated to do it here than ^whileloop */
 	if(send(ft->sock, buffer, nwrite, 0) == -1){
