@@ -338,6 +338,8 @@ int main(int argc, char **argv)
 	read_stdin = read_stdin_nul = 0;
 	fname_idx = host_idx = -1;
 
+	ft_zero(&ft);
+
 #ifndef _WIN32
 	/* the usual suspects... */
 	signal(SIGINT,  sigh);
@@ -440,20 +442,20 @@ int main(int argc, char **argv)
 			return 1;
 		}
 
-		switch(ft_accept(&ft, 1)){
+		switch(ft_accept(&ft)){
 			case FT_ERR:
 				eprintf("ft_accept(): %s", ft_lasterr(&ft));
 				return 1;
 			case FT_NO:
 				/* shouldn't get here - since it blocks until a connection is made */
-				eprintf("no incomming connections... :S");
+				eprintf("no incoming connections... :S (%s)\n", ft_lasterr(&ft));
 				return 1;
 			case FT_YES:
 				printf("tft: %s: got connection from %s\n", now(), ft_remoteaddr(&ft));
 				break; /* accepted */
 		}
-	}else if(ft_connect(&ft, argv[host_idx], port)){
-		eprintf("ft_connect(\"%s\", \"%s\"): %s",
+	}else if(ft_connect(&ft, argv[host_idx], port, callback)){
+		eprintf("ft_connect(\"%s\", \"%s\"): %s\n",
 				argv[host_idx], port, ft_lasterr(&ft));
 		return 1;
 	}else
@@ -473,7 +475,6 @@ int main(int argc, char **argv)
 
 	/* connection established */
 	beep();
-
 
 	do{
 		if(fname_idx > 0){
@@ -537,7 +538,7 @@ int main(int argc, char **argv)
 
 				if(FD_ISSET(ft_fd, &fds) &&
 						/*ft_poll_connected(&ft) &&*/
-						ft_handle(&ft, callback, queryback, fnameback, inputback)){
+						ft_recv(&ft, callback, queryback, fnameback, inputback)){
 
 					clrtoeol();
 					if(ft_haderror(&ft)){

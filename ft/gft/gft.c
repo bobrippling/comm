@@ -198,6 +198,7 @@ void gft_quit()
 {
 	CLOSE();
 	cfg_write(); /* must be before gtk shutdown */
+	/* FIXME: cancel stuff that's in progress */
 	gtk_main_quit(); /* gtk exit here only */
 }
 
@@ -306,7 +307,7 @@ on_btnConnect_clicked(void)
 	if(port)
 		*port++ = '\0';
 
-	if(ft_connect(&ft, host, port)){
+	if(ft_connect(&ft, host, port, callback)){
 		status("Couldn't connect: %s", ft_lasterr(&ft));
 		CLOSE();
 	}else{
@@ -419,7 +420,7 @@ timeout(gpointer data)
 	(void)data;
 
 	if(gstate == STATE_CONNECTED){
-		switch(ft_poll_recv_or_close(&ft)){
+		switch(ft_gotaction(&ft)){
 			case FT_YES:
 				/*
 				 * state = STATE_TRANSFER;
@@ -427,15 +428,15 @@ timeout(gpointer data)
 				 * no need for this - set in the callback straight away
 				 */
 
-				if(!ft_poll_connected(&ft)){
+				if(!ft_connected(&ft)){
 					/* connection closed */
 					status("Connection closed");
 					CLOSE();
 					return FALSE; /* timer death */
 				}
 
-				if(ft_handle(&ft, callback, queryback, fnameback, inputback)){
-					status("Couldn't handle incomming data: %s", ft_lasterr(&ft));
+				if(ft_recv(&ft, callback, queryback, fnameback, inputback)){
+					status("Couldn't receive incoming data: %s", ft_lasterr(&ft));
 					CLOSE();
 				}else{
 					/*
@@ -456,7 +457,7 @@ timeout(gpointer data)
 		}
 		/* unreachable */
 	}else{
-		enum ftret ftr = ft_accept(&ft, 0);
+		enum ftret ftr = ft_accept(&ft);
 
 		if(cancelled){
 			status("Cancelled");
@@ -1140,6 +1141,7 @@ int main(int argc, char **argv)
 #endif
 
 	ft_zero(&ft);
+	ft_async(&ft) = 1;
 	gtk_init(&argc, &argv); /* bail here if !$DISPLAY */
 
 #ifdef _WIN32
