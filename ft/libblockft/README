@@ -1,0 +1,31 @@
+File Transfer
+
+Protocol
+--------
+
+Messages are sent in blocks of a fixed size - 512 bytes.
+
+{ 'a', data... }.size = 512
+
+'a' is the block type, this can be either data transfer init,
+transfer data or a cancel message.
+
+
+Standard hailing frequency: Port 7644
+
+Detail
+------
+
+TODO:
+The sender sends the 3-line string containing the file's basename and size.
+The reciever then sends the resume message, with the resume-offset being
+where the sender should start reading the file (usually 0 i.e. start at
+the beginning of the file).
+
+Finally, the reciever replies with "OK\n" so the sender can close() the
+connection.
+
+The connection may remain open after the file has been sent for successive
+transfers.
+
+ vim: ft=help ts=4 sw=4
