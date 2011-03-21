@@ -28,7 +28,9 @@
 
 void  clrtoeol(void);
 void  cleanup(void);
-int   eprintf(const char *, ...);
+void  fout(FILE *f, const char *fmt, va_list l);
+void  eprintf(const char *fmt, ...);
+void  oprintf(const char *fmt, ...);
 void  check_files(int fname_idx, int argc, char **argv);
 char *readline(int nulsep);
 int   tft_send(const char *fname);
@@ -42,10 +44,43 @@ int recursive = 0, canbeep = 1;
 struct filetransfer ft;
 enum { OVERWRITE, RESUME, RENAME_ASK, RENAME, ASK } clobber_mode = ASK;
 
+void fout(FILE *f, const char *fmt, va_list l)
+{
+	fprintf(f, "%s tft: ", now());
+	vfprintf(f, fmt, l);
+	fputc('\n', f);
+}
+
+void oprintf(const char *fmt, ...)
+{
+	va_list l;
+	va_start(l, fmt);
+	fout(stdout, fmt, l);
+	va_end(l);
+}
+
+void eprintf(const char *fmt, ...)
+{
+	va_list l;
+	va_start(l, fmt);
+	fout(stderr, fmt, l);
+	va_end(l);
+}
+
+const char *now()
+{
+	static char buffer[256];
+	time_t tm = time(NULL);
+	struct tm *t = localtime(&tm);
+
+	strftime(buffer, sizeof buffer, "%H:%M:%S", t);
+
+	return buffer;
+}
 
 int tft_send(const char *fname)
 {
-	printf("tft: sending %s\n", fname);
+	oprintf("sending %s", fname);
 	return ft_send(&ft, callback, fname, recursive);
 }
 
@@ -60,7 +95,7 @@ int callback(struct filetransfer *ft, enum ftstate state,
 {
 	if(state == FT_SENT || state == FT_RECIEVED){
 		clrtoeol();
-		printf("tft: done: %s\n", ft_fname(ft));
+		oprintf("done: %s", ft_fname(ft));
 
 		if(state == FT_RECIEVED)
 			beep();
@@ -75,7 +110,8 @@ int callback(struct filetransfer *ft, enum ftstate state,
 	return 0;
 }
 
-int queryback(struct filetransfer *ft, enum ftquery querytype, const char *msg, ...)
+int queryback(struct filetransfer *ft, enum ftquery querytype,
+		const char *msg, ...)
 {
 	va_list l;
 	int opt, c, formatargs = 0;
@@ -127,7 +163,8 @@ int queryback(struct filetransfer *ft, enum ftquery querytype, const char *msg, 
 	return opt - '0';
 }
 
-char *inputback(struct filetransfer *ft, enum ftinput type, const char *prompt, char *def)
+char *inputback(struct filetransfer *ft, enum ftinput type, const char *prompt,
+		char *def)
 {
 	if(type == FT_RENAME && clobber_mode == RENAME_ASK){
 		char *new = malloc(2048);
@@ -176,18 +213,6 @@ void cleanup()
 		ft_close(&ft);
 }
 
-int eprintf(const char *fmt, ...)
-{
-	va_list l;
-	int ret;
-
-	fprintf(stderr, "tft: ");
-	va_start(l, fmt);
-	ret = vfprintf(stderr, fmt, l);
-	va_end(l);
-	return ret;
-}
-
 void check_files(int fname_idx, int argc, char **argv)
 {
 	int i;
@@ -232,7 +257,7 @@ int send_from_stdin(int nul)
 
 		if(tft_send(start)){
 			clrtoeol();
-			eprintf("tft_send(): %s\n", ft_lasterr(&ft));
+			eprintf("tft_send(): %s", ft_lasterr(&ft));
 			return 1;
 		}
 
@@ -266,7 +291,7 @@ int send_from_stdin(int nul)
 			else{
 				dir = getenv("HOME");
 				if(!dir){
-					eprintf("tft: getenv(\"HOME\") failed, using \"/\"\n");
+					eprintf("getenv(\"HOME\") failed, using \"/\"");
 					dir = "/";
 				}
 			}
@@ -284,31 +309,19 @@ int send_from_stdin(int nul)
 				perror("tft: getcwd()");
 			return 0;
 		}else{
-			eprintf("tft: unknown command, assuming file (\"%s\")\n",
-					line);
+			eprintf("unknown command, assuming file (\"%s\")", line);
 		}
 	}
 
 	if(tft_send(line)){
 		clrtoeol();
-		eprintf("tft_send(): %s: %s\n", line, ft_lasterr(&ft));
+		eprintf("tft_send(): %s: %s", line, ft_lasterr(&ft));
 		return 2;
 	}
 
 	free(line);
 	return 0;
 #endif
-}
-
-const char *now()
-{
-	static char buffer[256];
-	time_t tm = time(NULL);
-	struct tm *t = localtime(&tm);
-
-	strftime(buffer, sizeof buffer, "%H:%M:%S", t); /* TODO: config */
-
-	return buffer;
 }
 
 void sigh(int sig)
@@ -381,7 +394,7 @@ int main(int argc, char **argv)
 			break;
 		}else{
 		usage:
-			eprintf("Usage: %s [-p port] [OPTS] [-l | host] [files...]\n"
+			eprintf("Usage: %s [-p port] [OPTS] [-l | host] [files...]"
 							"  -l: listen\n"
 							"  -u: remain running at the end of a transfer (implies -i)\n"
 							"  -i: read supplementary file list from stdin\n"
@@ -430,33 +443,33 @@ int main(int argc, char **argv)
 		int iport;
 
 		if(sscanf(port, "%d", &iport) != 1){
-			eprintf("need numeric port (\"%s\")\n", port);
+			eprintf("need numeric port (\"%s\")", port);
 			return 1;
 		}
 
 		if(ft_listen(&ft, iport)){
-			eprintf("ft_listen(%d): %s\n", iport, ft_lasterr(&ft));
+			eprintf("ft_listen(%d): %s", iport, ft_lasterr(&ft));
 			return 1;
 		}
 
 		switch(ft_accept(&ft, 1)){
 			case FT_ERR:
-				eprintf("ft_accept(): %s\n", ft_lasterr(&ft));
+				eprintf("ft_accept(): %s", ft_lasterr(&ft));
 				return 1;
 			case FT_NO:
 				/* shouldn't get here - since it blocks until a connection is made */
-				eprintf("no incomming connections... :S\n");
+				eprintf("no incomming connections... :S");
 				return 1;
 			case FT_YES:
-				printf("tft: got connection from %s (%s)\n", ft_remoteaddr(&ft), now());
+				printf("tft: %s: got connection from %s\n", now(), ft_remoteaddr(&ft));
 				break; /* accepted */
 		}
 	}else if(ft_connect(&ft, argv[host_idx], port)){
-		eprintf("ft_connect(\"%s\", \"%s\"): %s\n",
+		eprintf("ft_connect(\"%s\", \"%s\"): %s",
 				argv[host_idx], port, ft_lasterr(&ft));
 		return 1;
 	}else
-		printf("tft: connected to %s (%s)\n", ft_remoteaddr(&ft), now());
+		oprintf("connected to %s", ft_remoteaddr(&ft));
 
 #if 0
 	{
@@ -483,7 +496,7 @@ int main(int argc, char **argv)
 
 			if(tft_send(fname)){
 				clrtoeol();
-				eprintf("tft_send(): %s: %s\n", fname, ft_lasterr(&ft));
+				eprintf("tft_send(): %s: %s", fname, ft_lasterr(&ft));
 #ifdef TFT_DIE_ON_SEND
 				goto bail;
 #endif
@@ -506,7 +519,7 @@ int main(int argc, char **argv)
 
 				switch(select(maxfd + 1, &fds, NULL, NULL, NULL)){
 					case -1:
-						eprintf("select(): %s\n", strerror(errno));
+						eprintf("select(): %s", strerror(errno));
 						goto bail;
 					case 0:
 						continue;
@@ -540,11 +553,11 @@ int main(int argc, char **argv)
 
 					clrtoeol();
 					if(ft_haderror(&ft)){
-						eprintf("ft_handle(): %s\n", ft_lasterr(&ft));
+						eprintf("ft_handle(): %s", ft_lasterr(&ft));
 						goto bail;
 					}else{
 						/* disco */
-						printf("tft: disconnected from %s\n", ft_remoteaddr(&ft));
+						oprintf("disconnected from %s", ft_remoteaddr(&ft));
 						goto fin;
 					}
 				}
