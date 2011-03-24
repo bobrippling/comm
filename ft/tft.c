@@ -384,7 +384,8 @@ int main(int argc, char **argv)
 			break;
 		}else{
 		usage:
-			eprintf("Usage: %s [-p port] [OPTS] [-l | host] [files...]"
+			fprintf(stderr,
+							"Usage: %s [-p port] [OPTS] [-l | host] [files...]"
 							"  -l: listen\n"
 							"  -u: remain running at the end of a transfer (implies -i)\n"
 							"  -i: read supplementary file list from stdin\n"
@@ -397,7 +398,7 @@ int main(int argc, char **argv)
 							"  -n: rename incoming\n"
 							"  -r: resume transfer\n"
 							" Default Port: " FT_DEFAULT_PORT "\n"
-					    , *argv, *argv);
+					    , *argv);
 			return 1;
 		}
 
@@ -451,7 +452,7 @@ int main(int argc, char **argv)
 				eprintf("no incoming connections... :S (%s)\n", ft_lasterr(&ft));
 				return 1;
 			case FT_YES:
-				printf("tft: %s: got connection from %s\n", now(), ft_remoteaddr(&ft));
+				oprintf("got connection from %s", ft_remoteaddr(&ft));
 				break; /* accepted */
 		}
 	}else if(ft_connect(&ft, argv[host_idx], port, callback)){
