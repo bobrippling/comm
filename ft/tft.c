@@ -330,13 +330,15 @@ int main(int argc, char **argv)
 {
 	int i, listen;
 	int read_stdin, read_stdin_nul;
-	int stay_up;
+	int stay_up, ignore_stdin_eof;
 	const char *port = NULL;
 	int fname_idx, host_idx;
 
 	listen = stay_up = 0;
 	read_stdin = read_stdin_nul = 0;
 	fname_idx = host_idx = -1;
+
+	ignore_stdin_eof = isatty(STDIN_FILENO);
 
 	ft_zero(&ft);
 
@@ -373,6 +375,8 @@ int main(int argc, char **argv)
 			read_stdin = 1;
 		}else if(ARG("i"))
 			read_stdin = 1;
+		else if(ARG("e"))
+			ignore_stdin_eof = 0;
 		else if(ARG("0"))
 			read_stdin_nul = 1;
 		else if(ARG("R"))
@@ -389,6 +393,7 @@ int main(int argc, char **argv)
 							"  -l: listen\n"
 							"  -u: remain running at the end of a transfer (implies -i)\n"
 							"  -i: read supplementary file list from stdin\n"
+							"  -e: don't ignore EOF on stdin (default if stdin isn't a tty)\n"
 							"  -0: file list is nul-delimited\n"
 							"  -R: send directories recursively\n"
 							"  -B: don't beep on file-receive\n"
@@ -523,8 +528,8 @@ int main(int argc, char **argv)
 							continue;
 						case 1:
 							/* eof */
-							read_stdin = 0;
-							if(!stay_up)
+							read_stdin = ignore_stdin_eof;
+							if(!stay_up && !ignore_stdin_eof)
 								goto fin;
 							continue;
 						case 2:
