@@ -328,6 +328,7 @@ void sigh(int sig)
 
 int main(int argc, char **argv)
 {
+	int ret = 0;
 	int i, listen;
 	int read_stdin, read_stdin_nul;
 	int stay_up, ignore_stdin_eof;
@@ -542,14 +543,15 @@ int main(int argc, char **argv)
 					}
 
 
-				if(FD_ISSET(ft_fd, &fds) &&
-						/*ft_poll_connected(&ft) &&*/
-						ft_recv(&ft, callback, queryback, fnameback, inputback)){
-
+				if(FD_ISSET(ft_fd, &fds) && ft_recv(&ft, callback, queryback, fnameback, inputback)){
 					clrtoeol();
+
 					if(ft_haderror(&ft)){
-						eprintf("ft_handle(): %s", ft_lasterr(&ft));
-						goto bail;
+						if(ft_lasterrno(&ft) != ECONNRESET){
+							eprintf("ft_recv(): %s", ft_lasterr(&ft));
+							goto bail;
+						}else
+							goto fin;
 					}else{
 						/* disco */
 						oprintf("disconnected from %s", ft_remoteaddr(&ft));
@@ -564,8 +566,8 @@ int main(int argc, char **argv)
 fin:
 	ft_close(&ft);
 
-	return 0;
+	return ret;
 bail:
-	ft_close(&ft);
-	return 1;
+	ret = 1;
+	goto fin;
 }
