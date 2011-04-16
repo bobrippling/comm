@@ -16,7 +16,7 @@ Standard hailing frequency: Port 2848
 Message Types
 -------------
 
-Client -> Server:
+Client -\> Server:
 	NAME %s
 		client name - login request with name %s
 	MESSAGE %s
@@ -46,7 +46,7 @@ Client -> Server:
 	PRIVMSG %s^]%s
 		Send %s[1] to %s[0] ONLY
 
-Server -> Client:
+Server -\> Client:
 	CLIENT\_CONN %s
 		a new client has connected, [b]with name[/b]
 	CLIENT\_DISCO %s
@@ -54,7 +54,7 @@ Server -> Client:
 	ERR %s
 		client message error
 	CLIENT\_LIST\*
-		see (client->server)::CLIENT\_LIST
+		see (client-\>server)::CLIENT\_LIST
 	MESSAGE %s
 		message from server to all
 	COLOUR %s^]%s
@@ -74,11 +74,11 @@ Initial Contact/Handshake
 -------------------------
 
 Server sends
-Comm v$VERSION Optional-Server-Desc
+	Comm v$VERSION Optional-Server-Desc
 where version is something like 1.2 (always in the form %d.%d)
 
 client either disconnects, or continues with the following
-NAME Timmy
+	NAME Timmy
 the server then responds with ERR %s or OK
 if ERR, server then closes the connection
 
