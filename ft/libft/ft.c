@@ -1209,12 +1209,17 @@ const char *ft_basename(struct filetransfer *ft)
 const char *ft_remoteaddr(struct filetransfer *ft)
 {
 	static char buf[128];
+	int ret;
 
-	if(getnameinfo((struct sockaddr *)ft->addr,
+	if((ret = getnameinfo((struct sockaddr *)ft->addr,
 			sizeof(struct sockaddr_in),
 			buf, sizeof buf,
 			NULL, 0, /* no service */
-			0 /* flags */))
+			0 /* flags */))){
+
+		fprintf(stderr, "libft: getnameinfo(...) = %s\n",
+				gai_strerror(ret));
 		return NULL;
+	}
 	return buf;
 }
