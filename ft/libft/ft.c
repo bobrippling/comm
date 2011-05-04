@@ -132,11 +132,13 @@ static int WSA_Startuped = 0;
 # define DATA_INIT() \
 	if(!WSA_Startuped){ \
 		struct WSAData d; \
+		const int async = ft_async(ft); \
 		WSA_Startuped = 1; \
 		if(WSAStartup(MAKEWORD(2, 2), &d)){ \
 			FT_LAST_ERR_NET(); \
 			return 1; \
 		} \
+		ft_async(ft) = async(ft); \
 	} \
 	memset(ft,    '\0', sizeof *ft); \
 	memset(&addr, '\0', sizeof addr);
@@ -1168,24 +1170,21 @@ const char *Win32_LastErr(int skip_to_errno)
 void Win32_check_name(char *s)
 {
 	for(; *s; s++)
-		switch(*s){
-			case 0x00: case 0x01: case 0x02: case 0x03: case 0x04: case 0x05:
-			case 0x06: case 0x07: case 0x08: case 0x09: case 0x0a: case 0x0b:
-			case 0x0c: case 0x0d: case 0x0e: case 0x0f: case 0x10: case 0x11:
-			case 0x12: case 0x13: case 0x14: case 0x15: case 0x16: case 0x17:
-			case 0x18: case 0x19: case 0x1a: case 0x1b: case 0x1c: case 0x1d:
-			case 0x1e: case 0x1f:
-			case '"':
-			case '*':
-			case '/':
-			case ':':
-			case '<':
-			case '>':
-			case '?':
-			case '|':
-			case '\\':
-				*s = '_';
-		}
+		if(0x1 <= *s && *s <= 0x1f)
+			*s = '_';
+		else
+			switch(*s){
+				case '"':
+				case '*':
+				case '/':
+				case ':':
+				case '<':
+				case '>':
+				case '?':
+				case '|':
+				case '\\':
+					*s = '_';
+			}
 }
 #endif
 
