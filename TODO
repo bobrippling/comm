@@ -1,3 +1,5 @@
+multicast host/client
+
 windows:
 	windows - unknown publisher - run don't run UAC
 	privmsg - show in new window OPTIONAL
