@@ -225,53 +225,26 @@ void check_files(int fname_idx, int argc, char **argv)
 		}
 }
 
-int send_from_stdin(int nul)
+enum stdinret
 {
-#ifdef _WIN32
-	static char buffer[4096]; /* static for ~stackoverflow */
-	char *start;
-	int nread;
+	STDIN_SUCCESS,
+	STDIN_EOF,
+	STDIN_ERR,
+	STDIN_CMD,
+	STDIN_CMD_EXIT
+};
 
-	nread = fread(buffer, sizeof *buffer, sizeof buffer, stdin);
-
-	if(!nread){
-		if(ferror(stdin))
-			perror("fread()");
-		return 1;
-	}
-
-	start = buffer;
-	do{
-		char *end = memchr(start, nul ? 0 : '\n', nread);
-
-		if(!end){
-			fprintf(stderr, "tft: couldn't find terminator for:\n%s\n", buffer);
-			return 0;
-		}
-
-		*end = '\0';
-
-		if(tft_send(start)){
-			clrtoeol();
-			eprintf("tft_send(): %s", ft_lasterr(&ft));
-			return 1;
-		}
-
-		/* check for any mores */
-		nread -= (end - start);
-		start = end + 1;
-	}while(nread > 0);
-	return 0;
-#else
+enum stdinret send_from_stdin(int nul)
+{
 	char  *line = NULL, *delim;
 	size_t size = 0;
 
 	if(getdelim(&line, &size, nul ? 0 : '\n', stdin) == -1){
 		if(ferror(stdin)){
 			perror("tft: read()");
-			return 2;
+			return STDIN_ERR;
 		}
-		return 1;
+		return STDIN_EOF;
 	}
 
 	delim = strchr(line, nul ? 0 : '\n');
@@ -295,7 +268,7 @@ int send_from_stdin(int nul)
 			if(chdir(dir))
 				perror("chdir()");
 
-			return 0;
+			return STDIN_CMD;
 		}else if(!strcmp(line+1, "pwd")){
 			char path[512];
 
@@ -303,21 +276,24 @@ int send_from_stdin(int nul)
 				printf("%s\n", path);
 			else
 				perror("tft: getcwd()");
-			return 0;
+			return STDIN_CMD;
+		}else if(!strcmp(line+1, "q")){
+			return STDIN_CMD_EXIT;
+
 		}else{
 			eprintf("unknown command, assuming file (\"%s\")", line);
+
 		}
 	}
 
 	if(tft_send(line)){
 		clrtoeol();
 		eprintf("tft_send(): %s: %s", line, ft_lasterr(&ft));
-		return 2;
+		return STDIN_ERR;
 	}
 
 	free(line);
-	return 0;
-#endif
+	return STDIN_SUCCESS;
 }
 
 void sigh(int sig)
@@ -524,22 +500,26 @@ int main(int argc, char **argv)
 				if(FD_ISSET(STDIN_FILENO, &fds))
 					/* got a file to send */
 					switch(send_from_stdin(read_stdin_nul)){
-						case 0:
+						case STDIN_SUCCESS:
 							/* good to carry on */
 							continue;
-						case 1:
+						case STDIN_EOF:
 							/* eof */
 							read_stdin = ignore_stdin_eof;
 							if(!stay_up && !ignore_stdin_eof)
 								goto fin;
 							continue;
-						case 2:
+						case STDIN_ERR:
 							/* ferror */
 #ifdef TFT_DIE_ON_SEND
 							goto bail;
 #else
 							break;
 #endif
+						case STDIN_CMD_EXIT:
+							goto fin;
+						case STDIN_CMD:
+							break;
 					}
 
 
