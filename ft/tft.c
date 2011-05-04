@@ -234,12 +234,12 @@ enum stdinret
 	STDIN_CMD_EXIT
 };
 
-enum stdinret send_from_stdin(int nul)
+enum stdinret send_from_stdin()
 {
 	char  *line = NULL, *delim;
 	size_t size = 0;
 
-	if(getdelim(&line, &size, nul ? 0 : '\n', stdin) == -1){
+	if(getdelim(&line, &size, '\n', stdin) == -1){
 		if(ferror(stdin)){
 			perror("tft: read()");
 			return STDIN_ERR;
@@ -247,7 +247,7 @@ enum stdinret send_from_stdin(int nul)
 		return STDIN_EOF;
 	}
 
-	delim = strchr(line, nul ? 0 : '\n');
+	delim = strchr(line, '\n');
 	if(delim)
 		*delim = '\0';
 
@@ -306,16 +306,13 @@ int main(int argc, char **argv)
 {
 	int ret = 0;
 	int i, listen;
-	int read_stdin, read_stdin_nul;
-	int stay_up, ignore_stdin_eof;
+	int stay_up;
 	const char *port = NULL;
 	int fname_idx, host_idx;
 
-	listen = stay_up = 0;
-	read_stdin = read_stdin_nul = 0;
+	listen = 0;
 	fname_idx = host_idx = -1;
-
-	ignore_stdin_eof = isatty(STDIN_FILENO);
+	stay_up = 1;
 
 	ft_zero(&ft);
 
@@ -337,6 +334,7 @@ int main(int argc, char **argv)
 				port = argv[i];
 			else
 				goto usage;
+
 		else if(ARG("o"))
 			clobber_mode = OVERWRITE;
 		else if(ARG("a"))
@@ -345,17 +343,11 @@ int main(int argc, char **argv)
 			clobber_mode = RENAME_ASK;
 		else if(ARG("r"))
 			clobber_mode = RESUME;
+
 		else if(ARG("B"))
 			canbeep = 0;
-		else if(ARG("u")){
-			stay_up = 1;
-			read_stdin = 1;
-		}else if(ARG("i"))
-			read_stdin = 1;
-		else if(ARG("e"))
-			ignore_stdin_eof = 0;
-		else if(ARG("0"))
-			read_stdin_nul = 1;
+		else if(ARG("U"))
+			stay_up = 0;
 		else if(ARG("R"))
 			recursive = 1;
 		else if(!listen && host_idx < 0)
@@ -368,17 +360,15 @@ int main(int argc, char **argv)
 			fprintf(stderr,
 							"Usage: %s [-p port] [OPTS] [-l | host] [files...]"
 							"  -l: listen\n"
-							"  -u: remain running at the end of a transfer (implies -i)\n"
-							"  -i: read supplementary file list from stdin\n"
-							"  -e: don't ignore EOF on stdin (default if stdin isn't a tty)\n"
-							"  -0: file list is nul-delimited\n"
 							"  -R: send directories recursively\n"
 							"  -B: don't beep on file-receive\n"
+							"  -U: exit on eof/end of file arguments\n"
 							" If file exists:\n"
 							"  -o: overwrite\n"
 							"  -a: rename incoming automatically\n"
 							"  -n: rename incoming\n"
 							"  -r: resume transfer\n"
+							"\n"
 							" Default Port: " FT_DEFAULT_PORT "\n"
 					    , *argv);
 			return 1;
@@ -431,14 +421,14 @@ int main(int argc, char **argv)
 				return 1;
 			case FT_NO:
 				/* shouldn't get here - since it blocks until a connection is made */
-				eprintf("no incoming connections... :S (%s)\n", ft_lasterr(&ft));
+				eprintf("no incoming connections... :S (%s)", ft_lasterr(&ft));
 				return 1;
 			case FT_YES:
 				oprintf("got connection from %s", ft_remoteaddr(&ft));
 				break; /* accepted */
 		}
 	}else if(ft_connect(&ft, argv[host_idx], port, callback)){
-		eprintf("ft_connect(\"%s\", \"%s\"): %s\n",
+		eprintf("ft_connect(\"%s\", \"%s\"): %s",
 				argv[host_idx], port, ft_lasterr(&ft));
 		return 1;
 	}else
@@ -480,14 +470,11 @@ int main(int argc, char **argv)
 				int maxfd = ft_fd;
 
 				FD_ZERO(&fds);
-				FD_SET(ft_fd, &fds);
+				FD_SET(ft_fd,        &fds);
+				FD_SET(STDIN_FILENO, &fds);
 
-				if(read_stdin){
-					FD_SET(STDIN_FILENO, &fds);
-
-					if(read_stdin > ft_fd)
-						maxfd = read_stdin;
-				}
+				if(STDIN_FILENO > ft_fd)
+					maxfd = STDIN_FILENO;
 
 				switch(select(maxfd + 1, &fds, NULL, NULL, NULL)){
 					case -1:
@@ -499,27 +486,20 @@ int main(int argc, char **argv)
 
 				if(FD_ISSET(STDIN_FILENO, &fds))
 					/* got a file to send */
-					switch(send_from_stdin(read_stdin_nul)){
+					switch(send_from_stdin()){
 						case STDIN_SUCCESS:
+						case STDIN_EOF:
 							/* good to carry on */
 							continue;
-						case STDIN_EOF:
-							/* eof */
-							read_stdin = ignore_stdin_eof;
-							if(!stay_up && !ignore_stdin_eof)
-								goto fin;
-							continue;
 						case STDIN_ERR:
-							/* ferror */
 #ifdef TFT_DIE_ON_SEND
 							goto bail;
-#else
-							break;
 #endif
-						case STDIN_CMD_EXIT:
-							goto fin;
 						case STDIN_CMD:
 							break;
+
+						case STDIN_CMD_EXIT:
+							goto fin;
 					}
 
 
@@ -541,7 +521,7 @@ int main(int argc, char **argv)
 			}
 
 		}
-	}while(stay_up || read_stdin || fname_idx > 0);
+	}while(stay_up || fname_idx > 0);
 
 fin:
 	ft_close(&ft);

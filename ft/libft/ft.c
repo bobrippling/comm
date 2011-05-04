@@ -324,7 +324,7 @@ enum ftret ft_gotaction(struct filetransfer *ft)
 
 enum ftret ft_accept(struct filetransfer *ft)
 {
-	int new, save;
+	int new;
 	socklen_t socklen;
 
 	if(ft->async && ft_sockwillblock(ft, FT_RECV)){
@@ -338,7 +338,6 @@ enum ftret ft_accept(struct filetransfer *ft)
 	new = accept(ft->sock,
 			(struct sockaddr *)ft->addr,
 			&socklen);
-	save = errno;
 
 	if(new == -1){
 		FT_LAST_ERR_OS();
@@ -412,7 +411,7 @@ static int ft_get_meta(struct filetransfer *ft,
 		thisread = ft_net_recv(ft, callback, buffer, sizeof buffer, MSG_PEEK);
 
 		if(thisread == 0){
-			FT_LAST_ERR(FT_ERR_PREMATURE_CLOSE, 0);
+			FT_LAST_ERR(FT_ERR_PREMATURE_CLOSE, ECONNRESET);
 			return 1;
 		}else if(thisread == -1){
 			FT_LAST_ERR_NET();
