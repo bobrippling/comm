@@ -48,19 +48,25 @@ draw_brush(GtkWidget *widget, gdouble x, gdouble y)
 			widget->style->black_gc,
 			x, y, last_x, last_y);
 
-	gtk_widget_queue_draw_area(widget, MIN(x, last_x), MIN(y, last_y), fabs(x - last_x), fabs(y - last_y));
+	gtk_widget_queue_draw_area(widget,
+			MIN(x, last_x),
+			MIN(y, last_y),
+			fabs(x - last_x) + DRAW_SIZE,
+			fabs(y - last_y) + DRAW_SIZE
+			);
 #endif
 }
 
-/* Create a new surface of the appropriate size to store our scribbles */
 gboolean
 on_drawan_configure(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
 {
 	(void)event;
 	(void)data;
 
-	if(pixmap)
+	if(pixmap){
 		gdk_pixmap_unref(pixmap);
+		fprintf(stderr, "TODO: resize pixmap\n");
+	}
 
 	pixmap = gdk_pixmap_new(widget->window,
 		widget->allocation.width,
