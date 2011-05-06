@@ -75,7 +75,7 @@ int comm_rels(comm_t *);
 int comm_colour(comm_t *, const char *col);
 
 int  comm_draw(comm_t *, int x, int y, int last_x, int last_y, int colour);
-void comm_getdrawdata(va_list l, int *, int *, int *, int *);
+void comm_getdrawdata(const char *, int *, int *, int *, int *);
 
 void comm_close(comm_t *);
 

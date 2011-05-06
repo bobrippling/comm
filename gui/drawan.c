@@ -1,6 +1,8 @@
 #include <gtk/gtk.h>
 #include <math.h>
 
+#include "drawan.h"
+
 static GdkPixmap *pixmap = NULL; /* backbuffer */
 static int last_x = -1, last_y = -1;
 static int pixheight = 0;
@@ -40,9 +42,6 @@ draw_brush(GtkWidget *widget, int x, int y, int x2, int y2)
 
 	gtk_widget_draw(widget, &update_rect);
 #else
-	if(x2 == -1)
-		return;
-
 	gdk_draw_line(
 			pixmap,
 			widget->style->black_gc,
@@ -70,6 +69,9 @@ draw_brush_send(GtkWidget *widget, int x, int y)
 	if(y < 0 || y > pixheight)
 		/* kludge? */
 		return;
+
+	if(last_x == -1) last_x = x;
+	if(last_y == -1) last_y = y;
 
 	if(!gui_draw_net(x, y, last_x, last_y, 0)){ /* check we're connected, etc etc */
 		draw_brush(widget, x, y, last_x, last_y);

@@ -173,21 +173,10 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 	}
 
 	switch(ct->state){
-		case COMM_DISCONNECTED:
-			WARN("%s", "major logic error, you should never see this");
-			break;
-
-		case COMM_CONNECTING:
-			/* TODO */
-			break;
-
 		case COMM_ACCEPTED:
 			/* normal message */
 			if(*buffer == 'D'){
-				int x1, y1, x2, y2;
-
-				if(sscanf(buffer+1, "%d_%d_%d_%d", &x1, &y1, &x2, &y2) == 4)
-					callback(COMM_DRAW, NULL, x1, y1, x2, y2);
+				callback(COMM_DRAW, buffer);
 
 			}else if(!strncmp(buffer, "MESSAGE ", 8))
 				callback(COMM_MSG, "%s", buffer + 8);
@@ -335,6 +324,14 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 			}
 			break;
 		}
+
+		case COMM_DISCONNECTED:
+			WARN("%s", "major logic error, you should never see this");
+			break;
+
+		case COMM_CONNECTING:
+			/* TODO */
+			break;
 	}
 
 	return 0;
@@ -666,7 +663,9 @@ int comm_recv(comm_t *ct, comm_callback callback)
 
 		if(FD_ISSET(ct->udpsock, &set)){
 			char buffer[MAX_UDP_PACKET];
-			int ret = recvfrom(ct->udpsock, buffer, sizeof buffer, 0, NULL, NULL);
+			int ret = recvfrom(ct->udpsock, buffer, sizeof buffer - 1, 0, NULL, NULL);
+
+			buffer[ret] = '\0';
 
 			if(ret <= 0)
 				fprintf(stderr, "comm_recv(): udp recvfrom(): %s\n", strerror(errno));
@@ -683,15 +682,14 @@ int comm_draw(comm_t *ct, int x, int y, int x2, int y2, int colour)
 	char buffer[MAX_UDP_PACKET];
 	int len;
 
-	len = snprintf(buffer, sizeof buffer, "D%d_%d_%d_%d", x, y, x2, y2);
+	len = snprintf(buffer, sizeof buffer,
+			"%s%cD%d_%d_%d_%d",
+			ct->name, GROUP_SEPARATOR, x, y, x2, y2);
 
 	return sendto(ct->udpsock, buffer, len, 0, NULL, 0);
 }
 
-void comm_getdrawdata(va_list l, int *x1, int *y1, int *x2, int *y2)
+void comm_getdrawdata(const char *s, int *x1, int *y1, int *x2, int *y2)
 {
-	*x1 = va_arg(l, int);
-	*y1 = va_arg(l, int);
-	*x2 = va_arg(l, int);
-	*y2 = va_arg(l, int);
+	sscanf(s, "%d_%d_%d_%d", x1, y1, x2, y2);
 }

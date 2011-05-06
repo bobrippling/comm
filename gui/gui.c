@@ -434,12 +434,7 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 		case COMM_DRAW:
 		{
 			int x1, y1, x2, y2;
-			va_list l;
-
-			va_start(l, fmt);
-			comm_getdrawdata(l, &x1, &y1, &x2, &y2);
-			va_end(l);
-
+			comm_getdrawdata(fmt + 1, &x1, &y1, &x2, &y2);
 			draw_brush(drawanArea, x1, y1, x2, y2);
 			return;
 		}
