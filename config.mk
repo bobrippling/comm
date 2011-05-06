@@ -51,7 +51,7 @@ mostlyclean:
 			delete ARGV; \
 		} \
 		{ \
-			print "\t\"" $$0 "\\n\", \n"; \
+			print "\t\"" $$0 "\\n\",\n"; \
 		} \
 		END { \
 			print "};\n#endif\n" \
