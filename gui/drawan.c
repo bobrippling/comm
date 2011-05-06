@@ -3,11 +3,12 @@
 
 static GdkPixmap *pixmap = NULL; /* backbuffer */
 static int last_x = -1, last_y = -1;
+static int pixheight = 0;
 
 #define DRAW_SIZE 2
 
 void
-draw_brush(GtkWidget *widget, gdouble x, gdouble y, gdouble x2, gdouble y2)
+draw_brush(GtkWidget *widget, int x, int y, int x2, int y2)
 {
 #if 0
 	gdk_draw_line()
@@ -28,25 +29,29 @@ draw_brush(GtkWidget *widget, gdouble x, gdouble y, gdouble x2, gdouble y2)
 #ifdef RECT_METHOD
 	GdkRectangle update_rect;
 
-	update_rect.x = x - 5;
-	update_rect.y = y - 5;
-	update_rect.width = 10;
-	update_rect.height = 10;
-	gdk_draw_rectangle(pixmap,
-		widget->style->black_gc,
-		TRUE,
-		update_rect.x, update_rect.y,
+	update_rect.x      = x - DRAW_SIZE;
+	update_rect.y      = y - DRAW_SIZE;
+	update_rect.width  = DRAW_SIZE * 2;
+	update_rect.height = DRAW_SIZE * 2;
+
+	gdk_draw_rectangle(pixmap, widget->style->black_gc, TRUE,
+		update_rect.x,     update_rect.y,
 		update_rect.width, update_rect.height);
 
 	gtk_widget_draw(widget, &update_rect);
 #else
-	if(last_x == -1)
+	if(x2 == -1)
 		return;
 
 	gdk_draw_line(
 			pixmap,
 			widget->style->black_gc,
 			x, y, x2, y2);
+
+#if 0
+	fprintf(stderr, "%2.2f, %2.2f -> %2.2f %2.2f\n",
+			x, y, x2, y2);
+#endif
 
 	gtk_widget_queue_draw_area(widget,
 			MIN(x,   x2),
@@ -57,13 +62,20 @@ draw_brush(GtkWidget *widget, gdouble x, gdouble y, gdouble x2, gdouble y2)
 #endif
 }
 
-void
-draw_brush_send(GtkWidget *widget, gdouble x, gdouble y, gdouble x2, gdouble y2)
+static void
+draw_brush_send(GtkWidget *widget, int x, int y)
 {
-	int got_draw(int, int, int, int, int);
+	int gui_draw_net(int, int, int, int, int);
 
-	if(!got_draw(x, y, x2, y2, 0))
-		draw_brush(widget, x, y, x2, y2);
+	if(y < 0 || y > pixheight)
+		/* kludge? */
+		return;
+
+	if(!gui_draw_net(x, y, last_x, last_y, 0)){ /* check we're connected, etc etc */
+		draw_brush(widget, x, y, last_x, last_y);
+		last_x = x;
+		last_y = y;
+	}
 }
 
 gboolean
@@ -74,8 +86,10 @@ on_drawan_configure(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
 
 	if(pixmap){
 		gdk_pixmap_unref(pixmap);
-		fprintf(stderr, "TODO: resize pixmap\n");
+		fprintf(stderr, "TODO: resize pixmap\r");
 	}
+
+	pixheight = widget->allocation.width;
 
 	pixmap = gdk_pixmap_new(widget->window,
 		widget->allocation.width,
@@ -92,7 +106,7 @@ on_drawan_configure(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
   return TRUE;
 }
 
-gint
+static gint
 on_drawan_expose(GtkWidget *widget, GdkEventExpose *event)
 {
   gdk_draw_pixmap(widget->window,
@@ -109,9 +123,9 @@ gint
 on_drawan_button_press(GtkWidget *widget, GdkEventButton *event)
 {
 	if(event->button == 1 && pixmap != NULL)
-		draw_brush_send(widget, event->x, event->y, last_x, last_y);
+		draw_brush_send(widget, event->x, event->y);
 
-	return TRUE;
+	return FALSE;
 }
 
 gint
@@ -136,10 +150,7 @@ on_drawan_motion(GtkWidget *widget, GdkEventMotion *event)
 	}
 
 	if(state & GDK_BUTTON1_MASK && pixmap != NULL)
-		draw_brush_send(widget, x, y, last_x, last_y);
-
-	last_x = x;
-	last_y = y;
+		draw_brush_send(widget, x, y);
 
 	return TRUE;
 }
@@ -154,8 +165,11 @@ void draw_init()
 			| GDK_EXPOSURE_MASK
 			| GDK_LEAVE_NOTIFY_MASK
 			| GDK_BUTTON_PRESS_MASK
+			| GDK_BUTTON_RELEASE_MASK
 			| GDK_POINTER_MOTION_MASK
-			| GDK_POINTER_MOTION_HINT_MASK);
+			| GDK_POINTER_MOTION_HINT_MASK
+			);
+
 	gtk_signal_connect(
 			GTK_OBJECT(drawanArea),
 			"expose_event",

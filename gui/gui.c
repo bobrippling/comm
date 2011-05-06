@@ -599,7 +599,7 @@ static void updatewidgets(void)
 	}
 }
 
-int got_draw(int x1, int y1, int x2, int y2, int col)
+int gui_draw_net(int x1, int y1, int x2, int y2, int col)
 {
 	if(comm_state(&commt) == COMM_ACCEPTED){
 		comm_draw(&commt, x1, y1, x2, y2, col);
