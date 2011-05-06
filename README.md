@@ -77,6 +77,11 @@ informational message (INFO)
 	PRIVMSG %s^]%s
 </pre>
 
+* Send draw info
+<pre>
+  D%d_%d_%d_%d
+</pre>
+
 Server -> Client
 -----------------
 

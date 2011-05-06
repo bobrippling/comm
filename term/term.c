@@ -41,6 +41,23 @@ void callback(enum comm_callbacktype type, const char *fmt, ...)
 			printf("got updated client list: %d other clients\n", comm_nclients(&ct));
 			for(clients = comm_clientlist(&ct); clients; clients = clients->next)
 				printf("client: %s\n", clients->name);
+			return;
+
+		case COMM_DRAW:
+#ifdef SHOW_COMM_DRAW
+		{
+			va_list l;
+			int x1, y1, x2, y2;
+
+			va_start(l, fmt);
+			comm_getdrawdata(l, &x1, &y1, &x2, &y2);
+			va_end(l);
+
+			printf("COMM_DRAW: %d,%d -> %d,%d\n", x1, y1, x2, y2);
+			return;
+		}
+#endif
+
 		case COMM_STATE_CHANGE:
 		case COMM_SELF_RENAME:
 			/* TODO */

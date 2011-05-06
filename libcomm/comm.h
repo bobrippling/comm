@@ -53,7 +53,8 @@ enum comm_callbacktype
 	COMM_CLIENT_CONN,
 	COMM_CLIENT_DISCO,
 	COMM_CLIENT_LIST,
-	COMM_STATE_CHANGE /* use comm_state() to do stuff */
+	COMM_STATE_CHANGE, /* use comm_state() to do stuff */
+	COMM_DRAW
 };
 
 typedef void (*comm_callback)(enum comm_callbacktype, const char *, ...);
@@ -72,6 +73,9 @@ int comm_su(comm_t *, const char *pass);
 int comm_privmsg(comm_t *, const char *name, const char *msg);
 int comm_rels(comm_t *);
 int comm_colour(comm_t *, const char *col);
+
+int comm_draw(comm_t *, int x, int y, int last_x, int last_y, int colour);
+void comm_getdrawdata(va_list l, int *, int *, int *, int *);
 
 void comm_close(comm_t *);
 

@@ -351,7 +351,15 @@ char svr_recv(int idx)
 			return 1;
 		}
 	}else{
-		if(!strncmp(in, "MESSAGE ", 8)){
+		if(*in == 'D'){
+			int i;
+
+			/* dumb forward */
+			for(i = 0; i < nclients; i++)
+				if(clients[i].state == ACCEPTED && i != idx)
+					toclientf(i, "%s", in);
+
+		}else if(!strncmp(in, "MESSAGE ", 8)){
 			int i;
 
 			if(!strlen(in + 8)){
@@ -714,7 +722,7 @@ int setup()
 
 int main(int argc, char **argv)
 {
-	int i, log = 0, gotpass = 0;
+	int i, log = 0;
 
 	starttime = time(NULL);
 	strcpy(glob_port, DEFAULT_PORT);
@@ -752,7 +760,6 @@ int main(int argc, char **argv)
 
 		}else if(!strncmp(argv[i], "-P", 2)){
 			if(++i < argc){
-				gotpass = 1;
 				strncpy(glob_pass, argv[i], sizeof glob_pass);
 				memset(argv[i], '*', strlen(argv[i])); /* too late, but eh... */
 			}else{
@@ -844,13 +851,14 @@ int main(int argc, char **argv)
 				/* parent */
 				return 0;
 		}
-	}else
-		printf("Comm v"VERSION_STR" %d Server init\n", getpid());
+	}
 
 	setvbuf(stdout, NULL, _IONBF, 0);
 
 	if(setup())
 		return 1;
+
+	printf("Comm v"VERSION_STR" %d Server init @ localhost:%s\n", getpid(), glob_port);
 
 #define INTERRUPT_WRAP(funcall, failcode) \
 	while(!(funcall)) \

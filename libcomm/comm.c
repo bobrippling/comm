@@ -182,7 +182,13 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 
 		case COMM_ACCEPTED:
 			/* normal message */
-			if(!strncmp(buffer, "MESSAGE ", 8))
+			if(*buffer == 'D'){
+				int x1, y1, x2, y2;
+
+				if(sscanf(buffer+1, "%d_%d_%d_%d", &x1, &y1, &x2, &y2) == 4)
+					callback(COMM_DRAW, NULL, x1, y1, x2, y2);
+
+			}else if(!strncmp(buffer, "MESSAGE ", 8))
 				callback(COMM_MSG, "%s", buffer + 8);
 
 			else if(!strncmp(buffer, "PRIVMSG ", 8))
@@ -615,4 +621,12 @@ closeconn:
 
 		/* continue, look for next message */
 	}
+}
+
+void comm_getdrawdata(va_list l, int *x1, int *y1, int *x2, int *y2)
+{
+	*x1 = va_arg(l, int);
+	*y1 = va_arg(l, int);
+	*x2 = va_arg(l, int);
+	*y2 = va_arg(l, int);
 }
