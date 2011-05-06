@@ -1,13 +1,19 @@
 #ifndef LIBCOMM_H
 #define LIBCOMM_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+enum commstate
+{
+	COMM_DISCONNECTED, COMM_CONNECTING,
+	COMM_VERSION_WAIT, COMM_NAME_WAIT, COMM_ACCEPTED
+};
+
 typedef struct
 {
-	enum commstate
-	{
-		COMM_DISCONNECTED, COMM_CONNECTING,
-		COMM_VERSION_WAIT, COMM_NAME_WAIT, COMM_ACCEPTED
-	} state;
+ enum commstate	state;
 
 	struct sockaddr_in hostaddr;
 	int port;
@@ -76,5 +82,9 @@ int            comm_nclients(comm_t *);
 struct list   *comm_clientlist(comm_t *);
 const char    *comm_getname(   comm_t *);
 const char    *comm_getcolour( comm_t *, const char *name);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
