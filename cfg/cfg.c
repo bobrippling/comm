@@ -118,7 +118,7 @@ int config_write()
 
 #ifndef _WIN32
 	if(!write){
-		puts("not writing new config");
+		fputs("not writing new config\n", stderr);
 		return 0;
 	}
 #endif
