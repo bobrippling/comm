@@ -1,7 +1,7 @@
 #ifndef WRAPPER_H
 #define WRAPPER_H
 
-int connectedsock(const char *host, const char *port);
+int connectedsock(const char *host, const char *port, struct sockaddr *);
 const char *addrtostr(struct sockaddr *ad);
 const char *lastsockerr(void);
 

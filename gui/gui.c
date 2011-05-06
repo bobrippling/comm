@@ -599,9 +599,13 @@ static void updatewidgets(void)
 	}
 }
 
-void got_draw(int x1, int y1, int x2, int y2, int col)
+int got_draw(int x1, int y1, int x2, int y2, int col)
 {
-	comm_draw(&commt, x1, y1, x2, y2, col);
+	if(comm_state(&commt) == COMM_ACCEPTED){
+		comm_draw(&commt, x1, y1, x2, y2, col);
+		return 0;
+	}
+	return 1;
 }
 
 static int getobjects(GtkBuilder *b)

@@ -60,10 +60,10 @@ draw_brush(GtkWidget *widget, gdouble x, gdouble y, gdouble x2, gdouble y2)
 void
 draw_brush_send(GtkWidget *widget, gdouble x, gdouble y, gdouble x2, gdouble y2)
 {
-	void got_draw(int, int, int, int, int);
+	int got_draw(int, int, int, int, int);
 
-	draw_brush(widget, x, y, x2, y2);
-	got_draw(x, y, x2, y2, 0); /* TODO: colour */
+	if(!got_draw(x, y, x2, y2, 0))
+		draw_brush(widget, x, y, x2, y2);
 }
 
 gboolean

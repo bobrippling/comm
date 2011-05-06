@@ -26,7 +26,7 @@ typedef struct
 	} *clientlist;
 	int listing;
 
-	int sock;
+	int sock, udpsock;
 #ifndef _WIN32
 	FILE *sockf;
 	/*

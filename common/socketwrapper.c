@@ -39,7 +39,7 @@ const char *lastsockerr()
 	/* libcomm handles NULL and converts to a WSA_... error instead */
 }
 
-int connectedsock(const char *host, const char *port)
+int connectedsock(const char *host, const char *port, struct sockaddr *peeraddr)
 {
 	struct addrinfo hints, *ret = NULL, *dest = NULL;
 	int sock = -1, lastconnerr = 0;
@@ -69,8 +69,11 @@ int connectedsock(const char *host, const char *port)
 			continue;
 		}
 
-		if(connect(sock, dest->ai_addr, dest->ai_addrlen) == 0)
+		if(connect(sock, dest->ai_addr, dest->ai_addrlen) == 0){
+			if(peeraddr)
+				memcpy(peeraddr, dest->ai_addr, sizeof *peeraddr);
 			break;
+		}
 
 		if(errno)
 #if DEBUG

@@ -1,7 +1,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#define VERSION_STR      "0.5"
+#define VERSION_STR      "0.6"
 #define VERSION_MAJOR    ((VERSION_STR)[0] - '0')
 #define VERSION_MINOR    ((VERSION_STR)[2] - '0')
 
@@ -13,6 +13,7 @@
 
 #define MAX_LINE_LEN     2048
 #define MAX_CFG_LEN      128
+#define MAX_UDP_PACKET   64
 
 #define DEFAULT_BROWSER  "firefox"
 #define DEFAULT_PORT     "2848"

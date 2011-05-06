@@ -50,6 +50,7 @@ static int  comm_changename(comm_t *ct, const char *from, const char *to);
 static int  comm_setcolour( comm_t *ct, const char *name, const char *col);
 static void comm_removename(comm_t *ct, const char *name);
 static void comm_freenames( comm_t *ct);
+static int comm_udpsetup(   comm_t *ct, struct sockaddr *svraddr);
 
 static int comm_process(comm_t *ct, char *buffer, comm_callback callback);
 static void comm_setlasterr(comm_t *);
@@ -304,12 +305,25 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 
 			if(sscanf(buffer, "Comm v%d.%d", &maj, &min) == 2){
 				if(maj == VERSION_MAJOR && min == VERSION_MINOR){
+					int port;
+
 					callback(COMM_INFO, "%s Version OK: %d.%d, checking name...",
 							desc_space ? desc_space + 1 : "Server",
 							maj, min);
+
+					{
+						struct sockaddr_in addr;
+						socklen_t len = sizeof addr;
+						if(getsockname(ct->udpsock, (struct sockaddr *)&addr, &len) == -1)
+							port = 0;
+						else
+							port = ntohs(addr.sin_port);
+					}
+
+					TO_SERVER_F("ME %s%c%d", ct->name, GROUP_SEPARATOR, port);
+
 					ct->state = COMM_NAME_WAIT;
 					callback(COMM_STATE_CHANGE, NULL);
-					TO_SERVER_F("NAME %s", ct->name);
 				}else{
 					callback(COMM_ERR, "Server version mismatch: %d.%d", maj, min);
 					ct->lasterr = "Server version mismatch";
@@ -389,9 +403,33 @@ void comm_init(comm_t *ct)
 	ct->sock = -1;
 }
 
+static int comm_udpsetup(comm_t *ct, struct sockaddr *svraddr)
+{
+	struct sockaddr_in addr;
+
+	if((ct->udpsock = socket(PF_INET, SOCK_DGRAM, 0)) == -1)
+		goto bail;
+
+	memset(&addr, 0, sizeof addr);
+
+	if(bind(ct->udpsock, (struct sockaddr *)&addr, sizeof addr) == -1)
+		goto bail;
+
+	/* peer addr */
+	if(connect(ct->udpsock, svraddr, sizeof(struct sockaddr_in /*bodge*/)) == -1)
+		goto bail;
+
+	return 0;
+bail:
+	comm_setlasterr(ct);
+	return 1;
+}
+
 int comm_connect(comm_t *ct, const char *host,
 		const char *port, const char *name)
 {
+	struct sockaddr svraddr;
+
 #ifdef _WIN32
 	if(!wsastartup_called){
 		WSADATA wsaBullshitWhyTheHellWouldIWantThisEverQuestionMark;
@@ -407,6 +445,9 @@ int comm_connect(comm_t *ct, const char *host,
 		}
 	}
 #endif
+	if(ct->name)
+		free(ct->name);
+
 	ct->name = malloc(strlen(name) + 1);
 	if(!ct->name){
 		ct->lasterr = strerror(errno);
@@ -418,8 +459,11 @@ int comm_connect(comm_t *ct, const char *host,
 		port = DEFAULT_PORT;
 
 	/* TODO: async */
-	if((ct->sock = connectedsock(host, port)) == -1)
+	if((ct->sock = connectedsock(host, port, &svraddr)) == -1)
 		goto bail_noclose;
+
+	if(comm_udpsetup(ct, &svraddr))
+		goto bail;
 
 #ifndef _WIN32
 	ct->sockf = fdopen(ct->sock, "r+");
@@ -565,11 +609,9 @@ int comm_recv(comm_t *ct, comm_callback callback)
 		fd_set set;
 		struct timeval timeout;
 
-		char buffer[MAX_LINE_LEN] = { 0 };
-		int ret;
-
 		FD_ZERO(&set);
-		FD_SET(ct->sock, &set);
+		FD_SET(ct->sock,    &set);
+		FD_SET(ct->udpsock, &set);
 
 		timeout.tv_sec = 0;
 		timeout.tv_usec = 1000 /* 1 ms */;
@@ -588,37 +630,49 @@ int comm_recv(comm_t *ct, comm_callback callback)
 		}
 
 		/* got data */
-		ret = recv(ct->sock, buffer, MAX_LINE_LEN, MSG_PEEK);
+		if(FD_ISSET(ct->sock, &set)){
+			char buffer[MAX_LINE_LEN] = { 0 };
+			int ret = recv(ct->sock, buffer, MAX_LINE_LEN, MSG_PEEK);
 
-		if(ret == 0){
-			/* disco */
+			if(ret == 0){
+				/* disco */
 #ifdef _WIN32
-closeconn:
+	closeconn:
 #endif
-			comm_close(ct);
-			callback(COMM_STATE_CHANGE, NULL);
-			ct->lasterr = "server disconnect";
-			return 1;
-		}else if(ret < 0){
+				comm_close(ct);
+				callback(COMM_STATE_CHANGE, NULL);
+				ct->lasterr = "server disconnect";
+				return 1;
+			}else if(ret < 0){
 #ifdef _WIN32
-			switch(errno){
-				case WSAECONNRESET:
-				case WSAECONNABORTED:
-				case WSAESHUTDOWN:
-					goto closeconn;
-				/*case WSAEWOULDBLOCK:*/
+				switch(errno){
+					case WSAECONNRESET:
+					case WSAECONNABORTED:
+					case WSAESHUTDOWN:
+						goto closeconn;
+					/*case WSAEWOULDBLOCK:*/
+				}
+#endif
+				comm_setlasterr(ct);
+				return 1;
 			}
-#endif
-			comm_setlasterr(ct);
-			return 1;
+
+			if(recv_newline(buffer, ret, ct->sock, LIBCOMM_RECV_TIMEOUT))
+				/* not full */
+				return 0;
+			if(comm_process(ct, buffer, callback))
+				return 1;
 		}
 
-		if(recv_newline(buffer, ret, ct->sock, LIBCOMM_RECV_TIMEOUT))
-			/* not full */
-			return 0;
-		if(comm_process(ct, buffer, callback))
-			return 1;
+		if(FD_ISSET(ct->udpsock, &set)){
+			char buffer[MAX_UDP_PACKET];
+			int ret = recvfrom(ct->udpsock, buffer, sizeof buffer, 0, NULL, NULL);
 
+			if(ret <= 0)
+				fprintf(stderr, "comm_recv(): udp recvfrom(): %s\n", strerror(errno));
+			else if(comm_process(ct, buffer, callback))
+				return 1;
+		}
 		/* continue, look for next message */
 	}
 }
@@ -626,7 +680,12 @@ closeconn:
 int comm_draw(comm_t *ct, int x, int y, int x2, int y2, int colour)
 {
 	/* TODO: colour */
-	return TO_SERVER_F("D%d_%d_%d_%d", x, y, x2, y2);
+	char buffer[MAX_UDP_PACKET];
+	int len;
+
+	len = snprintf(buffer, sizeof buffer, "D%d_%d_%d_%d", x, y, x2, y2);
+
+	return sendto(ct->udpsock, buffer, len, 0, NULL, 0);
 }
 
 void comm_getdrawdata(va_list l, int *x1, int *y1, int *x2, int *y2)
