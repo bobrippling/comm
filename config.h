@@ -13,7 +13,7 @@
 
 #define MAX_LINE_LEN     2048
 #define MAX_CFG_LEN      128
-#define MAX_UDP_PACKET   64
+#define MAX_UDP_PACKET   128
 
 #define DEFAULT_BROWSER  "firefox"
 #define DEFAULT_PORT     "2848"

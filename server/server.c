@@ -109,6 +109,7 @@ int  nonblock(int);
 int  validname(const char *);
 int  toclientf(int, const char *, ...);
 void freeclient(int);
+int  findclient(const char *name);
 
 char svr_conn(int);
 char svr_recv(int);
@@ -172,6 +173,15 @@ int validname(const char *n)
 		if(!((isgraph(*p) || *p == ' ') || *p < 0))
 			return 0;
 	return 1;
+}
+
+int findclient(const char *name)
+{
+	int i;
+	for(i = 0; i < nclients; i++)
+		if(!strcmp(name, clients[i].name))
+			return i;
+	return -1;
 }
 
 char *trim(char *s)
@@ -307,7 +317,7 @@ char svr_recv(int idx)
 
 	if(clients[idx].state == ACCEPTING){
 		if(!strncmp(in, "ME ", 3)){
-			char *extra = in + 5, *esc;
+			char *extra = in + 3, *esc;
 			int len = strlen(extra), i;
 			int udpport;
 
@@ -882,15 +892,19 @@ int poll_udp()
 {
 	ssize_t ret;
 	char buf[MAX_UDP_PACKET];
+	char *iter;
 	socklen_t fromlen;
 	struct sockaddr_in from;
 	int id;
 
 start:
 	fromlen = 0;
+	memset(&from, 0, sizeof from);
 
-	ret = recvfrom(udpserver, buf, sizeof buf,
-		0, (struct sockaddr *)&from, &fromlen);
+	ret = recvfrom(udpserver, buf, sizeof buf - 1, 0,
+		(struct sockaddr *)&from, &fromlen);
+
+	buf[sizeof buf - 1] = '\0';
 
 	if(ret == -1){
 		if(errno == EINTR || errno == EAGAIN)
@@ -899,19 +913,26 @@ start:
 		return 1;
 	}
 
-	if(sscanf(buf, "D%d_%*d_%*d_%*d_%*d", &id) == 1){
-		int i;
+	/* format is name^]packet data */
+	iter = memchr(buf, GROUP_SEPARATOR, ret);
+	if(iter){
+		*iter++ = '\0';
+		id = findclient(buf);
 
-		for(i = 0; i < nclients; i++)
-			if(i != id){
-					ret = sendto(udpserver, buf, ret,
-							0, (struct sockaddr *)&clients[i].uaddr,
-							sizeof clients[i].uaddr);
+		if(id != -1){
+			int i;
 
-					if(ret == -1)
-						perror("udp sendto()");
-				}
+			ret = strlen(iter);
 
+			for(i = 0; i < nclients; i++)
+				if(i != id){
+						if(sendto(udpserver, iter, ret,
+								0, (struct sockaddr *)&clients[i].uaddr,
+								sizeof clients[i].uaddr) == -1)
+							perror("udp sendto()");
+					}
+		}else if(verbose >= DEBUG_ERROR)
+			fprintf(stderr, "no owner for udp packet from %s\n", inet_ntoa(from.sin_addr));
 
 	}else if(verbose >= DEBUG_ERROR)
 		fprintf(stderr, "got invalid udp packet from %s\n", inet_ntoa(from.sin_addr));
