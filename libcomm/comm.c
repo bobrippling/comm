@@ -623,6 +623,12 @@ closeconn:
 	}
 }
 
+int comm_draw(comm_t *ct, int x, int y, int x2, int y2, int colour)
+{
+	/* TODO: colour */
+	return TO_SERVER_F("D%d_%d_%d_%d", x, y, x2, y2);
+}
+
 void comm_getdrawdata(va_list l, int *x1, int *y1, int *x2, int *y2)
 {
 	*x1 = va_arg(l, int);

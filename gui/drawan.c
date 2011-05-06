@@ -7,7 +7,7 @@ static int last_x = -1, last_y = -1;
 #define DRAW_SIZE 2
 
 void
-draw_brush(GtkWidget *widget, gdouble x, gdouble y)
+draw_brush(GtkWidget *widget, gdouble x, gdouble y, gdouble x2, gdouble y2)
 {
 #if 0
 	gdk_draw_line()
@@ -46,15 +46,24 @@ draw_brush(GtkWidget *widget, gdouble x, gdouble y)
 	gdk_draw_line(
 			pixmap,
 			widget->style->black_gc,
-			x, y, last_x, last_y);
+			x, y, x2, y2);
 
 	gtk_widget_queue_draw_area(widget,
-			MIN(x, last_x),
-			MIN(y, last_y),
-			fabs(x - last_x) + DRAW_SIZE,
-			fabs(y - last_y) + DRAW_SIZE
+			MIN(x,   x2),
+			MIN(y,   y2),
+			fabs(x - x2) + DRAW_SIZE,
+			fabs(y - y2) + DRAW_SIZE
 			);
 #endif
+}
+
+void
+draw_brush_send(GtkWidget *widget, gdouble x, gdouble y, gdouble x2, gdouble y2)
+{
+	void got_draw(int, int, int, int, int);
+
+	draw_brush(widget, x, y, x2, y2);
+	got_draw(x, y, x2, y2, 0); /* TODO: colour */
 }
 
 gboolean
@@ -100,7 +109,7 @@ gint
 on_drawan_button_press(GtkWidget *widget, GdkEventButton *event)
 {
 	if(event->button == 1 && pixmap != NULL)
-		draw_brush(widget, event->x, event->y);
+		draw_brush_send(widget, event->x, event->y, last_x, last_y);
 
 	return TRUE;
 }
@@ -127,7 +136,7 @@ on_drawan_motion(GtkWidget *widget, GdkEventMotion *event)
 	}
 
 	if(state & GDK_BUTTON1_MASK && pixmap != NULL)
-		draw_brush(widget, x, y);
+		draw_brush_send(widget, x, y, last_x, last_y);
 
 	last_x = x;
 	last_y = y;

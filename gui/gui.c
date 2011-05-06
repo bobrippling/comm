@@ -431,6 +431,19 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 
 #define TYPE(e, s, c, l) case e: type_str = s; col = c; logadd = l; break
 	switch(type){
+		case COMM_DRAW:
+		{
+			int x1, y1, x2, y2;
+			va_list l;
+
+			va_start(l, fmt);
+			comm_getdrawdata(l, &x1, &y1, &x2, &y2);
+			va_end(l);
+
+			draw_brush(drawanArea, x1, y1, x2, y2);
+			return;
+		}
+
 		TYPE(COMM_INFO,         "Info",         COLOUR_INFO, 1);
 		TYPE(COMM_SERVER_INFO,  "Server Info",  COLOUR_INFO, 1);
 		TYPE(COMM_RENAME,       "Rename",       COLOUR_INFO, 1);
@@ -533,6 +546,7 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 		case COMM_SELF_RENAME:
 		case COMM_CLIENT_LIST:
 		case COMM_STATE_CHANGE:
+		case COMM_DRAW:
 			break;
 	}
 }
@@ -583,6 +597,11 @@ static void updatewidgets(void)
 			gtk_widget_set_sensitive(btnSend,        cs == COMM_ACCEPTED);
 			break;
 	}
+}
+
+void got_draw(int x1, int y1, int x2, int y2, int col)
+{
+	comm_draw(&commt, x1, y1, x2, y2, col);
 }
 
 static int getobjects(GtkBuilder *b)
