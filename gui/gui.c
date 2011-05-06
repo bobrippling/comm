@@ -26,6 +26,7 @@
 #include "gladegen.h"
 #include "priv.h"
 #include "../config.h"
+#include "drawan.h"
 
 #define WIN_MAIN       "winMain"
 #define GLADE_XML_FILE "tmp.glade"
@@ -61,6 +62,7 @@ static GtkWidget *winMain, *colorseldiag;
 static GtkWidget *entryHost, *entryIn, *entryName; /* Gtk_Entry */
 static GtkWidget *btnConnect, *btnDisconnect, *btnSend;
 static GtkWidget *colorsel;
+GtkWidget *drawanArea;
 
 static comm_t   commt;
 static GdkColor var_color;
@@ -85,6 +87,8 @@ G_MODULE_EXPORT gboolean on_winMain_destroy(void)
 	config_write();
 
 	gtkutil_cleanup();
+
+	draw_term();
 
 	gtk_main_quit(); /* gtk exit here only */
 	return FALSE;
@@ -606,6 +610,8 @@ static int getobjects(GtkBuilder *b)
 	GET_WIDGET(colorseldiag);
 	GET_WIDGET(colorsel);
 
+	GET_WIDGET(drawanArea);
+
 	return 0;
 #undef GET_WIDGET
 }
@@ -711,6 +717,7 @@ int main(int argc, char **argv)
 	}
 
 #ifdef _WIN32
+	/* the usual shit */
 	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
 	if(!debug)
 		FreeConsole();
@@ -731,7 +738,7 @@ int main(int argc, char **argv)
 		return 1;
 
 	if(!gtk_builder_add_from_file(builder, GLADE_XML_FILE, &error)){
-		g_warning("%s", error->message);
+		g_warning("%s - dying", error->message);
 		/*g_free(error);*/
 		return 1;
 	}
@@ -743,6 +750,8 @@ int main(int argc, char **argv)
 	gtk_builder_connect_signals(builder, NULL);
 
 	glist_init(&clientlist, treeClients);
+
+	draw_init();
 
 	/* don't need it anymore */
 	g_object_unref(G_OBJECT(builder));
