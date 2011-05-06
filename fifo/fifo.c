@@ -180,6 +180,9 @@ void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 			fname = file_output;
 			break;
 
+		case COMM_DRAW:
+			return;
+
 		case COMM_CLIENT_LIST:
 		case COMM_SELF_RENAME:
 		{
@@ -252,7 +255,7 @@ int lewp()
 {
 	struct pollfd pfd[2];
 	static char buffer[MAX_LINE_LEN], *nl;
-	int nread, saverrno;
+	int nread;
 
 	pfd[0].fd     = fd_input;
 	pfd[1].fd     = fd_cmd;
@@ -275,7 +278,6 @@ int lewp()
 
 #define READ(fd) \
 			nread = read(fd, buffer, MAX_LINE_LEN); \
-			saverrno = errno; \
 	 \
 			switch(nread){ \
 				case -1: \
