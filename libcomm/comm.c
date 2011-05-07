@@ -302,7 +302,7 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 
 					{
 						struct sockaddr_in addr;
-						socklen_t len = sizeof addr;
+						int len = sizeof addr;
 						if(getsockname(ct->udpsock, (struct sockaddr *)&addr, &len) == -1)
 							port = 0;
 						else
@@ -408,6 +408,7 @@ static int comm_udpsetup(comm_t *ct, struct sockaddr *svraddr)
 		goto bail;
 
 	memset(&addr, 0, sizeof addr);
+	addr.sin_family = AF_INET;
 
 	if(bind(ct->udpsock, (struct sockaddr *)&addr, sizeof addr) == -1)
 		goto bail;
@@ -474,11 +475,9 @@ int comm_connect(comm_t *ct, const char *host,
 	ct->state = COMM_VERSION_WAIT;
 
 	return 0;
-#ifndef _WIN32
 bail:
 	fputs("conn_connect(): bail\n", stderr);
 	CLOSE(ct);
-#endif
 bail_noclose:
 	fputs("conn_connect(): bail_noclose\n", stderr);
 #ifdef _WIN32

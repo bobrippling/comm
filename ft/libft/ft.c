@@ -53,6 +53,10 @@ struct tcp_keepalive {
 
 # define G_DIR_SEPARATOR '\\'
 
+# define EINPROGRESS WSAEINPROGRESS
+# define EALREADY WSAEALREADY
+# define ECONNRESET WSAECONNRESET
+
 #else
 # define _POSIX_C_SOURCE 200809L
 # define _XOPEN_SOURCE   501
@@ -138,7 +142,7 @@ static int WSA_Startuped = 0;
 			FT_LAST_ERR_NET(); \
 			return 1; \
 		} \
-		ft_async(ft) = async(ft); \
+		ft_async(ft) = async; \
 	} \
 	memset(ft,    '\0', sizeof *ft); \
 	memset(&addr, '\0', sizeof addr);
@@ -209,6 +213,11 @@ static ssize_t ft_net_recv(struct filetransfer *ft, ft_callback cb,       void *
 
 static void ft_block(struct filetransfer *ft, int block)
 {
+#ifdef _WIN32
+	u_long arg = !block;
+
+	ioctlsocket(ft->sock, FIONBIO, &arg);
+#else
 	int flags = fcntl(ft->sock, F_GETFL);
 
 	if(flags == -1)
@@ -219,6 +228,7 @@ static void ft_block(struct filetransfer *ft, int block)
 		flags |=  O_NONBLOCK;
 
 	fcntl(ft->sock, F_SETFL, flags);
+#endif
 }
 
 static size_t ft_getcallback_step(size_t siz)
@@ -412,6 +422,7 @@ static int ft_get_meta(struct filetransfer *ft,
 
 		if(thisread == 0){
 			FT_LAST_ERR(FT_ERR_PREMATURE_CLOSE, ECONNRESET);
+
 			return 1;
 		}else if(thisread == -1){
 			FT_LAST_ERR_NET();
@@ -1076,9 +1087,9 @@ int ft_connect(struct filetransfer *ft, const char *host, const char *port, ft_c
 					connected = 1;
 					memcpy(ft->addr, dest->ai_addr, sizeof(struct sockaddr_in));
 					break;
-				}else if(errno != EINPROGRESS && errno != EALREADY){
+				}else
+				if(errno != EINPROGRESS && errno != EALREADY)
 					break;
-				}
 
 				/* timeout, callback */
 				ft_sleep(ft, 250);

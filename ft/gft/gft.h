@@ -6,7 +6,7 @@
 /*# define GFT_USE_MANIFEST*/
 #endif
 
-#define CFG_USE_RADIO
+#undef CFG_USE_RADIO
 
 void gft_quit(void);
 

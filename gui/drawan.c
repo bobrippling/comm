@@ -80,7 +80,7 @@ draw_brush_send(GtkWidget *widget, int x, int y)
 	}
 }
 
-gboolean
+G_MODULE_EXPORT gboolean
 on_drawan_configure(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
 {
 	(void)event;
@@ -108,7 +108,7 @@ on_drawan_configure(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
   return TRUE;
 }
 
-static gint
+G_MODULE_EXPORT gint
 on_drawan_expose(GtkWidget *widget, GdkEventExpose *event)
 {
   gdk_draw_pixmap(widget->window,
@@ -121,7 +121,7 @@ on_drawan_expose(GtkWidget *widget, GdkEventExpose *event)
   return FALSE;
 }
 
-gint
+G_MODULE_EXPORT gint
 on_drawan_button_press(GtkWidget *widget, GdkEventButton *event)
 {
 	if(event->button == 1 && pixmap != NULL)
@@ -130,14 +130,14 @@ on_drawan_button_press(GtkWidget *widget, GdkEventButton *event)
 	return FALSE;
 }
 
-gint
+G_MODULE_EXPORT gint
 on_drawan_button_release()
 {
 	last_x = last_y = -1;
 	return FALSE;
 }
 
-gint
+G_MODULE_EXPORT gint
 on_drawan_motion(GtkWidget *widget, GdkEventMotion *event)
 {
 	int x, y;

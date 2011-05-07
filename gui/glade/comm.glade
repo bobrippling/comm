@@ -181,9 +181,11 @@
                     <property name="fixed_height_mode">True</property>
                     <property name="rubber_banding">True</property>
                     <property name="enable_grid_lines">horizontal</property>
+										<!--
                     <child internal-child="selection">
                       <object class="GtkTreeSelection" id="treeview-selection1"/>
                     </child>
+										-->
                   </object>
                   <packing>
                     <property name="expand">True</property>

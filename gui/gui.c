@@ -756,9 +756,8 @@ int main(int argc, char **argv)
 		return 1;
 
 	if(!gtk_builder_add_from_file(builder, GLADE_XML_FILE, &error)){
-		g_warning("%s - dying", error->message);
+		g_warning("gtk_builder_add_from_file(): %s", error->message);
 		/*g_free(error);*/
-		return 1;
 	}
 	gladegen_term();
 

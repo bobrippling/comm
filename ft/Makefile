@@ -6,6 +6,8 @@ endif
 
 all: ${TARGETS}
 
+winft: gft
+
 tft: tft.o libft/ft.o
 	@echo LD $@
 	$Q${CC} -o $@ $^ ${LDFLAGS}
@@ -23,7 +25,7 @@ gft_clean:
 clean: gft_clean
 	@rm -f *.o tft tftd
 
-.PHONY: all clean gft_clean gft
+.PHONY: all clean gft_clean gft winft
 
 include ../config.mk
 

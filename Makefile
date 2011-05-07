@@ -1,12 +1,12 @@
 .PHONY : clean mostlyclean all \
 	server libcomm term gui fifo \
-	ft gcommon
+	winft ft gcommon
 
 MAKE_PRE  = "--- make "
 MAKE_POST = " ---"
 
 all: server libcomm term gui fifo ft
-windows: libcomm comm.exe ft
+windows: libcomm comm.exe winft
 
 info:
 	@echo OS: $(shell uname -o)
@@ -34,6 +34,10 @@ gui: libcomm gcommon
 comm.exe: libcomm
 	@echo ${MAKE_PRE}$@${MAKE_POST}
 	$Qmake ${MAKEFLAGS} -C gui $@
+
+winft: gcommon
+	@echo ${MAKE_PRE}$@${MAKE_POST}
+	$Qmake ${MAKEFLAGS} -C ft $@
 
 ft: gcommon
 	@echo ${MAKE_PRE}$@${MAKE_POST}
