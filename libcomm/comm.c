@@ -21,6 +21,8 @@
 # define TO_SERVER_F(fmt, ...) sockprintf(ct->sock, fmt "\n", __VA_ARGS__)
 # define CLOSE(ct) closesocket(ct->sock)
 
+# define socklen_t int
+
 	static int wsastartup_called = 0;
 #else
 # include <sys/select.h>
@@ -302,7 +304,7 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 
 					{
 						struct sockaddr_in addr;
-						int len = sizeof addr;
+						socklen_t len = sizeof addr;
 						if(getsockname(ct->udpsock, (struct sockaddr *)&addr, &len) == -1)
 							port = 0;
 						else
