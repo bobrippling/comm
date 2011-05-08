@@ -478,13 +478,16 @@ int comm_connect(comm_t *ct, const char *host,
 
 	return 0;
 bail:
+#ifdef _WIN32
 	fputs("conn_connect(): bail\n", stderr);
+#endif
 	CLOSE(ct);
 bail_noclose:
-	fputs("conn_connect(): bail_noclose\n", stderr);
 #ifdef _WIN32
 	{
 		const char *tmp = win32_lasterr();
+
+		fputs("conn_connect(): bail_noclose\n", stderr);
 		if(tmp)
 			fprintf(stderr, "WSAGetLastError(): \"%s\"\n", tmp);
 	}
