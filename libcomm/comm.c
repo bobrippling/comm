@@ -178,7 +178,19 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 		case COMM_ACCEPTED:
 			/* normal message */
 			if(*buffer == 'D'){
-				callback(COMM_DRAW, buffer);
+				switch(buffer[1]){
+					case 'D':
+						callback(COMM_DRAW, buffer);
+						break;
+
+					case 'C':
+						callback(COMM_DRAW_CLEAR, NULL);
+						break;
+
+					default:
+						/* ignored */
+						break;
+				}
 
 			}else if(!strncmp(buffer, "MESSAGE ", 8))
 				callback(COMM_MSG, "%s", buffer + 8);
@@ -687,8 +699,19 @@ int comm_draw(comm_t *ct, int x, int y, int x2, int y2, int colour)
 	int len;
 
 	len = snprintf(buffer, sizeof buffer,
-			"%s%cD%d_%d_%d_%d",
+			"%s%cDD%d_%d_%d_%d",
 			ct->name, GROUP_SEPARATOR, x, y, x2, y2);
+
+	return sendto(ct->udpsock, buffer, len, 0, NULL, 0);
+}
+
+int comm_draw_clear(comm_t *ct)
+{
+	char buffer[MAX_UDP_PACKET];
+	int len;
+
+	len = snprintf(buffer, sizeof buffer,
+			"%s%cDC", ct->name, GROUP_SEPARATOR);
 
 	return sendto(ct->udpsock, buffer, len, 0, NULL, 0);
 }

@@ -13,5 +13,6 @@ void config_setname(const char *);
 void config_setport(const char *);
 void config_setlasthost(const char *);
 void config_setcolour(const char *);
+void config_setdrawcolour(const char *);
 
 #endif

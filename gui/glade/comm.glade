@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
-  <!-- interface-requires gtk+ 3.0 -->
+  <requires lib="gtk+" version="2.24"/>
   <object class="GtkWindow" id="winMain">
     <property name="can_focus">False</property>
     <property name="title" translatable="yes">Comm v2.0</property>
@@ -174,18 +174,98 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkTreeView" id="treeClients">
+                  <object class="GtkVBox" id="vboxSide">
                     <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="reorderable">True</property>
-                    <property name="fixed_height_mode">True</property>
-                    <property name="rubber_banding">True</property>
-                    <property name="enable_grid_lines">horizontal</property>
-										<!--
-                    <child internal-child="selection">
-                      <object class="GtkTreeSelection" id="treeview-selection1"/>
+                    <property name="can_focus">False</property>
+                    <child>
+                      <object class="GtkTreeView" id="treeClients">
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="reorderable">True</property>
+                        <property name="fixed_height_mode">True</property>
+                        <property name="rubber_banding">True</property>
+                        <property name="enable_grid_lines">horizontal</property>
+                        <child internal-child="selection">
+                          <object class="GtkTreeSelection" id="treeview-selection1"/>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="expand">True</property>
+                        <property name="fill">True</property>
+                        <property name="position">0</property>
+                      </packing>
                     </child>
-										-->
+                    <child>
+                      <object class="GtkHBox" id="hboxDraw">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <child>
+                          <object class="GtkLabel" id="lblWidth">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <property name="label" translatable="yes">Width:</property>
+                          </object>
+                          <packing>
+                            <property name="expand">True</property>
+                            <property name="fill">True</property>
+                            <property name="position">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkSpinButton" id="spinbtnDrawWidth">
+                            <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="invisible_char">●</property>
+                            <property name="truncate_multiline">True</property>
+                            <property name="invisible_char_set">True</property>
+                            <property name="climb_rate">0.050000000000000003</property>
+                            <property name="snap_to_ticks">True</property>
+                            <property name="numeric">True</property>
+                            <signal name="change-value" handler="on_drawwidth_change" swapped="no"/>
+                          </object>
+                          <packing>
+                            <property name="expand">True</property>
+                            <property name="fill">True</property>
+                            <property name="position">1</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkButton" id="btnDrawColour">
+                            <property name="label" translatable="yes">Colour</property>
+                            <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="receives_default">True</property>
+                            <property name="use_action_appearance">False</property>
+                            <signal name="clicked" handler="on_btnColour_clicked" swapped="no"/>
+                          </object>
+                          <packing>
+                            <property name="expand">True</property>
+                            <property name="fill">True</property>
+                            <property name="position">2</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkButton" id="btnDrawClear">
+                            <property name="label" translatable="yes">Clear</property>
+                            <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="receives_default">True</property>
+                            <property name="use_action_appearance">False</property>
+                            <signal name="clicked" handler="on_btnClear_clicked" swapped="no"/>
+                          </object>
+                          <packing>
+                            <property name="expand">True</property>
+                            <property name="fill">True</property>
+                            <property name="position">3</property>
+                          </packing>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
                   </object>
                   <packing>
                     <property name="expand">True</property>
@@ -317,9 +397,10 @@
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <signal name="button-press-event" handler="on_drawan_button_press" swapped="no"/>
-            <signal name="configure-event" handler="on_drawan_configure" swapped="no"/>
             <signal name="button-release-event" handler="on_drawan_button_release" swapped="no"/>
             <signal name="motion-notify-event" handler="on_drawan_motion" swapped="no"/>
+            <signal name="configure-event" handler="on_drawan_configure" swapped="no"/>
+            <signal name="expose-event" handler="on_drawan_draw" swapped="no"/>
           </object>
           <packing>
             <property name="expand">False</property>

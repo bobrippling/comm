@@ -3,63 +3,44 @@
 
 #include "drawan.h"
 
-static GdkPixmap *pixmap = NULL; /* backbuffer */
+static cairo_surface_t *surface = NULL;
+
 static int last_x = -1, last_y = -1;
 static int pixheight = 0;
+
+GdkColor draw_colour;
 
 #define DRAW_SIZE 2
 
 void
 draw_brush(GtkWidget *widget, int x, int y, int x2, int y2)
 {
-#if 0
-	gdk_draw_line()
-	gdk_draw_rectangle()
-	gdk_draw_arc()
-	gdk_draw_polygon()
-	gdk_draw_string()
-	gdk_draw_text()
-	gdk_draw_pixmap()
-	gdk_draw_bitmap()
-	gdk_draw_image()
-	gdk_draw_points()
-	gdk_draw_segments()
-
-	http://www.gtk.org/tutorial1.2/gtk_tut-23.html
-#endif
-
-#ifdef RECT_METHOD
 	GdkRectangle update_rect;
+	cairo_t *cr;
 
 	update_rect.x      = x - DRAW_SIZE;
 	update_rect.y      = y - DRAW_SIZE;
-	update_rect.width  = DRAW_SIZE * 2;
-	update_rect.height = DRAW_SIZE * 2;
+	update_rect.width  = 2 * DRAW_SIZE;
+	update_rect.height = 2 * DRAW_SIZE;
 
-	gdk_draw_rectangle(pixmap, widget->style->black_gc, TRUE,
-		update_rect.x,     update_rect.y,
-		update_rect.width, update_rect.height);
+	/* Paint to the surface, where we store our state */
+	cr = cairo_create(surface);
 
-	gtk_widget_draw(widget, &update_rect);
-#else
-	gdk_draw_line(
-			pixmap,
-			widget->style->black_gc,
-			x, y, x2, y2);
+	gdk_cairo_rectangle(cr, &update_rect); // FIXME
+	cairo_fill(cr);
 
-#if 0
-	fprintf(stderr, "%2.2f, %2.2f -> %2.2f %2.2f\n",
-			x, y, x2, y2);
-#endif
+	cairo_destroy(cr);
 
-	gtk_widget_queue_draw_area(widget,
-			MIN(x,   x2),
-			MIN(y,   y2),
-			fabs(x - x2) + DRAW_SIZE,
-			fabs(y - y2) + DRAW_SIZE
-			);
-#endif
+	/* Now invalidate the affected region of the drawing area. */
+	gdk_window_invalidate_rect(gtk_widget_get_window(widget), &update_rect, FALSE);
 }
+
+void draw_set_colour(GdkColor *col)
+{
+	// TODO
+
+}
+
 
 static void
 draw_brush_send(GtkWidget *widget, int x, int y)
@@ -83,40 +64,43 @@ draw_brush_send(GtkWidget *widget, int x, int y)
 G_MODULE_EXPORT gboolean
 on_drawan_configure(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
 {
+	GtkAllocation allocation;
+	cairo_t *cr;
+
 	(void)event;
 	(void)data;
 
-	if(pixmap){
-		gdk_pixmap_unref(pixmap);
-		fprintf(stderr, "TODO: resize pixmap\r");
-	}
+	if(surface)
+		cairo_surface_destroy(surface);
 
-	pixheight = widget->allocation.width;
+	gtk_widget_get_allocation(widget, &allocation);
+	surface = gdk_window_create_similar_surface(
+			gtk_widget_get_window(widget),
+			CAIRO_CONTENT_COLOR,
+			allocation.width, allocation.height);
 
-	pixmap = gdk_pixmap_new(widget->window,
-		widget->allocation.width,
-		widget->allocation.height,
-		-1);
+	/* Initialize the surface to white */
+	cr = cairo_create(surface);
 
-	gdk_draw_rectangle(pixmap,
-		widget->style->white_gc,
-		TRUE,
-		0, 0,
-		widget->allocation.width,
-		widget->allocation.height);
+	cairo_set_source_rgb(cr, 1, 1, 1);
+	cairo_paint(cr);
 
-  return TRUE;
+	cairo_destroy(cr);
+
+	/* We've handled the configure event, no need for further processing. */
+	return TRUE;
 }
 
 G_MODULE_EXPORT gint
-on_drawan_expose(GtkWidget *widget, GdkEventExpose *event)
+on_drawan_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
 {
-  gdk_draw_pixmap(widget->window,
-			widget->style->fg_gc[GTK_WIDGET_STATE(widget)],
-			pixmap,
-			event->area.x, event->area.y,
-			event->area.x, event->area.y,
-			event->area.width, event->area.height);
+	(void)widget;
+	(void)data;
+
+	if(cr){
+		cairo_set_source_surface(cr, surface, 0, 0);
+		cairo_paint(cr);
+	}
 
   return FALSE;
 }
@@ -124,7 +108,7 @@ on_drawan_expose(GtkWidget *widget, GdkEventExpose *event)
 G_MODULE_EXPORT gint
 on_drawan_button_press(GtkWidget *widget, GdkEventButton *event)
 {
-	if(event->button == 1 && pixmap != NULL)
+	if(event->button == 1 && surface)
 		draw_brush_send(widget, event->x, event->y);
 
 	return FALSE;
@@ -143,18 +127,19 @@ on_drawan_motion(GtkWidget *widget, GdkEventMotion *event)
 	int x, y;
 	GdkModifierType state;
 
-	if(event->is_hint){
-		gdk_window_get_pointer(event->window, &x, &y, &state);
-	}else{
-		x = event->x;
-		y = event->y;
-		state = event->state;
-	}
+	gdk_window_get_pointer(event->window, &x, &y, &state);
 
-	if(state & GDK_BUTTON1_MASK && pixmap != NULL)
+	if(state & GDK_BUTTON1_MASK && surface)
 		draw_brush_send(widget, x, y);
 
 	return TRUE;
+}
+
+void draw_clear()
+{
+	extern GtkWidget *drawanArea;
+
+	// TODO: cairo rectangle
 }
 
 void draw_init()
@@ -172,11 +157,7 @@ void draw_init()
 			| GDK_POINTER_MOTION_HINT_MASK
 			);
 
-	gtk_signal_connect(
-			GTK_OBJECT(drawanArea),
-			"expose_event",
-			(GtkSignalFunc) on_drawan_expose,
-			NULL);
+	memset(&draw_colour, 0, sizeof draw_colour);
 }
 
 void draw_term()

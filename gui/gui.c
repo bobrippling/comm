@@ -64,6 +64,8 @@ static GtkWidget *btnConnect, *btnDisconnect, *btnSend;
 static GtkWidget *colorsel;
 GtkWidget *drawanArea;
 
+static int coloursel_is_text = FALSE;
+
 static comm_t   commt;
 static GdkColor var_color;
 
@@ -80,6 +82,26 @@ GtkWidget *txtMain; /* GtkTextView */
 
 
 /* events */
+G_MODULE_EXPORT gboolean on_btnClear_clicked(void)
+{
+	draw_clear();
+	comm_draw_clear(&commt);
+	return FALSE;
+}
+
+G_MODULE_EXPORT gboolean on_btnColour_clicked(void)
+{
+	coloursel_is_text = FALSE;
+	gtk_widget_show(colorseldiag);
+	return FALSE;
+}
+
+G_MODULE_EXPORT gboolean on_drawwidth_change(void)
+{
+
+	return FALSE;
+}
+
 G_MODULE_EXPORT gboolean on_winMain_destroy(void)
 {
 	/* program quit +comm_free takes place at the end of main */
@@ -131,9 +153,9 @@ G_MODULE_EXPORT gboolean on_btnConnect_clicked(GtkButton *button, gpointer data)
 
 	if(!*name || !*hostdup){
 		if(!*name)
-			addtext(COLOUR_ERR, "Need name\n");
+			addtext(COLOUR_ERR, "Pray tell, who art thou?\n");
 		else
-			addtext(COLOUR_ERR, "Need host\n");
+			addtext(COLOUR_ERR, "Pray, to where am I to connect?\n");
 		return FALSE;
 	}
 
@@ -181,7 +203,7 @@ G_MODULE_EXPORT gboolean on_btnSend_clicked(GtkButton *button, gpointer data)
 		int send = 0;
 
 		if(!*txt){
-			addtext(COLOUR_ERR, "Need text!\n");
+			addtext(COLOUR_ERR, "My good sir, it is required that you enter text\n");
 			return FALSE;
 		}
 
@@ -228,9 +250,11 @@ G_MODULE_EXPORT gboolean on_entryIn_button_press_event(GtkWidget *widget,
 	UNUSED(func_data);
 
 	/* GDK_3BUTTON_PRESS for triple click - TODO: SU */
-	if(event->type == GDK_2BUTTON_PRESS)
+	if(event->type == GDK_2BUTTON_PRESS){
 		/* show colour choser */
+		coloursel_is_text = TRUE;
 		gtk_widget_show(colorseldiag);
+	}
 
 	return FALSE;
 }
@@ -347,7 +371,12 @@ G_MODULE_EXPORT gboolean on_colorsel_ok_clicked(GtkWidget *widget)
 
 	gtk_color_selection_get_current_color(GTK_COLOR_SELECTION(colorsel), &var_color);
 
-	gui_set_colour();
+	if(coloursel_is_text)
+		gui_set_colour();
+	else{
+		draw_set_colour(&var_color);
+		//config_setdrawcolour(); TODO
+	}
 
 	gtk_widget_hide(colorseldiag);
 
