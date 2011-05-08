@@ -1,19 +1,23 @@
-multicast host/client
-
 windows:
 	windows - unknown publisher - run don't run UAC
 	privmsg - show in new window OPTIONAL
 
 protocol:
 	/nudge
-	integrate file transfer
-	drawing
+	integrate file transfer?
 	"Tim is typing"
 	edit previous message (index - 1, ONLY) like Skype
 	devmode - caps lock + rename
+	acquire IP of user (for FT - TODO)
 
 server:
 	dump last 5 lines of chat when a new client connects
 
 gui:
-	move-to-$DISPLAY functionality
+	move-to-$DISPLAY functionality?
+	tray icon
+	menu
+	drawing colours
+	colour chooser - initialise with current colour
+	rtf text save
+	hyperlinks - y u no werk
