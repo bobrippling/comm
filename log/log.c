@@ -70,11 +70,14 @@ int log_init(void)
 	return 0;
 }
 
-void log_add(const char *msg)
+void log_add(const char *msg, const char *col)
 {
 	FILE *f = fopen(fname, "a");
 	if(f){
-		fprintf(f, "%s\n", msg);
+		if(col)
+			fprintf(f, "<font color=\"%s\">%s</font>\n", col, msg);
+		else
+			fprintf(f, "%s\n", msg);
 		fclose(f);
 	}
 }

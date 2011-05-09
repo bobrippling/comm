@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
-  <requires lib="gtk+" version="2.24"/>
+  <!-- interface-requires gtk+ 3.0 -->
   <object class="GtkWindow" id="winMain">
     <property name="can_focus">False</property>
     <property name="title" translatable="yes">Comm v2.0</property>
@@ -156,7 +156,7 @@
                   </object>
                   <packing>
                     <property name="expand">False</property>
-                    <property name="fill">True</property>
+                    <property name="fill">False</property>
                     <property name="padding">2</property>
                     <property name="position">0</property>
                   </packing>
@@ -262,7 +262,7 @@
                       </object>
                       <packing>
                         <property name="expand">False</property>
-                        <property name="fill">True</property>
+                        <property name="fill">False</property>
                         <property name="position">1</property>
                       </packing>
                     </child>
@@ -395,12 +395,7 @@
           <object class="GtkDrawingArea" id="drawanArea">
             <property name="height_request">120</property>
             <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <signal name="button-press-event" handler="on_drawan_button_press" swapped="no"/>
-            <signal name="button-release-event" handler="on_drawan_button_release" swapped="no"/>
-            <signal name="motion-notify-event" handler="on_drawan_motion" swapped="no"/>
-            <signal name="configure-event" handler="on_drawan_configure" swapped="no"/>
-            <signal name="expose-event" handler="on_drawan_draw" swapped="no"/>
+            <property name="can_focus">True</property>
           </object>
           <packing>
             <property name="expand">False</property>

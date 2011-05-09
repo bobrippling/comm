@@ -1,22 +1,26 @@
 #include <gtk/gtk.h>
 #include <math.h>
+#include <string.h>
 
 #include "drawan.h"
 
 static cairo_surface_t *surface = NULL;
 
 static int last_x = -1, last_y = -1;
-static int pixheight = 0;
 
 GdkColor draw_colour;
 
 #define DRAW_SIZE 2
+
+#define TRACE(x) fputs(x "\n", stderr)
 
 void
 draw_brush(GtkWidget *widget, int x, int y, int x2, int y2)
 {
 	GdkRectangle update_rect;
 	cairo_t *cr;
+
+	fprintf(stderr, "draw_brush()\n");
 
 	update_rect.x      = x - DRAW_SIZE;
 	update_rect.y      = y - DRAW_SIZE;
@@ -47,10 +51,6 @@ draw_brush_send(GtkWidget *widget, int x, int y)
 {
 	int gui_draw_net(int, int, int, int, int);
 
-	if(y < 0 || y > pixheight)
-		/* kludge? */
-		return;
-
 	if(last_x == -1) last_x = x;
 	if(last_y == -1) last_y = y;
 
@@ -66,6 +66,8 @@ on_drawan_configure(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
 {
 	GtkAllocation allocation;
 	cairo_t *cr;
+
+	TRACE("configure");
 
 	(void)event;
 	(void)data;
@@ -97,10 +99,10 @@ on_drawan_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
 	(void)widget;
 	(void)data;
 
-	if(cr){
-		cairo_set_source_surface(cr, surface, 0, 0);
-		cairo_paint(cr);
-	}
+	TRACE("draw");
+
+	cairo_set_source_surface(cr, surface, 0, 0);
+	cairo_paint(cr);
 
   return FALSE;
 }
@@ -108,15 +110,20 @@ on_drawan_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
 G_MODULE_EXPORT gint
 on_drawan_button_press(GtkWidget *widget, GdkEventButton *event)
 {
+	TRACE("press");
+
 	if(event->button == 1 && surface)
 		draw_brush_send(widget, event->x, event->y);
-
-	return FALSE;
+		return TRUE;
+	else
+		return FALSE;
 }
 
 G_MODULE_EXPORT gint
 on_drawan_button_release()
 {
+	TRACE("release");
+
 	last_x = last_y = -1;
 	return FALSE;
 }
@@ -127,9 +134,14 @@ on_drawan_motion(GtkWidget *widget, GdkEventMotion *event)
 	int x, y;
 	GdkModifierType state;
 
+	TRACE("motion");
+
+	if(!surface)
+		return FALSE;
+
 	gdk_window_get_pointer(event->window, &x, &y, &state);
 
-	if(state & GDK_BUTTON1_MASK && surface)
+	if(state & GDK_BUTTON1_MASK)
 		draw_brush_send(widget, x, y);
 
 	return TRUE;
@@ -139,17 +151,34 @@ void draw_clear()
 {
 	extern GtkWidget *drawanArea;
 
-	// TODO: cairo rectangle
 }
 
 void draw_init()
 {
 	extern GtkWidget *drawanArea;
 
+	memset(&draw_colour, 0, sizeof draw_colour);
+
+#if 0
+	drawanArea = gtk_drawing_area_new();
+	gtk_widget_set_size_request(drawanArea, 120, 120);
+	gtk_container_add(GTK_CONTAINER(vboxMain), drawanArea);
+#endif
+
+	TRACE("draw_init");
+
+	/* surface signals */
+	g_signal_connect(drawanArea, "draw",                  G_CALLBACK(on_drawan_draw),      NULL);
+	g_signal_connect(drawanArea, "configure-event",       G_CALLBACK(on_drawan_configure), NULL);
+
+	/* events */
+	g_signal_connect(drawanArea, "motion-notify-event",   G_CALLBACK(on_drawan_motion),         NULL);
+	g_signal_connect(drawanArea, "button-press-event",    G_CALLBACK(on_drawan_button_press),   NULL);
+	g_signal_connect(drawanArea, "button-release-event",  G_CALLBACK(on_drawan_button_release), NULL);
+
 	gtk_widget_set_events(
 			drawanArea,
 			gtk_widget_get_events(drawanArea)
-			| GDK_EXPOSURE_MASK
 			| GDK_LEAVE_NOTIFY_MASK
 			| GDK_BUTTON_PRESS_MASK
 			| GDK_BUTTON_RELEASE_MASK
@@ -157,9 +186,12 @@ void draw_init()
 			| GDK_POINTER_MOTION_HINT_MASK
 			);
 
-	memset(&draw_colour, 0, sizeof draw_colour);
+	TRACE("draw_init done");
 }
 
 void draw_term()
 {
+	if(surface)
+		cairo_surface_destroy(surface);
+	surface = NULL;
 }

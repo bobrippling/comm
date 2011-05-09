@@ -62,6 +62,7 @@ static GtkWidget *winMain, *colorseldiag;
 static GtkWidget *entryHost, *entryIn, *entryName; /* Gtk_Entry */
 static GtkWidget *btnConnect, *btnDisconnect, *btnSend;
 static GtkWidget *colorsel;
+GtkWidget *vboxMain;
 GtkWidget *drawanArea;
 
 static int coloursel_is_text = FALSE;
@@ -468,6 +469,10 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 			return;
 		}
 
+		case COMM_DRAW_CLEAR:
+			draw_clear();
+			return;
+
 		TYPE(COMM_INFO,         "Info",         COLOUR_INFO, 1);
 		TYPE(COMM_SERVER_INFO,  "Server Info",  COLOUR_INFO, 1);
 		TYPE(COMM_RENAME,       "Rename",       COLOUR_INFO, 1);
@@ -549,7 +554,7 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 		addtext(col, insertme);
 
 		if(logadd)
-			log_add(insertmel);
+			log_add(insertmel, col);
 	}
 
 	g_free(insertme);
@@ -571,6 +576,7 @@ static void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 		case COMM_CLIENT_LIST:
 		case COMM_STATE_CHANGE:
 		case COMM_DRAW:
+		case COMM_DRAW_CLEAR:
 			break;
 	}
 }
@@ -658,6 +664,7 @@ static int getobjects(GtkBuilder *b)
 	GET_WIDGET(colorsel);
 
 	GET_WIDGET(drawanArea);
+	GET_WIDGET(vboxMain);
 
 	return 0;
 #undef GET_WIDGET
@@ -786,7 +793,7 @@ int main(int argc, char **argv)
 
 	if(!gtk_builder_add_from_file(builder, GLADE_XML_FILE, &error)){
 		g_warning("gtk_builder_add_from_file(): %s", error->message);
-		/*g_free(error);*/
+		g_error_free(error);
 	}
 	gladegen_term();
 
