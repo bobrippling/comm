@@ -12,6 +12,7 @@ protocol:
 
 server:
 	dump last 5 lines of chat when a new client connects
+	udp hole punching for non-lan clients
 
 gui:
 	move-to-$DISPLAY functionality?
