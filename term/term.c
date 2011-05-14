@@ -44,6 +44,7 @@ void callback(enum comm_callbacktype type, const char *fmt, ...)
 			return;
 
 		case COMM_DRAW:
+		case COMM_DRAW_CLEAR:
 #ifdef SHOW_COMM_DRAW
 		{
 			va_list l;
