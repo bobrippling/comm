@@ -89,15 +89,17 @@ void beep()
 int callback(struct filetransfer *ft, enum ftstate state,
 		size_t bytessent, size_t bytestotal)
 {
-	if(state == FT_SENT || state == FT_RECIEVED){
-		clrtoeol();
-		oprintf("done: %s", ft_fname(ft));
-
-		if(state == FT_RECIEVED)
+	switch(state){
+		case FT_RECIEVED:
 			beep();
-		return 0;
-	}else if(state == FT_WAIT)
-		return 0;
+		case FT_SENT:
+			clrtoeol();
+			oprintf("%s: %s", state == FT_SENT ? "sent" : "received", ft_fname(ft));
+		case FT_WAIT:
+			return 0;
+		default:
+			break;
+	}
 
 	printf("\"%s\": %zd K / %zd K (%2.2f%%)\r", ft_basename(ft),
 			bytessent / 1024, bytestotal / 1024,
