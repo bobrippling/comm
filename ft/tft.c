@@ -487,8 +487,11 @@ int main(int argc, char **argv)
 				if(FD_ISSET(STDIN_FILENO, &fds))
 					/* got a file to send */
 					switch(send_from_stdin()){
-						case STDIN_SUCCESS:
 						case STDIN_EOF:
+							if(!isatty(STDIN_FILENO))
+								goto fin;
+
+						case STDIN_SUCCESS:
 							/* good to carry on */
 							continue;
 						case STDIN_ERR:
