@@ -62,6 +62,8 @@
 	}while(0)
 
 
+#define USING_GTK_2 1
+
 #include "../../config.h"
 
 #include "gladegen.h"
@@ -149,7 +151,9 @@ on_frmSend_drag_data_received(
 	UNUSED(y);
 	UNUSED(type);
 	UNUSED(time);
+	UNUSED(context);
 
+#if USING_GTK_2
 	if(datasel && datasel->length >= 0){
 		char *dup, *iter;
 
@@ -173,6 +177,20 @@ on_frmSend_drag_data_received(
 
 		g_free(dup);
 	}
+#else
+	if(datasel){
+		char **uris = gtk_selection_data_get_uris(datasel);
+
+		if(uris){
+			char **iter;
+
+			for(iter = uris; *iter; iter++)
+				queue_add_html(*iter);
+
+			g_strfreev(uris);
+		}
+	}
+#endif
 
 	return FALSE;
 }
@@ -256,7 +274,11 @@ on_btnListen_clicked(void)
 
 	settimeout(0);
 
+#ifdef USING_GTK_2
 	hostret = gtk_combo_box_get_active_text(GTK_COMBO_BOX(cboHost));
+#else
+	hostret = gtk_com
+#endif
 
 	port = strchr(hostret, ':');
 	if(!port)
@@ -301,7 +323,7 @@ on_btnConnect_clicked(void)
 	}
 
 	if(cfg_add(host))
-		gtk_combo_box_append_text(GTK_COMBO_BOX(cboHost), host);
+		gtk_combo_box_insert_text(GTK_COMBO_BOX(cboHost), 0, host);
 
 	port = strchr(host, ':');
 	if(port)
@@ -669,8 +691,8 @@ char *inputback(struct filetransfer *ft, enum ftinput type, const char *prompt, 
 	gtk_entry_set_text(GTK_ENTRY(ent), def);
 	gtk_button_set_label(GTK_BUTTON(btn), prompt);
 
-	g_signal_connect(G_OBJECT(btn), "clicked", G_CALLBACK(widget_generic_callback), &clicked);
-	g_signal_connect(G_OBJECT(win), "destroy", G_CALLBACK(widget_generic_callback), &winclosed);
+	g_signal_connect(G_OBJECT(btn), "clicked",  G_CALLBACK(widget_generic_callback), &clicked);
+	g_signal_connect(G_OBJECT(win), "destroy",  G_CALLBACK(widget_generic_callback), &winclosed);
 
 	gtk_container_add(GTK_CONTAINER(hbx), ent);
 	gtk_container_add(GTK_CONTAINER(hbx), btn);
@@ -906,6 +928,9 @@ static int getobjects(GtkBuilder *b)
 	gtk_container_add(GTK_CONTAINER(hbox), cboHost);
 	gtk_widget_set_visible(cboHost, TRUE);
 	/*gtk_box_reorder_child(GTK_BOX(hbox), cboHost, 0);*/
+	g_signal_connect(G_OBJECT(gtk_bin_get_child(GTK_BIN(cboHost))), "activate", G_CALLBACK(on_btnConnect_clicked), NULL);
+
+
 
 
 #define SCROLL_DO(scroll, tree, norder) \
