@@ -23,6 +23,11 @@ gui:
 	drawing colours
 	colour chooser - initialise with current colour
 	rtf text save
+	remember window dimensions
 
 libcomm:
 	fix callback - not variadic, something less poor
+
+tftd:
+	client connects on inet socket to give files to send
+	aka mpd-esque
