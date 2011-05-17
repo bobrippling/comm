@@ -22,3 +22,6 @@ gui:
 	colour chooser - initialise with current colour
 	rtf text save
 	hyperlinks - y u no werk
+
+libcomm:
+	fix callback - not variadic, something less poor

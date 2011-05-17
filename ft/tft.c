@@ -519,7 +519,6 @@ int main(int argc, char **argv)
 							goto fin;
 					}else{
 						/* disco */
-						oprintf("disconnected from %s", ft_remoteaddr(&ft));
 						goto fin;
 					}
 				}
@@ -529,6 +528,7 @@ int main(int argc, char **argv)
 	}while(stay_up || fname_idx > 0);
 
 fin:
+	oprintf("disconnected from %s", ft_remoteaddr(&ft));
 	ft_close(&ft);
 
 	return ret;
