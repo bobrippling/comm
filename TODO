@@ -15,13 +15,14 @@ server:
 	udp hole punching for non-lan clients
 
 gui:
+	fix windows text copying
+	fix URL clicking
 	move-to-$DISPLAY functionality?
 	tray icon
 	menu
 	drawing colours
 	colour chooser - initialise with current colour
 	rtf text save
-	hyperlinks - y u no werk
 
 libcomm:
 	fix callback - not variadic, something less poor
