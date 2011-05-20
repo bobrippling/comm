@@ -40,6 +40,10 @@ int recursive = 0, canbeep = 1;
 struct filetransfer ft;
 enum { OVERWRITE, RESUME, RENAME_ASK, RENAME, ASK } clobber_mode = ASK;
 
+char col_sent[] = "\033[31m",
+		 col_recv[] = "\033[34m",
+		 col_off [] = "\033[m";
+
 void fout(FILE *f, const char *fmt, va_list l)
 {
 	fprintf(f, "%s tft: ", now());
@@ -94,7 +98,12 @@ int callback(struct filetransfer *ft, enum ftstate state,
 			beep();
 		case FT_SENT:
 			clrtoeol();
-			oprintf("%s: %s", state == FT_SENT ? "sent" : "received", ft_fname(ft));
+			oprintf("%s%s: %s%s",
+					state == FT_SENT ? col_sent : col_recv,
+					state == FT_SENT ? "sent"   : "received",
+					ft_fname(ft),
+					col_off);
+
 		case FT_WAIT:
 			return 0;
 		default:
@@ -326,6 +335,9 @@ int main(int argc, char **argv)
 	signal(SIGQUIT, sigh);
 #endif
 
+	if(!isatty(STDOUT_FILENO))
+		*col_sent = *col_recv = *col_off = '\0';
+
 #define ARG(c) !strcmp(argv[i], "-" c)
 
 	for(i = 1; i < argc; i++)
@@ -348,7 +360,7 @@ int main(int argc, char **argv)
 
 		else if(ARG("B"))
 			canbeep = 0;
-		else if(ARG("U"))
+		else if(ARG("c"))
 			stay_up = 0;
 		else if(ARG("R"))
 			recursive = 1;
@@ -360,18 +372,18 @@ int main(int argc, char **argv)
 		}else{
 		usage:
 			fprintf(stderr,
-							"Usage: %s [-p port] [OPTS] [-l | host] [files...]"
+							"Usage: %s [-p port] [OPTS] [-l | host] [files...]\n"
 							"  -l: listen\n"
 							"  -R: send directories recursively\n"
 							"  -B: don't beep on file-receive\n"
-							"  -U: exit on eof/end of file arguments\n"
+							"  -c: exit on eof/end of file arguments\n"
 							" If file exists:\n"
 							"  -o: overwrite\n"
 							"  -a: rename incoming automatically\n"
 							"  -n: rename incoming\n"
 							"  -r: resume transfer\n"
 							"\n"
-							" Default Port: " FT_DEFAULT_PORT "\n"
+							"Default Port: " FT_DEFAULT_PORT "\n"
 					    , *argv);
 			return 1;
 		}
