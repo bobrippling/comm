@@ -406,7 +406,7 @@ char svr_recv(int idx)
 				MSG_FUNC("RENAME"     , handle_rename      ),
 				MSG_FUNC("COLOUR"     , handle_colour      ),
 				MSG_FUNC("KICK "      , handle_kick        ),
-				MSG_FUNC("SU "        , handle_su          )
+				MSG_FUNC("SU "        , handle_su          ),
 				MSG_FUNC("TYPING "    , handle_typing      )
 #undef MSG_FUNC
 			};
