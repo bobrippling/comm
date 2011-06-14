@@ -16,50 +16,58 @@ char *strdup(const char *);
 
 #define CFG_GFT_FNAME  "gft.cfg"
 
-static const char **hosts = NULL;
-static int nhosts = 0;
+struct list
+{
+	char *str;
+	struct list *next;
+} *hosts = NULL;
 
 int cfg_add(const char *host)
 {
-	const char **new, *start;
-	char *dup;
-	int i;
+	struct list *iter, *prev = NULL;
 
-	start = host;
-	while(isspace(*start))
-		start++;
+	for(iter = hosts; iter; prev = iter, iter = iter->next)
+		if(!strcmp(iter->str, host)){
+			if(prev){
+				prev->next = iter->next;
+				iter->next = hosts;
+				hosts = iter;
+			}/* else already head of the list */
 
-	if(!*start)
-		return 0;
-
-	for(i = 0; i < nhosts; i++)
-		if(!strcmp(hosts[i], host)){
-			/* move host[i] to the last position */
-			const char *save = hosts[i];
-			for(; i < nhosts - 1; i++)
-				hosts[i] = hosts[i+1];
-			hosts[i] = save;
 			return 0;
 		}
 
-	new = realloc(hosts, sizeof(*new) * ++nhosts);
-	if(!new)
+	iter = malloc(sizeof *iter);
+	if(!iter)
 		return 0;
 
-	hosts = new;
-	hosts[nhosts-1] = dup = strdup(host);
-
-	while(*dup && !isspace(*dup))
-		dup++;
-	if(isspace(*dup))
-		*dup = '\0';
+	iter->next = hosts;
+	iter->str  = strdup(host);
+	hosts = iter;
 
 	return 1;
 }
 
+void cfg_add_rev(const char *host)
+{
+	struct list *new, *last;
+
+	for(last = hosts; last && last->next; last = last->next);
+
+	if(last)
+		new = last->next = malloc(sizeof *new);
+	else
+		new = hosts      = malloc(sizeof *new);
+
+	if(!new)
+		return;
+
+	new->str  = strdup(host);
+	new->next = NULL;
+}
+
 void cfg_write()
 {
-	int i;
 	FILE *f;
 
 #ifdef _WIN32
@@ -106,8 +114,12 @@ void cfg_write()
 		}
 	}
 
-	for(i = 0; i < nhosts; i++)
-		fprintf(f, "HOST %s\n", hosts[i]);
+	{
+		struct list *iter;
+		for(iter = hosts; iter; iter = iter->next)
+			fprintf(f, "HOST %s\n", iter->str);
+	}
+
 
 	{
 		extern GtkWidget *chkTray;
@@ -156,12 +168,17 @@ void cfg_read(GtkWidget *cboHost)
 
 		if(!strncmp(line, "HOST ", 5)){
 			char *const h = line + 5;
-			cfg_add(h);
+
+			if(!hosts)
+				gtk_entry_set_text(GTK_ENTRY(GTK_BIN(cboHost)->child), h);
+
+			cfg_add_rev(h);
 			gtk_combo_box_append_text(GTK_COMBO_BOX(cboHost), h);
-			gtk_entry_set_text(GTK_ENTRY(GTK_BIN(cboHost)->child), h);
+
 		}else if(!strncmp(line, "DIR ", 4)){
 			extern GtkWidget *btnDirChoice;
 			gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(btnDirChoice), line + 4);
+
 		}else if(!strncmp(line, "CLOSE_TRAY ", 11)){
 			extern GtkWidget *chkTray;
 			int val = 1;

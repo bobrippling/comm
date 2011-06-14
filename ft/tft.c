@@ -40,6 +40,10 @@ int recursive = 0, canbeep = 1;
 struct filetransfer ft;
 enum { OVERWRITE, RESUME, RENAME_ASK, RENAME, ASK } clobber_mode = ASK;
 
+char col_sent[] = "\033[31m",
+		 col_recv[] = "\033[34m",
+		 col_off [] = "\033[m";
+
 void fout(FILE *f, const char *fmt, va_list l)
 {
 	fprintf(f, "%s tft: ", now());
@@ -89,15 +93,22 @@ void beep()
 int callback(struct filetransfer *ft, enum ftstate state,
 		size_t bytessent, size_t bytestotal)
 {
-	if(state == FT_SENT || state == FT_RECIEVED){
-		clrtoeol();
-		oprintf("done: %s", ft_fname(ft));
-
-		if(state == FT_RECIEVED)
+	switch(state){
+		case FT_RECIEVED:
 			beep();
-		return 0;
-	}else if(state == FT_WAIT)
-		return 0;
+		case FT_SENT:
+			clrtoeol();
+			oprintf("%s%s: %s%s",
+					state == FT_SENT ? col_sent : col_recv,
+					state == FT_SENT ? "sent"   : "received",
+					ft_fname(ft),
+					col_off);
+
+		case FT_WAIT:
+			return 0;
+		default:
+			break;
+	}
 
 	printf("\"%s\": %zd K / %zd K (%2.2f%%)\r", ft_basename(ft),
 			bytessent / 1024, bytestotal / 1024,
@@ -324,6 +335,9 @@ int main(int argc, char **argv)
 	signal(SIGQUIT, sigh);
 #endif
 
+	if(!isatty(STDOUT_FILENO))
+		*col_sent = *col_recv = *col_off = '\0';
+
 #define ARG(c) !strcmp(argv[i], "-" c)
 
 	for(i = 1; i < argc; i++)
@@ -346,7 +360,7 @@ int main(int argc, char **argv)
 
 		else if(ARG("B"))
 			canbeep = 0;
-		else if(ARG("U"))
+		else if(ARG("c"))
 			stay_up = 0;
 		else if(ARG("R"))
 			recursive = 1;
@@ -358,18 +372,18 @@ int main(int argc, char **argv)
 		}else{
 		usage:
 			fprintf(stderr,
-							"Usage: %s [-p port] [OPTS] [-l | host] [files...]"
+							"Usage: %s [-p port] [OPTS] [-l | host] [files...]\n"
 							"  -l: listen\n"
 							"  -R: send directories recursively\n"
 							"  -B: don't beep on file-receive\n"
-							"  -U: exit on eof/end of file arguments\n"
+							"  -c: exit on eof/end of file arguments\n"
 							" If file exists:\n"
 							"  -o: overwrite\n"
 							"  -a: rename incoming automatically\n"
 							"  -n: rename incoming\n"
 							"  -r: resume transfer\n"
 							"\n"
-							" Default Port: " FT_DEFAULT_PORT "\n"
+							"Default Port: " FT_DEFAULT_PORT "\n"
 					    , *argv);
 			return 1;
 		}
@@ -487,8 +501,11 @@ int main(int argc, char **argv)
 				if(FD_ISSET(STDIN_FILENO, &fds))
 					/* got a file to send */
 					switch(send_from_stdin()){
-						case STDIN_SUCCESS:
 						case STDIN_EOF:
+							if(!isatty(STDIN_FILENO))
+								goto fin;
+
+						case STDIN_SUCCESS:
 							/* good to carry on */
 							continue;
 						case STDIN_ERR:
@@ -514,7 +531,6 @@ int main(int argc, char **argv)
 							goto fin;
 					}else{
 						/* disco */
-						oprintf("disconnected from %s", ft_remoteaddr(&ft));
 						goto fin;
 					}
 				}
@@ -524,6 +540,7 @@ int main(int argc, char **argv)
 	}while(stay_up || fname_idx > 0);
 
 fin:
+	oprintf("disconnected from %s", ft_remoteaddr(&ft));
 	ft_close(&ft);
 
 	return ret;

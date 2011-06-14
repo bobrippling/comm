@@ -195,7 +195,17 @@ static int comm_process(comm_t *ct, char *buffer, comm_callback callback)
 			}else if(!strncmp(buffer, "MESSAGE ", 8))
 				callback(COMM_MSG, "%s", buffer + 8);
 
-			else if(!strncmp(buffer, "PRIVMSG ", 8))
+			else if(!strncmp(buffer, "TYPING ", 7)){
+				char *data = buffer + 7;
+
+				if(strlen(data) > 2){
+					int typing = !!*data;
+					char *who = data + 1;
+
+					callback(COMM_TYPING, NULL);
+				}
+
+			}else if(!strncmp(buffer, "PRIVMSG ", 8))
 				callback(COMM_PRIVMSG, "%s", buffer + 8);
 
 			else if(!strncmp(buffer, "RENAME ", 7)){
@@ -535,6 +545,11 @@ COMM_SIMPLE(comm_su,     "SU"    )
 COMM_SIMPLE(comm_kick,   "KICK"  )
 
 #undef COMM_SIMPLE
+
+int comm_typing(comm_t *ct, int b)
+{
+	return TO_SERVER_F("TYPING %d", b);
+}
 
 int comm_privmsg(comm_t *ct, const char *name, const char *msg)
 {

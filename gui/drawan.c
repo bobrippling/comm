@@ -112,10 +112,10 @@ on_drawan_button_press(GtkWidget *widget, GdkEventButton *event)
 {
 	TRACE("press");
 
-	if(event->button == 1 && surface)
+	if(event->button == 1 && surface){
 		draw_brush_send(widget, event->x, event->y);
 		return TRUE;
-	else
+	}else
 		return FALSE;
 }
 

@@ -181,6 +181,7 @@ void commcallback(enum comm_callbacktype type, const char *fmt, ...)
 			break;
 
 		case COMM_DRAW:
+		case COMM_DRAW_CLEAR:
 			return;
 
 		case COMM_CLIENT_LIST:

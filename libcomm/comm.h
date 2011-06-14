@@ -44,6 +44,7 @@ typedef struct
 enum comm_callbacktype
 {
 	COMM_MSG,
+	COMM_TYPING,
 	COMM_PRIVMSG,
 	COMM_INFO,
 	COMM_SERVER_INFO,
@@ -75,6 +76,7 @@ int comm_su(comm_t *, const char *pass);
 int comm_privmsg(comm_t *, const char *name, const char *msg);
 int comm_rels(comm_t *);
 int comm_colour(comm_t *, const char *col);
+int comm_typing(comm_t *, int);
 
 int  comm_draw(comm_t *, int x, int y, int last_x, int last_y, int colour);
 void comm_getdrawdata(const char *, int *, int *, int *, int *);
