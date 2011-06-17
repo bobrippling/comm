@@ -40,7 +40,7 @@ int recursive = 0, canbeep = 1;
 struct filetransfer ft;
 enum { OVERWRITE, RESUME, RENAME_ASK, RENAME, ASK } clobber_mode = ASK;
 
-char col_sent[] = "\033[31m",
+char col_sent[] = "\033[33m",
 		 col_recv[] = "\033[34m",
 		 col_off [] = "\033[m";
 
