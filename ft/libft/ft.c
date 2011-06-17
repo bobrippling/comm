@@ -611,14 +611,15 @@ int ft_recv(struct filetransfer *ft,
 	 *            "SIZE [0-9]+"
 	 *            ""
 	 */
-	FILE *local = NULL;
 	int ret = 0;
 	char buffer[BUFFER_SIZE], *basename = NULL;
 	size_t size, size_so_far = 0, callback_step;
 	ssize_t nread;
 
 	ft_fname(ft) = NULL;
-	if(ft_get_meta(ft, &basename, &local, &size,
+	ft->file = NULL;
+
+	if(ft_get_meta(ft, &basename, &ft->file, &size,
 				callback, queryback, fnameback, inputback))
 		RET(1);
 
@@ -627,7 +628,7 @@ int ft_recv(struct filetransfer *ft,
 	callback_step = ft_getcallback_step(size);
 
 	{
-		long tmp = ftell(local);
+		long tmp = ftell(ft->file);
 		size_so_far = tmp;
 		if(tmp == -1){
 			FT_LAST_ERR_OS();
@@ -684,7 +685,7 @@ done:
 		}
 
 		if((signed)fwrite(buffer, sizeof(char),
-					nread, local) != nread /* !*sizeof char */){
+					nread, ft->file) != nread /* !*sizeof char */){
 			FT_LAST_ERR_OS();
 			RET(1);
 		}
@@ -712,9 +713,9 @@ done:
 	/* unreachable */
 
 ret:
-	if(local){
-		fclose(local);
-		local = NULL;
+	if(ft->file){
+		fclose(ft->file);
+		ft->file = NULL;
 	}
 	if(basename){
 		free(basename);
@@ -847,7 +848,6 @@ int ft_send(struct filetransfer *ft, ft_callback callback, const char *path, int
 int ft_send_file(struct filetransfer *ft, ft_callback callback, const char *fname)
 {
 	struct stat st;
-	FILE *local;
 	int ilocal, cancelled = 0;
 	char buffer[BUFFER_SIZE];
 	size_t nwrite, nsent, callback_step;
@@ -861,14 +861,13 @@ int ft_send_file(struct filetransfer *ft, ft_callback callback, const char *fnam
 
 	FT_LAST_ERR_CLEAR();
 
-	local = fopen(fname, "rb");
-	if(!local){
+	if(!(ft->file = fopen(fname, "rb"))){
 		WIN_DEBUG("fopen()");
 		FT_LAST_ERR_OS();
 		return 1;
 	}
 
-	ilocal = fileno(local);
+	ilocal = fileno(ft->file);
 
 	if(ilocal == -1){
 		/* pretty much impossible */
@@ -947,7 +946,7 @@ int ft_send_file(struct filetransfer *ft, ft_callback callback, const char *fnam
 	}
 
 	if(nsent)
-		if(fseek(local, nsent, SEEK_SET) == -1){
+		if(fseek(ft->file, nsent, SEEK_SET) == -1){
 			WIN_DEBUG("fseek()");
 			FT_LAST_ERR_OS();
 			goto bail;
@@ -961,9 +960,9 @@ int ft_send_file(struct filetransfer *ft, ft_callback callback, const char *fnam
 	}
 
 	while(1){
-		switch((nwrite = fread(buffer, sizeof(char), sizeof buffer, local))){
+		switch((nwrite = fread(buffer, sizeof(char), sizeof buffer, ft->file))){
 			case 0:
-				if(ferror(local)){
+				if(ferror(ft->file)){
 					WIN_DEBUG("ferror()");
 					FT_LAST_ERR_NET();
 					goto bail;
@@ -1032,16 +1031,20 @@ complete:
 			goto bail;
 		}
 
-		if(fclose(local)){
+		if(fclose(ft->file)){
 			WIN_DEBUG("fclose()");
 			FT_LAST_ERR_OS();
+			ft->file = NULL;
 			return 1;
 		}
+
 		/* normal exit here */
+		ft->file = NULL;
 		return cancelled;
 	}
 bail:
-	fclose(local);
+	fclose(ft->file);
+	ft->file = NULL;
 	if(!ft_haderror(ft))
 		FT_LAST_ERR("Cancelled", 0);
 	return 1;
@@ -1156,6 +1159,11 @@ int ft_close(struct filetransfer *ft)
 		ft->sock = -1;
 	}
 	ft_connected(ft) = 0;
+
+	if(ft->file){
+		fclose(ft->file);
+		ft->file = NULL;
+	}
 
 	return ret;
 }

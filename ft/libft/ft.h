@@ -10,6 +10,8 @@ struct filetransfer
 	size_t lastcallback;
 	/*struct sockaddr_in addr;*/
 	char addr[32]; /* sizeof(sockaddr_in) == 16 */
+
+	FILE *file;
 };
 
 enum ftstate
