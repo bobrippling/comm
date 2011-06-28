@@ -1,12 +1,12 @@
 test async code
 
-in libft/ft.c, keep list of sent inodes, for dir-loop checking
+in libft/ft.c, keep list of sent inodes, for dir-loop checking?
 
 gft: menu instead of frmCfg
 gft: move-to-$DISPLAY code
 
 fix ft->lastcallback?
-kbps
+speed + ETA
 
 asynchronous/select calls
 cancel ability - another socket or fixed-width messages
