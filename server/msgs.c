@@ -170,6 +170,7 @@ void handle_su(int idx, char *reqpass)
 			TO_CLIENT(idx, "ERR incorrect root passphrase");
 			DEBUG(idx, DEBUG_STATUS, "%s incorrect root pass %s", clients[idx].name, reqpass);
 		}else{
+			stats.sus++;
 			clients[idx].isroot = 1;
 			TO_CLIENT(idx, "INFO root login successful");
 			DEBUG(idx, DEBUG_STATUS, "root login: %s", clients[idx].name);

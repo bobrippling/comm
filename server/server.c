@@ -83,8 +83,8 @@ static struct pollfd *pollfds = NULL;
 
 static struct
 {
-	int blocked, allowed, accepted;
-} stats = { 0, 0, 0 };
+	int blocked, allowed, accepted, sus;
+} stats = { 0, 0, 0, 0 };
 
 static int server = -1, udpserver = -1;
 static int nclients = 0, verbose = 0, background = 0;
@@ -462,10 +462,10 @@ void sigh(int sig)
 	if(sig == SIGINT){
 		printf(
 	      "%sComm v"VERSION_STR" %d Server Status (SIGQUIT ^\\ to quit)\n"
-	      "Stats: %d allowed, %d refused, %d named login (%d invalid), %d still open\n"
+	      "Stats: %d allowed, %d refused, %d named login (%d invalid), %d su:s, %d still open\n"
 	      "Uptime: %s\n"
-	      , background ? "" : "\n", getpid(), stats.allowed, stats.blocked, stats.accepted,
-	      stats.allowed - stats.accepted, nclients, getuptime());
+	      , background ? "" : "\n", getpid(), stats.allowed, stats.blocked,
+				stats.accepted, stats.allowed - stats.accepted, stats.sus, nclients, getuptime());
 
 		if(nclients){
 			int i;
@@ -844,7 +844,7 @@ int main(int argc, char **argv)
 				return 1;
 			}
 
-		}else if(!strncmp(argv[i], "-P", 2)){
+		}else if(!strcmp(argv[i], "-P")){
 			if(++i < argc){
 				strncpy(glob_pass, argv[i], sizeof glob_pass);
 				memset(argv[i], '*', strlen(argv[i])); /* too late, but eh... */
@@ -869,14 +869,17 @@ int main(int argc, char **argv)
 				p++;
 			}
 
+#define USAGE(args) do { fprintf args; goto usage; } while(0)
+
 			if(*p != '\0')
-				goto usage;
+				USAGE((stderr, "nothing should be after -v\n"));
+
 		}else if(!strcmp(argv[i], "-b")){
 			background = 1;
 		}else if(!strcmp(argv[i], "-l")){
 			log = 1;
 		}else
-			goto usage;
+			USAGE((stderr, "unknown arg %s\n", argv[i]));
 
 	if(!*glob_pass)
 		fputs("'root' password disabled\n", stderr);
