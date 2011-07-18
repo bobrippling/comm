@@ -7,6 +7,7 @@ gft: move-to-$DISPLAY code
 
 fix ft->lastcallback?
 speed + ETA
+add MB and GB divisors
 
 asynchronous/select calls
 cancel ability - another socket or fixed-width messages
