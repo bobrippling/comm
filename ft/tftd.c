@@ -127,7 +127,7 @@ int callback(struct filetransfer *ft, enum ftstate state,
 
 	switch(state){
 		case FT_SENT:
-		case FT_RECIEVED:
+		case FT_RECEIVED:
 			logprintf(state == FT_SENT ? "end_send" : "end_recv", "%s\n", ft_fname(ft));
 			break;
 
@@ -136,7 +136,7 @@ int callback(struct filetransfer *ft, enum ftstate state,
 			logprintf(state == FT_BEGIN_SEND ? "begin_send" : "begin_recv", "%s\n", ft_fname(ft));
 			break;
 
-		case FT_RECIEVING:
+		case FT_RECEIVING:
 		case FT_SENDING:
 			if(got_usr1){
 				got_usr1 = 0;
@@ -219,7 +219,7 @@ int connected_lewp()
 
 		if(FD_ISSET(fd_ft, &fds)){
 			if(ft_recv(&ft, callback, queryback, fnameback, inputback)){
-				/* "recieved %s" done in callback */
+				/* "received %s" done in callback */
 				if(ft_lasterrno(&ft)){
 					eprintf("ft_recv(): %s\n", ft_lasterr(&ft));
 					return 1;

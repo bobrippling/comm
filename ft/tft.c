@@ -94,7 +94,7 @@ int callback(struct filetransfer *ft, enum ftstate state,
 		size_t bytessent, size_t bytestotal)
 {
 	switch(state){
-		case FT_RECIEVED:
+		case FT_RECEIVED:
 			beep();
 		case FT_SENT:
 			clrtoeol();

@@ -112,7 +112,7 @@ static int WSA_Startuped = 0;
 
 #define FT_ERR_PREMATURE_CLOSE "libft: Connection prematurely closed"
 #define FT_ERR_TOO_MUCH        "libft: Too much data for file size"
-#define FT_ERR_INVALID_MSG     "libft: Invalid message recieved"
+#define FT_ERR_INVALID_MSG     "libft: Invalid message received"
 #define FT_ERR_CANCELLED       "Cancelled"
 
 #define BUFFER_SIZE            512
@@ -471,7 +471,7 @@ static int ft_get_meta(struct filetransfer *ft,
 	bufptr = strtok(NULL, "\n");
 	if(!strncmp(bufptr, "SIZE ", 5)){
 		if(sscanf(bufptr + 5, PRINTF_SIZET, (PRINTF_SIZET_CAST *)size) != 1){
-			FT_LAST_ERR("libft: Invalid SIZE recieved", 0);
+			FT_LAST_ERR("libft: Invalid SIZE received", 0);
 			FREE_AND_NULL(*basename);
 			return 1;
 		}
@@ -495,7 +495,7 @@ static int ft_get_meta(struct filetransfer *ft,
 	 *
 	 * bufptr[1] hasn't been changed by strtok
 	 * yet either (but check both \n and \0
-	 * for libc agnositicism and other excuses)
+	 * for libc agnosticism and other excuses)
 	 */
 
 	if(!bufptr[1] || bufptr[1] == '\n'){
@@ -668,7 +668,7 @@ done:
 				FT_LAST_ERR(FT_ERR_TOO_MUCH, 0);
 			else{
 				/* good so far, don't be a douche and cancel it.. */
-				if(callback(ft, FT_RECIEVED, size_so_far, size)){
+				if(callback(ft, FT_RECEIVED, size_so_far, size)){
 					/* ... douche */
 					FT_LAST_ERR(FT_ERR_CANCELLED, 0);
 					RET(1);
@@ -695,7 +695,7 @@ done:
 		if(size_so_far >= size)
 			/*
 			 * on normal operation, the == above will be true
-			 * when we've recieved the entire file,
+			 * when we've received the entire file,
 			 * so we won't end up blocking at the main recv()
 			 * yay
 			 */
@@ -703,7 +703,7 @@ done:
 
 		if(ft->lastcallback < size_so_far){
 			ft->lastcallback += callback_step;
-			if(callback(ft, FT_RECIEVING, size_so_far, size)){
+			if(callback(ft, FT_RECEIVING, size_so_far, size)){
 				/* cancelled */
 				FT_LAST_ERR(FT_ERR_CANCELLED, 0);
 				RET(1);
@@ -1236,7 +1236,8 @@ const char *ft_remoteaddr(struct filetransfer *ft)
 
 		fprintf(stderr, "libft: getnameinfo(...) = %s\n",
 				gai_strerror(ret));
-		return NULL;
+
+		return inet_ntoa(((struct sockaddr_in *)ft->addr)->sin_addr);
 	}
 	return buf;
 }

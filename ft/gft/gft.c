@@ -425,7 +425,7 @@ on_treeDone_row_activated(GtkTreeView *tree_view,
 		transfer = transfers_get(*indices);
 		if(transfer){
 			if(transfer->is_recv)
-				status("Recieved %s", transfer->fname);
+				status("Received %s", transfer->fname);
 			else
 				status("Sent %s", transfer->fname);
 			shelldir(transfer->path);
@@ -462,7 +462,7 @@ timeout(gpointer data)
 					CLOSE();
 				}else{
 					/*
-					 * status("Recieved %s", ft_truncname(&ft, 32));
+					 * status("Received %s", ft_truncname(&ft, 32));
 					 * don't do ^ here, it's done in the callback
 					 */
 					STAY_OPEN();
@@ -740,17 +740,17 @@ int callback(struct filetransfer *ft, enum ftstate ftst,
 			break; /* skip straight to return */
 
 		case FT_SENT:
-		case FT_RECIEVED:
+		case FT_RECEIVED:
 		{
 			char *stat;
 
 			if(ftst == FT_SENT)
 				stat = g_strdup_printf("Sent %s", ft_basename(ft));
 			else
-				stat = g_strdup_printf("Recieved %s", ft_basename(ft));
+				stat = g_strdup_printf("Received %s", ft_basename(ft));
 			status("%s", stat);
 			gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progressft), 1.0f);
-			transfers_add(listDone, ft_basename(ft), ft_fname(ft), ftst == FT_RECIEVED);
+			transfers_add(listDone, ft_basename(ft), ft_fname(ft), ftst == FT_RECEIVED);
 
 			tray_balloon("Transfer complete", stat);
 			g_free(stat);
@@ -764,7 +764,7 @@ int callback(struct filetransfer *ft, enum ftstate ftst,
 			cmds();
 			/* fall */
 
-		case FT_RECIEVING:
+		case FT_RECEIVING:
 		case FT_SENDING:
 			gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progressft), fraction);
 			status("%s: %ldK/%ldK (%2.2f%%)", ft_basename(ft),
